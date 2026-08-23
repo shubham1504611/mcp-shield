@@ -1,5 +1,6 @@
 /**
- * Cyber Command Controller & Real-Time Waveform Generator with Human-Clear UX
+ * MCP Shield Commercial Web Platform Controller
+ * Interactive Code Tabs, Real-Time Waveform Generator, Threat Simulator & Telemetry Stream
  */
 
 let traceLogs = [
@@ -61,7 +62,32 @@ document.addEventListener('DOMContentLoaded', () => {
   initWaveform();
 });
 
-// Live Oscilloscope Canvas Animator
+// 1. Code Tab Switcher
+function switchCodeTab(tabId) {
+  document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+  document.querySelectorAll('.tab-pane').forEach(pane => pane.classList.remove('active'));
+
+  const activeBtn = Array.from(document.querySelectorAll('.tab-btn')).find(b => 
+    b.getAttribute('onclick')?.includes(tabId)
+  );
+  if (activeBtn) activeBtn.classList.add('active');
+
+  const targetPane = document.getElementById(`tab-${tabId}`);
+  if (targetPane) targetPane.classList.add('active');
+}
+
+// 2. FAQ Accordion Toggle
+function toggleFaq(el) {
+  const item = el.closest('.faq-item');
+  if (!item) return;
+  const wasActive = item.classList.contains('active');
+  document.querySelectorAll('.faq-item').forEach(i => i.classList.remove('active'));
+  if (!wasActive) {
+    item.classList.add('active');
+  }
+}
+
+// 3. Live Oscilloscope Canvas Animator
 function initWaveform() {
   const canvas = document.getElementById('latencyCanvas');
   if (!canvas) return;
@@ -101,6 +127,7 @@ function initWaveform() {
   draw();
 }
 
+// 4. Stream Filter Handlers
 function filterLogs(filterType) {
   activeFilter = filterType;
   document.querySelectorAll('.filter-chip').forEach(btn => btn.classList.remove('active'));
@@ -172,7 +199,7 @@ function appendTermLog(text, isThreat = false) {
   term.prepend(div);
 }
 
-// 1-Click Interactive Simulations (Instant Reward Feedback)
+// 5. 1-Click Interactive Simulations
 function simulateAttack(type) {
   const now = new Date().toTimeString().split(' ')[0];
   totalCallsCount++;
@@ -236,7 +263,7 @@ function updateKpis() {
   if (elRoi) elRoi.innerText = `$${roiAmount.toLocaleString()}`;
 }
 
-// Toast Feedback Utility
+// 6. Toast Notification Utility
 function showToast(msg) {
   const existing = document.getElementById('active-toast');
   if (existing) existing.remove();
@@ -260,6 +287,7 @@ function copySnippet(text) {
   });
 }
 
+// 7. Modal Handlers
 function openKeyModal() {
   document.getElementById('key-modal').style.display = 'flex';
   document.getElementById('new-key-result').style.display = 'none';
