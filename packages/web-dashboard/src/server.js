@@ -1,6 +1,6 @@
 /**
- * Web Dashboard HTTP Server
- * Serves the interactive control plane on http://localhost:3000
+ * Unified Web Dashboard & Gateway HTTP Server
+ * Serves the interactive control plane, API routes, and /v1/mcp Gateway Proxy
  */
 
 const http = require('http');
@@ -8,21 +8,35 @@ const fs = require('fs');
 const path = require('path');
 const { generateApiKey } = require('./api/keys');
 const { calculateDashboardMetrics } = require('./api/telemetry');
+const { handleDodoWebhook } = require('./api/webhooks');
+const { McpGatewayProxy } = require('../../gateway-core/src/proxy');
 
 function startDashboardServer(port = 3000, callback) {
   const publicDir = path.join(__dirname, 'public');
+  const gateway = new McpGatewayProxy();
 
   const server = http.createServer((req, res) => {
-    // API: Generate new API key
+    // 1. Healthcheck & readiness probes
+    if (req.method === 'GET' && (req.url === '/healthz' || req.url === '/readyz')) {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ status: 'HEALTHY', timestamp: new Date().toISOString() }));
+    }
+
+    // 2. Gateway Core Proxy on /v1/mcp
+    if (req.url === '/v1/mcp') {
+      return gateway.handleRequest(req, res);
+    }
+
+    // 3. API: Generate new API key
     if (req.method === 'POST' && req.url === '/api/keys/generate') {
       const keyData = generateApiKey('org_demo_123', 'Web UI Generated Key');
       res.writeHead(200, { 'Content-Type': 'application/json' });
       return res.end(JSON.stringify(keyData));
     }
 
-    // API: Telemetry metrics
+    // 4. API: Telemetry metrics
     if (req.method === 'GET' && req.url === '/api/telemetry/metrics') {
-      const metrics = calculateDashboardMetrics([
+      const metrics = calculateDashboardMetrics(gateway.auditLogs.length > 0 ? gateway.auditLogs : [
         { isBlocked: false, latencyMs: 2 },
         { isBlocked: true, latencyMs: 1 }
       ]);
@@ -30,7 +44,26 @@ function startDashboardServer(port = 3000, callback) {
       return res.end(JSON.stringify(metrics));
     }
 
-    // Static Assets Routing
+    // 5. API: Dodo Payments Webhook
+    if (req.method === 'POST' && req.url === '/api/webhooks/dodo') {
+      let body = '';
+      req.on('data', chunk => { body += chunk; });
+      req.on('end', () => {
+        try {
+          const payload = JSON.parse(body || '{}');
+          const signature = req.headers['x-dodo-signature'] || '';
+          const result = handleDodoWebhook(payload, signature, process.env.DODO_WEBHOOK_SECRET || 'whsec_demo_secret');
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify(result));
+        } catch (err) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Malformed webhook payload' }));
+        }
+      });
+      return;
+    }
+
+    // 6. Static Assets Routing for Web Dashboard
     let filePath = path.join(publicDir, req.url === '/' ? 'index.html' : req.url);
     const ext = path.extname(filePath);
 
@@ -82,7 +115,7 @@ function startDashboardServer(port = 3000, callback) {
 if (require.main === module) {
   const initialPort = Number(process.env.PORT) || 3000;
   startDashboardServer(initialPort, (port) => {
-    console.log(`\n🚀 MCP Shield Institutional Web Dashboard running at: http://localhost:${port}\n`);
+    console.log(`\n🚀 MCP Shield Unified Gateway & Dashboard running at: http://localhost:${port}\n`);
   });
 }
 

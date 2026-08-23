@@ -1,0 +1,22 @@
+# ==============================================================================
+# Render.com Blueprint for MCP Shield (100% Free - No Credit Card Required)
+# ==============================================================================
+
+services:
+  - type: web
+    name: mcp-shield-platform
+    runtime: node
+    plan: free
+    buildCommand: npm ci
+    startCommand: node packages/web-dashboard/src/server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: SUPABASE_DB_URL
+        sync: false
+      - key: DODO_PAYMENTS_API_KEY
+        sync: false
+      - key: DODO_WEBHOOK_SECRET
+        sync: false
