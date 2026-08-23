@@ -78,16 +78,66 @@
         <button class="term-copy" onclick="copySnippet('npx mcp-shield wrap')">Copy</button>
       </div>
 
-      <!-- Ecosystem Compatibility Chips -->
+      <!-- Ecosystem Compatibility Chips with Rich Branded SVG Icons -->
       <div class="hero-ecosystem-row">
         <span class="eco-label">Native compatibility across:</span>
         <div class="eco-chips-group">
-          <span class="eco-pill">Anthropic Claude</span>
-          <span class="eco-pill">Cursor IDE</span>
-          <span class="eco-pill">LangChain</span>
-          <span class="eco-pill">CrewAI</span>
-          <span class="eco-pill">AutoGen</span>
-          <span class="eco-pill">PostgreSQL & Supabase</span>
+          <!-- Anthropic Claude -->
+          <span class="eco-pill">
+            <svg class="eco-icon" width="16" height="16" viewBox="0 0 24 24" fill="none">
+              <path d="M12 2L14.4 9.6L22 12L14.4 14.4L12 22L9.6 14.4L2 12L9.6 9.6L12 2Z" fill="#d97706"/>
+            </svg>
+            <span>Anthropic Claude</span>
+          </span>
+
+          <!-- Cursor IDE -->
+          <span class="eco-pill">
+            <svg class="eco-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0f172a" stroke-width="2">
+              <polygon points="5 3 19 12 12 14 9 21 5 3" fill="#0f172a"/>
+            </svg>
+            <span>Cursor IDE</span>
+          </span>
+
+          <!-- LangChain -->
+          <span class="eco-pill">
+            <svg class="eco-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+            </svg>
+            <span>LangChain</span>
+          </span>
+
+          <!-- CrewAI -->
+          <span class="eco-pill">
+            <svg class="eco-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+              <circle cx="9" cy="7" r="4"/>
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+              <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+            </svg>
+            <span>CrewAI</span>
+          </span>
+
+          <!-- AutoGen -->
+          <span class="eco-pill">
+            <svg class="eco-icon" width="16" height="16" viewBox="0 0 24 24" fill="none">
+              <rect x="3" y="3" width="7.5" height="7.5" rx="1.5" fill="#7c3aed"/>
+              <rect x="13.5" y="3" width="7.5" height="7.5" rx="1.5" fill="#2563eb"/>
+              <rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.5" fill="#059669"/>
+              <rect x="3" y="13.5" width="7.5" height="7.5" rx="1.5" fill="#d97706"/>
+            </svg>
+            <span>AutoGen</span>
+          </span>
+
+          <!-- PostgreSQL & Supabase -->
+          <span class="eco-pill">
+            <svg class="eco-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0284c7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <ellipse cx="12" cy="5" rx="9" ry="3"/>
+              <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/>
+              <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
+            </svg>
+            <span>PostgreSQL & Supabase</span>
+          </span>
         </div>
       </div>
     </div>
@@ -391,10 +441,31 @@
 
     <div class="quickstart-box">
       <div class="quick-nav">
-        <button class="quick-btn active" onclick="switchQuickstart('claude')">Claude Desktop</button>
-        <button class="quick-btn" onclick="switchQuickstart('cursor')">Cursor IDE</button>
-        <button class="quick-btn" onclick="switchQuickstart('python')">Python (LangChain / CrewAI)</button>
-        <button class="quick-btn" onclick="switchQuickstart('nodejs')">Node.js / TypeScript</button>
+        <button class="quick-btn active" onclick="switchQuickstart('claude')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="#d97706" style="vertical-align: -2px; margin-right: 4px;">
+            <path d="M12 2L14.4 9.6L22 12L14.4 14.4L12 22L9.6 14.4L2 12L9.6 9.6L12 2Z"/>
+          </svg>
+          Claude Desktop
+        </button>
+        <button class="quick-btn" onclick="switchQuickstart('cursor')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: -2px; margin-right: 4px;">
+            <polygon points="5 3 19 12 12 14 9 21 5 3" fill="currentColor"/>
+          </svg>
+          Cursor IDE
+        </button>
+        <button class="quick-btn" onclick="switchQuickstart('python')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: -2px; margin-right: 4px;">
+            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+          </svg>
+          Python (LangChain / CrewAI)
+        </button>
+        <button class="quick-btn" onclick="switchQuickstart('nodejs')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: -2px; margin-right: 4px;">
+            <polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5 12 2"/>
+          </svg>
+          Node.js / TypeScript
+        </button>
       </div>
 
       <div class="quick-content">

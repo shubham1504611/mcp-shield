@@ -385,14 +385,26 @@ body {
   gap: 0.5rem;
 }
 .eco-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
   background: #ffffff;
   border: 1px solid var(--border-light);
-  padding: 0.3rem 0.75rem;
+  padding: 0.35rem 0.85rem;
   border-radius: var(--radius-sm);
   font-size: 0.8125rem;
   font-weight: 600;
   color: var(--color-text-body);
   box-shadow: var(--shadow-subtle);
+  transition: all 0.15s ease;
+}
+.eco-pill:hover {
+  border-color: var(--border-card);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05);
+}
+.eco-icon {
+  flex-shrink: 0;
 }
 
 /* 2. Interactive Playground Section */
