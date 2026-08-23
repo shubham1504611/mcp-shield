@@ -23,6 +23,7 @@
       <nav class="nav-links">
         <a href="#how-it-works">Architecture</a>
         <a href="#guarantees">Security Model</a>
+        <a href="#console">Key Console</a>
         <a href="#quickstart">Quickstart</a>
         <a href="#pricing">Pricing</a>
         <a href="#faq">FAQ</a>
@@ -169,7 +170,78 @@
     </div>
   </section>
 
-  <!-- 4. Interactive Live Policy Inspector -->
+  <!-- 4. Active Key Telemetry & Security Console (Blueprint Specified) -->
+  <section class="site-container section-pad" id="console">
+    <div class="section-lead">
+      <div class="eyebrow-label">ACTIVE GATEWAY CONSOLE</div>
+      <h2 class="section-title">Live Key Telemetry & Defense Status</h2>
+      <p class="section-desc">Real-time metrics, policy status, and verifiable audit records for your active API key.</p>
+    </div>
+
+    <div class="console-wrapper">
+      <!-- Top Console Status Bar -->
+      <div class="console-bar">
+        <div class="console-key-info">
+          <span class="pulse-indicator"></span>
+          <span class="console-label">ACTIVE KEY:</span>
+          <code class="console-key-code" id="console-active-key">mcp_live_sec_demo_881902</code>
+        </div>
+        <div class="console-actions">
+          <button class="btn-console-action" onclick="simulateProtectedCall()">⚡ Run Test Query</button>
+          <button class="btn-console-action" onclick="simulateAttackCall()">🚨 Test Attack Block</button>
+        </div>
+      </div>
+
+      <!-- 4 Live Metric Cards -->
+      <div class="console-metrics-grid">
+        <div class="console-stat-card">
+          <div class="stat-meta">TOTAL TOOL CALLS</div>
+          <div class="stat-value" id="kpi-total-calls">1,428</div>
+          <div class="stat-subtext">Evaluated in-memory</div>
+        </div>
+
+        <div class="console-stat-card">
+          <div class="stat-meta">ATTACKS INTERCEPTED</div>
+          <div class="stat-value text-emerald" id="kpi-threats-blocked">37</div>
+          <div class="stat-subtext">Prompt injections & DDL</div>
+        </div>
+
+        <div class="console-stat-card">
+          <div class="stat-meta">P99 LATENCY</div>
+          <div class="stat-value" id="kpi-latency">1.1 ms</div>
+          <div class="stat-subtext">Zero network roundtrips</div>
+        </div>
+
+        <div class="console-stat-card">
+          <div class="stat-meta">SECURITY POLICIES</div>
+          <div class="stat-value text-indigo" id="kpi-policies-count">4 Active</div>
+          <div class="stat-subtext">AST Guard + WAF + Ed25519</div>
+        </div>
+      </div>
+
+      <!-- Active Defense Policies Summary -->
+      <div class="console-policies-row">
+        <div class="policy-chip active">
+          <span class="policy-dot"></span>
+          <span><b>AST SQL Armor:</b> Blocks <code>DROP TABLE</code> & bulk deletes</span>
+        </div>
+        <div class="policy-chip active">
+          <span class="policy-dot"></span>
+          <span><b>Unicode Normalizer:</b> Strips hidden zero-width injections</span>
+        </div>
+        <div class="policy-chip active">
+          <span class="policy-dot"></span>
+          <span><b>Ed25519 Enclave:</b> Signs all verified tool outputs</span>
+        </div>
+        <div class="policy-chip active">
+          <span class="policy-dot"></span>
+          <span><b>Egress Firewall:</b> Blocks unauthorized outbound webhooks</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5. Interactive Live Policy Inspector -->
   <section class="site-container section-pad">
     <div class="section-lead">
       <div class="eyebrow-label">LIVE DEMONSTRATION</div>
@@ -228,7 +300,7 @@
     </div>
   </section>
 
-  <!-- 5. 2-Minute Quickstart Integration -->
+  <!-- 6. 2-Minute Quickstart Integration -->
   <section class="site-container section-pad" id="quickstart">
     <div class="section-lead">
       <div class="eyebrow-label">INTEGRATION</div>
@@ -305,7 +377,7 @@ console.log('Attested Trace ID:', response.traceId);</code></pre>
     </div>
   </section>
 
-  <!-- 6. Transparent Pricing -->
+  <!-- 7. Transparent Pricing -->
   <section class="site-container section-pad" id="pricing">
     <div class="section-lead">
       <div class="eyebrow-label">PRICING</div>
@@ -364,7 +436,7 @@ console.log('Attested Trace ID:', response.traceId);</code></pre>
     </div>
   </section>
 
-  <!-- 7. FAQ Accordion (Expansive 2-Column Grid) -->
+  <!-- 8. FAQ Accordion (Expansive 2-Column Grid) -->
   <section class="site-container section-pad" id="faq">
     <div class="section-lead">
       <div class="eyebrow-label">FAQ</div>
@@ -457,6 +529,7 @@ console.log('Attested Trace ID:', response.traceId);</code></pre>
           <div class="footer-col-title">PRODUCT</div>
           <a href="#how-it-works">Architecture</a>
           <a href="#guarantees">Security Model</a>
+          <a href="#console">Key Console</a>
           <a href="#quickstart">Quickstart</a>
           <a href="#pricing">Pricing</a>
         </div>

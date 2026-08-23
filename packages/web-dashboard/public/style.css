@@ -474,6 +474,136 @@ body {
   line-height: 1.6;
 }
 
+/* Active Gateway Console */
+.console-wrapper {
+  background: #ffffff;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  padding: 1.75rem;
+  box-shadow: var(--shadow-card);
+}
+.console-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 1.25rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid var(--border-light);
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+.console-key-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.pulse-indicator {
+  width: 8px;
+  height: 8px;
+  background: var(--color-success);
+  border-radius: 50%;
+  box-shadow: 0 0 8px rgba(4, 120, 87, 0.4);
+}
+.console-label {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: var(--color-text-dim);
+}
+.console-key-code {
+  font-family: var(--font-mono);
+  font-size: 0.84rem;
+  color: var(--color-primary);
+  font-weight: 700;
+  background: var(--color-primary-light);
+  padding: 0.2rem 0.6rem;
+  border-radius: 4px;
+}
+.console-actions {
+  display: flex;
+  gap: 0.65rem;
+}
+.btn-console-action {
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-light);
+  color: var(--color-text-title);
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  padding: 0.45rem 0.85rem;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.btn-console-action:hover {
+  background: var(--color-text-title);
+  color: #ffffff;
+  border-color: var(--color-text-title);
+}
+
+.console-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+.console-stat-card {
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 1.25rem;
+}
+.stat-meta {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 800;
+  color: var(--color-text-dim);
+  letter-spacing: 0.05em;
+  margin-bottom: 0.35rem;
+}
+.stat-value {
+  font-size: 1.65rem;
+  font-weight: 800;
+  color: var(--color-text-title);
+  letter-spacing: -0.03em;
+  line-height: 1.2;
+}
+.stat-value.text-emerald {
+  color: var(--color-success);
+}
+.stat-value.text-indigo {
+  color: var(--color-primary);
+}
+.stat-subtext {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  margin-top: 0.25rem;
+}
+
+.console-policies-row {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.75rem;
+  background: var(--bg-muted);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 1rem 1.25rem;
+}
+.policy-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
+  color: var(--color-text-body);
+}
+.policy-dot {
+  width: 6px;
+  height: 6px;
+  background: var(--color-success);
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
 /* 5. Policy Inspector (Side by Side) */
 .inspector-card {
   background: #ffffff;
@@ -1035,7 +1165,7 @@ body {
 @media (max-width: 900px) {
   .architecture-canvas { grid-template-columns: 1fr; gap: 1.25rem; text-align: center; }
   .arch-arrow { transform: rotate(90deg); margin: 0.5rem 0; }
-  .guarantees-grid, .pricing-deck, .footer-layout, .faq-deck { grid-template-columns: 1fr; }
+  .guarantees-grid, .pricing-deck, .footer-layout, .faq-deck, .console-metrics-grid, .console-policies-row { grid-template-columns: 1fr; }
   .inspector-body { grid-template-columns: 1fr; }
   .nav-links { display: none; }
   .hero-headline { font-size: 2.35rem; }

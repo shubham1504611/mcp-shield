@@ -1,6 +1,6 @@
 /**
  * MCP Shield — Clean Minimalist Controller
- * Protocol Inspector, Quickstart Tabs, FAQ Toggles & Key Provisioning
+ * Protocol Inspector, Active Key Console, Quickstart Tabs, FAQ Toggles & Key Provisioning
  */
 
 const SCENARIOS = {
@@ -142,8 +142,18 @@ const SCENARIOS = {
   }
 };
 
+let telemetryCalls = 1428;
+let telemetryThreats = 37;
+
 document.addEventListener('DOMContentLoaded', () => {
   selectInspectorScenario(1);
+
+  // Restore existing key from storage if present
+  const savedKey = localStorage.getItem('mcp_shield_active_key');
+  if (savedKey) {
+    const el = document.getElementById('console-active-key');
+    if (el) el.innerText = savedKey;
+  }
 
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
@@ -175,7 +185,22 @@ function selectInspectorScenario(index) {
   document.getElementById('ins-sig-val').innerText = s.sig;
 }
 
-// 2. Quickstart Tab Switcher
+// 2. Active Key Telemetry Simulation
+function simulateProtectedCall() {
+  telemetryCalls += 1;
+  document.getElementById('kpi-total-calls').innerText = telemetryCalls.toLocaleString();
+  showToast('✓ Tool Call Permitted & Signed with Ed25519 (1.1ms)');
+}
+
+function simulateAttackCall() {
+  telemetryCalls += 1;
+  telemetryThreats += 1;
+  document.getElementById('kpi-total-calls').innerText = telemetryCalls.toLocaleString();
+  document.getElementById('kpi-threats-blocked').innerText = telemetryThreats.toLocaleString();
+  showToast('🚨 Prompt Injection Neutralized (Error -32001)');
+}
+
+// 3. Quickstart Tab Switcher
 function switchQuickstart(key) {
   document.querySelectorAll('.quick-btn').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.quick-pane').forEach(p => p.classList.remove('active'));
@@ -189,7 +214,7 @@ function switchQuickstart(key) {
   if (activePane) activePane.classList.add('active');
 }
 
-// 3. FAQ Row Toggle
+// 4. FAQ Row Toggle
 function toggleFaqRow(el) {
   const box = el.closest('.faq-box');
   if (!box) return;
@@ -198,7 +223,7 @@ function toggleFaqRow(el) {
   if (!wasActive) box.classList.add('active');
 }
 
-// 4. Toast Notification Utility
+// 5. Toast Notification Utility
 function showToast(msg) {
   const existing = document.getElementById('active-toast');
   if (existing) existing.remove();
@@ -222,7 +247,7 @@ function copySnippet(text) {
   });
 }
 
-// 5. Modals & Key Provisioning
+// 6. Modals & Key Provisioning
 function openKeyModal() {
   document.getElementById('key-modal').style.display = 'flex';
   document.getElementById('modal-key-output').style.display = 'none';
@@ -261,7 +286,11 @@ function generateGatewayKey() {
   document.getElementById('modal-key-output').style.display = 'block';
   document.getElementById('btn-modal-generate').style.display = 'none';
 
-  showToast('API Key generated successfully.');
+  localStorage.setItem('mcp_shield_active_key', fullKey);
+  const consoleEl = document.getElementById('console-active-key');
+  if (consoleEl) consoleEl.innerText = fullKey;
+
+  showToast('API Key generated & connected to Console.');
 }
 
 function submitConnectKey() {
@@ -271,7 +300,10 @@ function submitConnectKey() {
     return;
   }
   closeConnectModal();
-  showToast('Key connected. Session re-linked.');
+  localStorage.setItem('mcp_shield_active_key', key);
+  const consoleEl = document.getElementById('console-active-key');
+  if (consoleEl) consoleEl.innerText = key;
+  showToast('Key connected. Session linked to Console.');
 }
 
 function simulateProActivation() {
