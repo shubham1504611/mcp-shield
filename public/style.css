@@ -249,7 +249,7 @@ body {
   background: var(--color-primary-light);
   border: 1px solid rgba(67, 56, 202, 0.15);
   padding: 0.35rem 0.875rem;
-  border-radius: 9999px;
+  border-radius: var(--radius-sm);
   font-family: var(--font-mono);
   font-size: 0.75rem;
   font-weight: 700;
@@ -1169,7 +1169,7 @@ body {
   background: var(--color-success-light);
   border: 1px solid rgba(4, 120, 87, 0.2);
   padding: 0.35rem 0.75rem;
-  border-radius: 9999px;
+  border-radius: var(--radius-sm);
   font-family: var(--font-mono);
   font-size: 0.72rem;
   font-weight: 700;
