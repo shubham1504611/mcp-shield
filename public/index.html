@@ -26,6 +26,7 @@
       <nav class="nav-links">
         <a href="#how-it-works">How It Works</a>
         <a href="#playground">Live Sandbox</a>
+        <a href="#key-inspector">My Key Telemetry</a>
         <a href="#pillars">Defense Pillars</a>
         <a href="#integrations">Integrations</a>
         <a href="#marketplace">Marketplace</a>
@@ -162,7 +163,57 @@
     </div>
   </section>
 
-  <!-- 3. Interactive Security Playground -->
+  <!-- 3. Dedicated Active Key Inspector Section -->
+  <section class="container" id="key-inspector" style="margin-bottom: 2.5rem;">
+    <div class="key-inspector-panel">
+      <div class="inspector-header">
+        <div style="display:flex;align-items:center;gap:0.75rem;">
+          <div class="inspector-badge">🔑 ACTIVE KEY INSPECTOR</div>
+          <span style="font-size:0.95rem;font-weight:800;" id="ins-key-name">Production Agent Fleet Key</span>
+        </div>
+        <div style="display:flex;gap:0.5rem;align-items:center;">
+          <span class="tag-pass">🟢 LIVE & INTERCEPTING</span>
+          <button class="cyber-btn btn-cyan btn-sm" onclick="copySnippet(activeKeys[currentKeyIndex].fullKey || activeKeys[currentKeyIndex].prefix)">COPY KEY</button>
+        </div>
+      </div>
+
+      <div class="inspector-grid">
+        <div class="ins-metric-box">
+          <div class="ins-label">KEY PREFIX / ID</div>
+          <div class="ins-value mono" id="ins-key-prefix" style="color:#00f0ff;">mcp_live_sec_89f...</div>
+        </div>
+        <div class="ins-metric-box">
+          <div class="ins-label">TOTAL CALLS FOR THIS KEY</div>
+          <div class="ins-value mono" id="ins-key-calls">1,420</div>
+        </div>
+        <div class="ins-metric-box">
+          <div class="ins-label">THREATS INTERCEPTED</div>
+          <div class="ins-value mono" id="ins-key-threats" style="color:#ff2a5f;">3 Blocked</div>
+        </div>
+        <div class="ins-metric-box">
+          <div class="ins-label">ESTIMATED VALUE PROTECTED</div>
+          <div class="ins-value mono" id="ins-key-roi" style="color:#00ff88;">$13,500</div>
+        </div>
+        <div class="ins-metric-box">
+          <div class="ins-label">RPM RATE LIMIT</div>
+          <div class="ins-value mono" id="ins-key-rpm">240 RPM</div>
+        </div>
+      </div>
+
+      <!-- 1-Click Drop-in Config for This Specific Key -->
+      <div class="ins-config-banner">
+        <div style="font-family:var(--font-mono);font-size:0.78rem;font-weight:700;color:var(--text-slate);margin-bottom:0.4rem;">
+          💡 DROP-IN AGENT CONFIGURATION FOR THIS KEY:
+        </div>
+        <div class="ins-code-row">
+          <code id="ins-agent-snippet">npx mcp-shield proxy --port 8080 --key mcp_live_sec_89f12a...</code>
+          <button class="cli-copy-btn" onclick="copySnippet(document.getElementById('ins-agent-snippet').innerText)">COPY CONFIG</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. Interactive Security Playground -->
   <section class="container section-spacing" id="playground">
     <div class="section-header">
       <div class="section-tag">LIVE INTERACTIVE PLAYGROUND</div>
@@ -275,7 +326,7 @@
     </section>
   </section>
 
-  <!-- 4. Quickstart Code Integration Tabs -->
+  <!-- 5. Quickstart Code Integration Tabs -->
   <section class="container section-spacing" id="how-it-works">
     <div class="section-header">
       <div class="section-tag">2-MINUTE QUICKSTART</div>
@@ -375,7 +426,7 @@ console.log('Attested Trace ID:', response.traceId);</code></pre>
     </div>
   </section>
 
-  <!-- 5. Four Core Security Pillars -->
+  <!-- 6. Four Core Security Pillars -->
   <section class="container section-spacing" id="pillars">
     <div class="section-header">
       <div class="section-tag">DEFENSE-IN-DEPTH</div>
@@ -430,7 +481,7 @@ console.log('Attested Trace ID:', response.traceId);</code></pre>
     </div>
   </section>
 
-  <!-- 6. Ecosystem Integrations Grid -->
+  <!-- 7. Ecosystem Integrations Grid -->
   <section class="container section-spacing" id="integrations">
     <div class="section-header">
       <div class="section-tag">COMPATIBILITY MATRIX</div>
@@ -472,7 +523,7 @@ console.log('Attested Trace ID:', response.traceId);</code></pre>
     </div>
   </section>
 
-  <!-- 7. Paid Creator Marketplace -->
+  <!-- 8. Paid Creator Marketplace -->
   <section class="container section-spacing" id="marketplace">
     <div class="section-header">
       <div class="section-tag">CREATOR MARKETPLACE</div>
@@ -507,7 +558,7 @@ console.log('Attested Trace ID:', response.traceId);</code></pre>
     </div>
   </section>
 
-  <!-- 8. Pricing Matrix -->
+  <!-- 9. Pricing Matrix -->
   <section class="container section-spacing" id="pricing">
     <div class="section-header">
       <div class="section-tag">TRANSPARENT PRICING</div>
@@ -563,7 +614,7 @@ console.log('Attested Trace ID:', response.traceId);</code></pre>
     </div>
   </section>
 
-  <!-- 9. Customer FAQ Accordion -->
+  <!-- 10. Customer FAQ Accordion -->
   <section class="container section-spacing" id="faq">
     <div class="section-header">
       <div class="section-tag">FREQUENTLY ASKED QUESTIONS</div>
@@ -613,7 +664,7 @@ console.log('Attested Trace ID:', response.traceId);</code></pre>
     </div>
   </section>
 
-  <!-- 10. Enterprise Footer -->
+  <!-- 11. Enterprise Footer -->
   <footer class="command-footer">
     <div class="container footer-grid">
       <div>

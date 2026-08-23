@@ -1,6 +1,6 @@
 /**
  * MCP Shield Commercial Web Platform Controller
- * Interactive Code Tabs, Real-Time Waveform Generator, Threat Simulator, Connect Key & Auth Handlers
+ * Interactive Code Tabs, Real-Time Waveform Generator, Threat Simulator, Key Inspector & Auth Handlers
  */
 
 let traceLogs = [
@@ -47,10 +47,29 @@ let traceLogs = [
 ];
 
 let activeKeys = [
-  { name: 'Production Agent Fleet Key', prefix: 'mcp_live_sec_89f12a...', rpm: 240, created: 'Active' },
-  { name: 'Developer Staging Sandbox Key', prefix: 'mcp_live_sec_42a9bc...', rpm: 60, created: 'Active' }
+  { 
+    name: 'Production Agent Fleet Key', 
+    prefix: 'mcp_live_sec_89f12a...', 
+    fullKey: 'mcp_live_sec_89f12a4b8891c9e88d1039bb8721fa01',
+    rpm: 240, 
+    calls: 1420,
+    threats: 3,
+    roi: 13500,
+    created: 'Active' 
+  },
+  { 
+    name: 'Developer Staging Sandbox Key', 
+    prefix: 'mcp_live_sec_42a9bc...', 
+    fullKey: 'mcp_live_sec_42a9bc71891901a1bc678832a81900de',
+    rpm: 60, 
+    calls: 310,
+    threats: 1,
+    roi: 4500,
+    created: 'Active' 
+  }
 ];
 
+let currentKeyIndex = 0;
 let totalCallsCount = 128490;
 let blockedCount = 34;
 let roiAmount = 153000;
@@ -59,6 +78,7 @@ let activeFilter = 'ALL';
 document.addEventListener('DOMContentLoaded', () => {
   renderTraceTable();
   renderKeyList();
+  updateKeyInspector();
   initWaveform();
 
   // Escape key closes all modals
@@ -137,7 +157,43 @@ function initWaveform() {
   draw();
 }
 
-// 4. Stream Filter Handlers
+// 4. Key Inspector Controller
+function selectKeyToInspect(index) {
+  currentKeyIndex = index;
+  renderKeyList();
+  updateKeyInspector();
+  
+  // Smooth scroll to Key Inspector section
+  const el = document.getElementById('key-inspector');
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  
+  showToast(`🔍 Inspecting Telemetry for: ${activeKeys[index].name}`);
+}
+
+function updateKeyInspector() {
+  const key = activeKeys[currentKeyIndex];
+  if (!key) return;
+
+  const elName = document.getElementById('ins-key-name');
+  const elPrefix = document.getElementById('ins-key-prefix');
+  const elCalls = document.getElementById('ins-key-calls');
+  const elThreats = document.getElementById('ins-key-threats');
+  const elRoi = document.getElementById('ins-key-roi');
+  const elRpm = document.getElementById('ins-key-rpm');
+  const elSnippet = document.getElementById('ins-agent-snippet');
+
+  if (elName) elName.innerText = key.name;
+  if (elPrefix) elPrefix.innerText = key.prefix;
+  if (elCalls) elCalls.innerText = key.calls.toLocaleString();
+  if (elThreats) elThreats.innerText = `${key.threats} Blocked`;
+  if (elRoi) elRoi.innerText = `$${key.roi.toLocaleString()}`;
+  if (elRpm) elRpm.innerText = `${key.rpm} RPM`;
+  if (elSnippet) {
+    elSnippet.innerText = `npx mcp-shield proxy --port 8080 --key ${key.fullKey || key.prefix}`;
+  }
+}
+
+// 5. Stream Filter Handlers
 function filterLogs(filterType) {
   activeFilter = filterType;
   document.querySelectorAll('.filter-chip').forEach(btn => btn.classList.remove('active'));
@@ -186,15 +242,23 @@ function renderKeyList() {
   if (!container) return;
   container.innerHTML = '';
 
-  activeKeys.forEach(k => {
+  activeKeys.forEach((k, idx) => {
+    const isSelected = idx === currentKeyIndex;
     const div = document.createElement('div');
-    div.className = 'cyber-row';
+    div.className = `cyber-row ${isSelected ? 'selected' : ''}`;
     div.innerHTML = `
-      <div>
-        <div style="font-weight:700;font-size:0.82rem;">${k.name}</div>
-        <div style="font-size:0.72rem;font-family:var(--font-mono);color:var(--text-dim);margin-top:0.15rem;"><code>${k.prefix}</code> • ${k.rpm} RPM Limit</div>
+      <div style="cursor:pointer;" onclick="selectKeyToInspect(${idx})">
+        <div style="font-weight:700;font-size:0.82rem;display:flex;align-items:center;gap:0.4rem;">
+          ${isSelected ? '<span style="color:#00f0ff;">▶</span>' : ''} ${k.name}
+        </div>
+        <div style="font-size:0.72rem;font-family:var(--font-mono);color:var(--text-dim);margin-top:0.15rem;">
+          <code>${k.prefix}</code> • ${k.calls} calls • ${k.rpm} RPM
+        </div>
       </div>
-      <button class="cyber-btn btn-cyan btn-sm" onclick="copySnippet('${k.prefix}')">COPY</button>
+      <div style="display:flex;gap:0.4rem;">
+        <button class="cyber-btn btn-cyan btn-sm" onclick="selectKeyToInspect(${idx})">INSPECT</button>
+        <button class="cyber-btn btn-ghost btn-sm" onclick="copySnippet('${k.fullKey || k.prefix}')">COPY</button>
+      </div>
     `;
     container.appendChild(div);
   });
@@ -209,12 +273,18 @@ function appendTermLog(text, isThreat = false) {
   term.prepend(div);
 }
 
-// 5. 1-Click Interactive Simulations
+// 6. 1-Click Interactive Simulations
 function simulateAttack(type) {
   const now = new Date().toTimeString().split(' ')[0];
   totalCallsCount++;
   blockedCount++;
   roiAmount += 4500;
+
+  if (activeKeys[currentKeyIndex]) {
+    activeKeys[currentKeyIndex].calls++;
+    activeKeys[currentKeyIndex].threats++;
+    activeKeys[currentKeyIndex].roi += 4500;
+  }
 
   let ruleName = 'PROMPT_INJECTION';
   let actionText = 'Neutralized Prompt Override to dump database credentials in 0.7ms';
@@ -239,6 +309,8 @@ function simulateAttack(type) {
   appendTermLog(`[WAF-INTERCEPT] ${now} TRACE#trc_${Math.random().toString(36).substring(2, 10)} RULE#${ruleName} -> 200 OK (-32001)`, true);
 
   updateKpis();
+  updateKeyInspector();
+  renderKeyList();
   renderTraceTable();
   showToast(`🛡️ Threat Intercepted: ${ruleName} (0.7ms)`);
 }
@@ -246,6 +318,10 @@ function simulateAttack(type) {
 function simulateSafeCall() {
   const now = new Date().toTimeString().split(' ')[0];
   totalCallsCount++;
+
+  if (activeKeys[currentKeyIndex]) {
+    activeKeys[currentKeyIndex].calls++;
+  }
 
   traceLogs.unshift({
     time: now,
@@ -259,6 +335,8 @@ function simulateSafeCall() {
   appendTermLog(`[SYS-ENCLAVE] ${now} TRACE#trc_${Math.random().toString(36).substring(2, 10)} [Ed25519_SIG_VERIFIED] postgres_db -> 200 OK (1.2ms)`, false);
 
   updateKpis();
+  updateKeyInspector();
+  renderKeyList();
   renderTraceTable();
   showToast('🟢 Certified Safe Tool Execution (1.2ms)');
 }
@@ -273,7 +351,7 @@ function updateKpis() {
   if (elRoi) elRoi.innerText = `$${roiAmount.toLocaleString()}`;
 }
 
-// 6. Toast Notification Utility
+// 7. Toast Notification Utility
 function showToast(msg) {
   const existing = document.getElementById('active-toast');
   if (existing) existing.remove();
@@ -297,7 +375,7 @@ function copySnippet(text) {
   });
 }
 
-// 7. Modal Handlers
+// 8. Modal Handlers
 function openKeyModal() {
   document.getElementById('key-modal').style.display = 'flex';
   document.getElementById('new-key-result').style.display = 'none';
@@ -336,7 +414,7 @@ function handleBackdropClick(event, modalId) {
   }
 }
 
-// 8. Key Generation & Reconnection
+// 9. Key Generation & Reconnection
 function handleGenerateKey() {
   const name = document.getElementById('key-name-input').value || 'Production Key Alpha';
   const randomHex = Array.from(crypto.getRandomValues(new Uint8Array(16))).map(b => b.toString(16).padStart(2, '0')).join('');
@@ -345,15 +423,22 @@ function handleGenerateKey() {
   activeKeys.unshift({
     name: name,
     prefix: fullKey.substring(0, 16) + '...',
+    fullKey: fullKey,
     rpm: Number(document.getElementById('key-rate-input').value || 120),
+    calls: 1,
+    threats: 0,
+    roi: 0,
     created: 'Active'
   });
+
+  currentKeyIndex = 0;
 
   document.getElementById('new-key-code').innerText = fullKey;
   document.getElementById('new-key-result').style.display = 'block';
   document.getElementById('btn-generate').style.display = 'none';
 
   renderKeyList();
+  updateKeyInspector();
   showToast('🔑 New API Key Provisioned & Attested!');
 }
 
@@ -372,16 +457,22 @@ function handleConnectExistingKey() {
   activeKeys.unshift({
     name: 'Reconnected Fleet Key',
     prefix: key.substring(0, 16) + '...',
+    fullKey: key,
     rpm: 120,
+    calls: 842,
+    threats: 2,
+    roi: 9000,
     created: 'Active'
   });
 
+  currentKeyIndex = 0;
   closeConnectModal();
   renderKeyList();
+  updateKeyInspector();
   showToast('⚡ Key Reconnected! Live Fleet Telemetry Restored from Supabase.');
 }
 
-// 9. Auth Handlers
+// 10. Auth Handlers
 function simulateGoogleAuth() {
   closeAuthModal();
   showToast('🔐 Signed in with Google! Workspace linked to your account.');

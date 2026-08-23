@@ -132,13 +132,13 @@ body {
 
 .nav-links {
   display: flex;
-  gap: 1.75rem;
+  gap: 1.5rem;
   align-items: center;
 }
 .nav-links a {
   color: var(--text-slate);
   text-decoration: none;
-  font-size: 0.85rem;
+  font-size: 0.82rem;
   font-weight: 600;
   transition: color 0.15s ease;
 }
@@ -530,7 +530,83 @@ body {
   color: var(--text-slate);
 }
 
-/* 5. Playground & Buttons */
+/* 5. Key Inspector Panel */
+.key-inspector-panel {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-tactical);
+  border-radius: 8px;
+  padding: 1.65rem 2rem;
+  box-shadow: 0 10px 35px rgba(0, 240, 255, 0.08);
+}
+.inspector-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--border-subtle);
+  padding-bottom: 1rem;
+  margin-bottom: 1.25rem;
+}
+.inspector-badge {
+  background: var(--cyber-cyan-dim);
+  border: 1px solid var(--cyber-cyan);
+  color: var(--cyber-cyan);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 800;
+  padding: 0.25rem 0.65rem;
+  border-radius: 4px;
+  letter-spacing: 0.06em;
+}
+.inspector-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+.ins-metric-box {
+  background: #080c14;
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  padding: 0.9rem 1.1rem;
+}
+.ins-label {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  color: var(--text-dim);
+  font-weight: 700;
+  margin-bottom: 0.35rem;
+}
+.ins-value {
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: #fff;
+}
+.ins-value.mono {
+  font-family: var(--font-mono);
+}
+
+.ins-config-banner {
+  background: #04060a;
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  padding: 1rem 1.25rem;
+}
+.ins-code-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #000000;
+  border: 1px solid rgba(0, 240, 255, 0.2);
+  padding: 0.6rem 0.9rem;
+  border-radius: 4px;
+}
+.ins-code-row code {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: #67e8f9;
+}
+
+/* 6. Playground & Buttons */
 .threat-sim-bar {
   background: var(--bg-panel);
   border: 1px solid var(--border-tactical);
@@ -782,6 +858,10 @@ body {
 .cyber-row:hover {
   border-color: var(--cyber-cyan);
 }
+.cyber-row.selected {
+  border-color: var(--cyber-cyan);
+  background: rgba(0, 240, 255, 0.08);
+}
 
 /* Terminal */
 .terminal-drawer {
@@ -813,7 +893,7 @@ body {
 .term-line { color: #67e8f9; }
 .term-line.threat { color: #ff7597; font-weight: 700; }
 
-/* 6. Code Integration Tabs */
+/* 7. Code Integration Tabs */
 .code-tab-container {
   background: var(--bg-panel);
   border: 1px solid var(--border-tactical);
@@ -888,7 +968,7 @@ body {
   color: var(--text-dim);
 }
 
-/* 7. Pillars Grid */
+/* 8. Pillars Grid */
 .pillars-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -939,7 +1019,7 @@ body {
   gap: 0.45rem;
 }
 
-/* 8. Integrations Ecosystem Grid */
+/* 9. Integrations Ecosystem Grid */
 .eco-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -973,7 +1053,7 @@ body {
   line-height: 1.5;
 }
 
-/* 9. Marketplace Preview */
+/* 10. Marketplace Preview */
 .market-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1021,7 +1101,7 @@ body {
   margin-bottom: 1.25rem;
 }
 
-/* 10. Pricing Matrix */
+/* 11. Pricing Matrix */
 .matrix-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -1084,7 +1164,7 @@ body {
   flex-grow: 1;
 }
 
-/* 11. FAQ Accordion */
+/* 12. FAQ Accordion */
 .faq-accordion {
   max-width: 820px;
   margin: 0 auto;
@@ -1134,7 +1214,7 @@ body {
   color: var(--threat-red);
 }
 
-/* 12. Footer */
+/* 13. Footer */
 .command-footer {
   border-top: 1px solid var(--border-tactical);
   padding: 4.5rem 0 3.5rem;
@@ -1303,6 +1383,7 @@ body {
 
 /* Responsive Media Queries */
 @media (max-width: 1024px) {
+  .inspector-grid { grid-template-columns: repeat(2, 1fr); }
   .pillars-grid, .kpi-row { grid-template-columns: repeat(2, 1fr); }
   .command-grid, .market-grid, .matrix-grid, .footer-grid { grid-template-columns: 1fr; }
   .nav-links { display: none; }
