@@ -1,0 +1,28 @@
+{
+  "name": "mcp-shield-platform",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Zero-Trust MCP Gateway, Security Firewall & Creator Marketplace",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "test:db": "npm --workspace=packages/database test",
+    "test:gateway": "npm --workspace=packages/gateway-core test",
+    "test:cli": "npm --workspace=packages/cli-shield test",
+    "test:all": "npm run test:db && npm run test:gateway && npm run test:cli && npm --workspace=packages/web-dashboard test",
+    "start:dashboard": "node packages/web-dashboard/src/server.js",
+    "start:cli": "node packages/cli-shield/bin/mcp-shield.js"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "security",
+    "gateway",
+    "ai-agents",
+    "waf",
+    "prompt-injection"
+  ],
+  "author": "MCP Shield Team",
+  "license": "Apache-2.0"
+}

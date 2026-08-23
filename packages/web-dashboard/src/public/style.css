@@ -1,0 +1,596 @@
+/* ==========================================================================
+   MCP SHIELD | POWERFUL CYBER COMMAND WITH INTUITIVE SIMPLICITY
+   Combines Palantir Gotham / Bloomberg Aesthetics with Human-Clear UX
+   ========================================================================== */
+
+:root {
+  /* Tactical Obsidian & Cyber Command Palette */
+  --bg-black: #030508;
+  --bg-hud: #080c14;
+  --bg-panel: #0d131f;
+  --bg-panel-raised: #121a2a;
+  --bg-panel-hover: #192338;
+  
+  /* Cyber Neons */
+  --cyber-cyan: #00f0ff;
+  --cyber-cyan-dim: rgba(0, 240, 255, 0.12);
+  --cyber-cyan-glow: 0 0 20px rgba(0, 240, 255, 0.35);
+  
+  --matrix-green: #00ff88;
+  --matrix-green-dim: rgba(0, 255, 136, 0.12);
+  --matrix-green-glow: 0 0 15px rgba(0, 255, 136, 0.3);
+  
+  --threat-red: #ff2a5f;
+  --threat-red-dim: rgba(255, 42, 95, 0.15);
+  --threat-red-glow: 0 0 20px rgba(255, 42, 95, 0.4);
+  
+  --warning-gold: #ffb800;
+  
+  /* Tactical Borders */
+  --border-tactical: rgba(0, 240, 255, 0.2);
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.2);
+  
+  /* Typography */
+  --text-white: #ffffff;
+  --text-slate: #94a3b8;
+  --text-dim: #64748b;
+  
+  --font-mono: 'JetBrains Mono', monospace;
+  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: var(--bg-black);
+  color: var(--text-white);
+  font-family: var(--font-sans);
+  min-height: 100vh;
+  padding-bottom: 5rem;
+  line-height: 1.5;
+  background-image: 
+    linear-gradient(to right, rgba(0, 240, 255, 0.03) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0, 240, 255, 0.03) 1px, transparent 1px);
+  background-size: 24px 24px;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 1. Command Header HUD */
+.command-header {
+  background: rgba(3, 5, 8, 0.95);
+  border-bottom: 1px solid var(--border-tactical);
+  padding: 0.6rem 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  backdrop-filter: blur(16px);
+}
+
+.hud-left, .hud-right {
+  display: flex;
+  align-items: center;
+  gap: 1.75rem;
+}
+
+.brand-logo {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.15rem;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+}
+.brand-logo span {
+  color: var(--cyber-cyan);
+  text-shadow: var(--cyber-cyan-glow);
+}
+
+.hud-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--matrix-green-dim);
+  border: 1px solid var(--matrix-green);
+  color: var(--matrix-green);
+  padding: 0.25rem 0.75rem;
+  border-radius: 4px;
+  font-weight: 800;
+  box-shadow: var(--matrix-green-glow);
+}
+
+.pulse-dot {
+  width: 6px;
+  height: 6px;
+  background: var(--matrix-green);
+  border-radius: 50%;
+  box-shadow: 0 0 8px var(--matrix-green);
+  animation: pulse-hud 1.5s infinite;
+}
+
+@keyframes pulse-hud {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.5); opacity: 0.4; }
+}
+
+/* Tactical Container */
+.container {
+  max-width: 1400px;
+  margin: 1.75rem auto;
+  padding: 0 2rem;
+}
+
+/* 2. Hero Security Posture Strip with Oscilloscope Canvas */
+.posture-strip {
+  background: linear-gradient(90deg, #091322 0%, #170a1a 100%);
+  border: 1px solid var(--border-tactical);
+  border-left: 4px solid var(--cyber-cyan);
+  padding: 1.25rem 1.75rem;
+  border-radius: 6px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.75rem;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+}
+
+.posture-heading {
+  font-size: 1.25rem;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.posture-sub {
+  font-size: 0.85rem;
+  color: var(--text-slate);
+  margin-top: 0.25rem;
+}
+
+.waveform-box {
+  background: var(--bg-hud);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  padding: 0.5rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+canvas#latencyCanvas {
+  width: 160px;
+  height: 32px;
+}
+
+/* 3. 4 Executive KPI Cards */
+.kpi-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.25rem;
+  margin-bottom: 1.75rem;
+}
+
+.kpi-block {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-subtle);
+  border-top: 3px solid var(--cyber-cyan);
+  border-radius: 6px;
+  padding: 1.4rem 1.6rem;
+  position: relative;
+  transition: all 0.2s ease;
+}
+.kpi-block:hover {
+  background: var(--bg-panel-raised);
+  border-color: var(--cyber-cyan);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 30px rgba(0, 240, 255, 0.12);
+}
+
+.kpi-danger {
+  border-top-color: var(--threat-red);
+}
+.kpi-danger:hover {
+  border-color: var(--threat-red);
+  box-shadow: 0 10px 30px rgba(255, 42, 95, 0.15);
+}
+
+.kpi-success {
+  border-top-color: var(--matrix-green);
+}
+.kpi-success:hover {
+  border-color: var(--matrix-green);
+  box-shadow: 0 10px 30px rgba(0, 255, 136, 0.15);
+}
+
+.kpi-head {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: var(--text-slate);
+  letter-spacing: 0.08em;
+  margin-bottom: 0.5rem;
+}
+
+.kpi-num {
+  font-size: 2.35rem;
+  font-weight: 900;
+  font-family: var(--font-mono);
+  letter-spacing: -0.04em;
+  margin-bottom: 0.25rem;
+}
+
+.kpi-desc {
+  font-size: 0.8rem;
+  color: var(--text-slate);
+}
+
+/* 4. Interactive Simulation Command Bar */
+.threat-sim-bar {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-tactical);
+  border-radius: 6px;
+  padding: 1.1rem 1.6rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.75rem;
+}
+
+.sim-btn-group {
+  display: flex;
+  gap: 0.6rem;
+}
+
+.cyber-btn {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 0.55rem 1.1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  letter-spacing: 0.04em;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  border: 1px solid transparent;
+}
+
+.btn-threat {
+  background: var(--threat-red-dim);
+  border-color: var(--threat-red);
+  color: #ff94ab;
+}
+.btn-threat:hover {
+  background: var(--threat-red);
+  color: #ffffff;
+  box-shadow: var(--threat-red-glow);
+}
+
+.btn-cert {
+  background: var(--matrix-green-dim);
+  border-color: var(--matrix-green);
+  color: var(--matrix-green);
+}
+.btn-cert:hover {
+  background: var(--matrix-green);
+  color: #000000;
+  box-shadow: var(--matrix-green-glow);
+}
+
+.btn-cyan {
+  background: var(--cyber-cyan-dim);
+  border-color: var(--cyber-cyan);
+  color: var(--cyber-cyan);
+}
+.btn-cyan:hover {
+  background: var(--cyber-cyan);
+  color: #000000;
+  box-shadow: var(--cyber-cyan-glow);
+}
+
+/* 5. Main Tactical Grid */
+.command-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 1.5rem;
+  margin-bottom: 2.5rem;
+}
+
+.tactical-panel {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  padding: 1.4rem 1.6rem;
+}
+
+.panel-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.25rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.panel-bar h2 {
+  font-size: 0.98rem;
+  font-family: var(--font-sans);
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+.stream-filters {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.filter-chip {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  padding: 0.25rem 0.65rem;
+  background: var(--bg-hud);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-slate);
+  cursor: pointer;
+  border-radius: 3px;
+}
+.filter-chip.active {
+  border-color: var(--cyber-cyan);
+  color: var(--cyber-cyan);
+  background: var(--cyber-cyan-dim);
+}
+
+/* Clean Human-Readable Activity Table */
+.hud-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.hud-table th {
+  text-align: left;
+  padding: 0.65rem 0.9rem;
+  color: var(--text-dim);
+  font-size: 0.7rem;
+  font-family: var(--font-mono);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  background: #080c14;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.hud-table td {
+  padding: 0.85rem 0.9rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.tag-pass {
+  background: var(--matrix-green-dim);
+  color: var(--matrix-green);
+  border: 1px solid var(--matrix-green);
+  padding: 0.2rem 0.55rem;
+  border-radius: 3px;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.tag-block {
+  background: var(--threat-red-dim);
+  color: #ff85a1;
+  border: 1px solid var(--threat-red);
+  padding: 0.2rem 0.55rem;
+  border-radius: 3px;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+/* Side Column Cards */
+.threat-breakdown {
+  background: #080c14;
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  padding: 1.1rem;
+  margin-bottom: 1.25rem;
+}
+
+.threat-meter {
+  height: 8px;
+  border-radius: 3px;
+  background: #1e293b;
+  display: flex;
+  overflow: hidden;
+  margin: 0.75rem 0;
+}
+
+.meter-seg-red   { background: var(--threat-red); width: 55%; }
+.meter-seg-gold  { background: var(--warning-gold); width: 30%; }
+.meter-seg-cyan  { background: var(--cyber-cyan); width: 15%; }
+
+.cyber-row {
+  background: #080c14;
+  border: 1px solid var(--border-subtle);
+  padding: 0.85rem 1rem;
+  border-radius: 4px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.65rem;
+  transition: border-color 0.15s ease;
+}
+.cyber-row:hover {
+  border-color: var(--cyber-cyan);
+}
+
+/* 6. Live Terminal Console Drawer */
+.terminal-drawer {
+  background: #020305;
+  border: 1px solid var(--border-tactical);
+  border-radius: 6px;
+  padding: 1.1rem 1.6rem;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  margin-top: 1.75rem;
+  color: #a5f3fc;
+}
+
+.term-head {
+  display: flex;
+  justify-content: space-between;
+  color: var(--text-dim);
+  font-size: 0.72rem;
+  margin-bottom: 0.6rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding-bottom: 0.5rem;
+}
+
+.term-logs {
+  max-height: 110px;
+  overflow-y: auto;
+  line-height: 1.7;
+}
+
+.term-line {
+  color: #67e8f9;
+}
+.term-line.threat {
+  color: #ff7597;
+  font-weight: 700;
+}
+
+/* 7. Pricing Matrix */
+.pricing-matrix {
+  border-top: 1px solid var(--border-tactical);
+  padding-top: 3.5rem;
+  margin-top: 2.5rem;
+}
+
+.matrix-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+}
+
+.tier-card {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  padding: 2.25rem;
+  display: flex;
+  flex-direction: column;
+}
+
+.tier-pro {
+  border-color: var(--cyber-cyan);
+  box-shadow: 0 0 35px rgba(0, 240, 255, 0.14);
+  position: relative;
+}
+
+.tier-badge {
+  position: absolute;
+  top: -11px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--cyber-cyan);
+  color: #000000;
+  font-family: var(--font-mono);
+  font-weight: 900;
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  padding: 0.25rem 0.85rem;
+  border-radius: 3px;
+}
+
+.tier-price {
+  font-size: 2.6rem;
+  font-weight: 900;
+  font-family: var(--font-mono);
+  margin: 1rem 0;
+  color: var(--text-white);
+}
+
+.tier-price span {
+  font-size: 0.95rem;
+  color: var(--text-slate);
+}
+
+.tier-features {
+  list-style: none;
+  font-size: 0.85rem;
+  color: var(--text-slate);
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  margin-bottom: 2rem;
+}
+
+/* Toast */
+.toast-popup {
+  position: fixed;
+  bottom: 2rem;
+  right: 2rem;
+  background: #0284c7;
+  color: #ffffff;
+  border: 1px solid var(--cyber-cyan);
+  padding: 0.75rem 1.4rem;
+  border-radius: 6px;
+  font-family: var(--font-mono);
+  font-weight: 800;
+  font-size: 0.82rem;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
+  z-index: 9999;
+}
+
+/* Modal */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(2, 4, 7, 0.85);
+  backdrop-filter: blur(8px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-tactical);
+  border-radius: 6px;
+  width: 100%;
+  max-width: 480px;
+  padding: 1.75rem;
+  box-shadow: 0 0 50px rgba(0, 240, 255, 0.2);
+}
+
+.cyber-input {
+  width: 100%;
+  background: #04060a;
+  border: 1px solid var(--border-tactical);
+  padding: 0.65rem 0.85rem;
+  color: var(--cyber-cyan);
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  outline: none;
+  border-radius: 4px;
+}

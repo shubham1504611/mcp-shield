@@ -1,0 +1,10 @@
+{
+  "name": "@mcp-shield/database",
+  "version": "1.0.0",
+  "description": "PostgreSQL Schema, Migration and Multi-Tenant RLS policies for MCP Shield",
+  "main": "index.js",
+  "scripts": {
+    "test": "node test-schema.js"
+  },
+  "license": "Apache-2.0"
+}
