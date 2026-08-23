@@ -1,7 +1,55 @@
 /**
  * MCP Shield Commercial Gateway Controller
- * Realistic Protocol Inspector, Quickstart Tab Switcher & Modal Handlers
+ * Realistic Hero Simulator, Protocol Inspector, Quickstart Tabs & Modals
  */
+
+const HERO_SIM_DATA = {
+  SAFE: {
+    status: '🟢 PASS: Hardware Attested',
+    latency: 'Latency: 1.1ms',
+    code: `// 1. In-process AST inspection passes
+{
+  "jsonrpc": "2.0",
+  "method": "tools/call",
+  "params": {
+    "name": "postgres_read",
+    "arguments": { "query": "SELECT id, name FROM users LIMIT 10" }
+  }
+}`,
+    verdict: 'PASS: Ed25519 Hardware Attested',
+    trace: 'trc_881902fc • sig_ed25519_valid'
+  },
+  INJECTION: {
+    status: '🚨 BLOCKED: Prompt Override',
+    latency: 'Latency: 0.8ms',
+    code: `// 2. Prompt Injection Neutralized
+{
+  "jsonrpc": "2.0",
+  "error": {
+    "code": -32001,
+    "message": "PROMPT_INJECTION_DETECTED",
+    "data": { "rule": "SYSTEM_OVERRIDE_PATTERN", "score": 0.98 }
+  }
+}`,
+    verdict: 'BLOCKED: Adversarial Tokens Stripped',
+    trace: 'trc_992104ab • payload_neutralized'
+  },
+  SQL_DDL: {
+    status: '💣 BLOCKED: Destructive DDL',
+    latency: 'Latency: 0.6ms',
+    code: `// 3. Destructive Mutation Intercepted
+{
+  "jsonrpc": "2.0",
+  "error": {
+    "code": -32001,
+    "message": "DESTRUCTIVE_SQL_DDL",
+    "data": { "forbiddenToken": "DROP TABLE", "policy": "read_only" }
+  }
+}`,
+    verdict: 'BLOCKED: DROP TABLE Not Authorized',
+    trace: 'trc_441209dd • ddl_mutation_prevented'
+  }
+};
 
 const SCENARIOS = {
   1: {
@@ -153,6 +201,7 @@ const SCENARIOS = {
 };
 
 document.addEventListener('DOMContentLoaded', () => {
+  heroSimulate('SAFE');
   loadScenario(1);
 
   document.addEventListener('keydown', (e) => {
@@ -164,7 +213,27 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 });
 
-// 1. Scenario Loader
+// 1. Hero Live Simulator Controller
+function heroSimulate(type) {
+  document.getElementById('hero-btn-safe')?.classList.remove('active');
+  document.getElementById('hero-btn-inject')?.classList.remove('active');
+  document.getElementById('hero-btn-ddl')?.classList.remove('active');
+
+  if (type === 'SAFE') document.getElementById('hero-btn-safe')?.classList.add('active');
+  if (type === 'INJECTION') document.getElementById('hero-btn-inject')?.classList.add('active');
+  if (type === 'SQL_DDL') document.getElementById('hero-btn-ddl')?.classList.add('active');
+
+  const d = HERO_SIM_DATA[type];
+  if (!d) return;
+
+  document.getElementById('hero-sim-status').innerText = d.status;
+  document.getElementById('hero-sim-latency').innerText = d.latency;
+  document.getElementById('hero-sim-code').innerText = d.code;
+  document.getElementById('hero-sim-verdict').innerText = d.verdict;
+  document.getElementById('hero-sim-trace').innerText = d.trace;
+}
+
+// 2. Scenario Loader for Deep Protocol Inspector
 function loadScenario(index) {
   document.querySelectorAll('.scenario-btn').forEach(btn => btn.classList.remove('active'));
   document.getElementById(`btn-scen-${index}`)?.classList.add('active');
@@ -186,7 +255,7 @@ function loadScenario(index) {
   document.getElementById('summary-trace').innerText = s.trace;
 }
 
-// 2. Quickstart Tab Switcher
+// 3. Quickstart Tab Switcher
 function switchQuickTab(tabKey) {
   document.querySelectorAll('.tab-nav-btn').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.tab-card').forEach(c => c.classList.remove('active'));
@@ -200,7 +269,7 @@ function switchQuickTab(tabKey) {
   if (targetCard) targetCard.classList.add('active');
 }
 
-// 3. FAQ Card Toggle
+// 4. FAQ Card Toggle
 function toggleFaqCard(el) {
   const card = el.closest('.faq-card');
   if (!card) return;
@@ -209,7 +278,7 @@ function toggleFaqCard(el) {
   if (!wasActive) card.classList.add('active');
 }
 
-// 4. Toast Notification
+// 5. Toast Notification
 function showToast(msg) {
   const existing = document.getElementById('active-toast');
   if (existing) existing.remove();
@@ -233,7 +302,7 @@ function copySnippet(text) {
   });
 }
 
-// 5. Modal Controllers
+// 6. Modal Controllers
 function openKeyModal() {
   document.getElementById('key-modal').style.display = 'flex';
   document.getElementById('modal-key-output').style.display = 'none';
