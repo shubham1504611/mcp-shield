@@ -1,28 +1,9 @@
 {
   "version": 2,
-  "name": "mcp-shield-dashboard",
-  "builds": [
-    {
-      "src": "packages/web-dashboard/src/server.js",
-      "use": "@vercel/node"
-    },
-    {
-      "src": "packages/web-dashboard/src/public/**",
-      "use": "@vercel/static"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "packages/web-dashboard/src/server.js"
-    },
-    {
-      "src": "/(style.css|app.js|favicon.ico)",
-      "dest": "packages/web-dashboard/src/public/$1"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "packages/web-dashboard/src/public/index.html"
-    }
+  "rewrites": [
+    { "source": "/v1/mcp", "destination": "/api/mcp" },
+    { "source": "/healthz", "destination": "/api/index" },
+    { "source": "/readyz", "destination": "/api/index" },
+    { "source": "/api/(.*)", "destination": "/api/index" }
   ]
 }
