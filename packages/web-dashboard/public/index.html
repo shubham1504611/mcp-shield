@@ -34,11 +34,9 @@
       </nav>
 
       <div class="nav-actions">
-        <div class="hud-status-pill">
-          <span class="pulse-dot"></span>
-          <span>DEFCON 1: ARMED</span>
-        </div>
+        <button class="cyber-btn btn-ghost" onclick="openConnectModal()">🔑 CONNECT KEY</button>
         <button class="cyber-btn btn-cyan" onclick="openKeyModal()">+ PROVISION KEY</button>
+        <button class="cyber-btn btn-auth" onclick="openAuthModal()">SIGN IN</button>
       </div>
     </div>
   </header>
@@ -663,7 +661,7 @@ console.log('Attested Trace ID:', response.traceId);</code></pre>
     </div>
   </footer>
 
-  <!-- Key Provisioning Modal -->
+  <!-- Modal 1: Provision Key Modal -->
   <div class="modal-overlay" id="key-modal" style="display: none;" onclick="handleBackdropClick(event, 'key-modal')">
     <div class="modal-content">
       <div class="modal-head">
@@ -692,7 +690,56 @@ console.log('Attested Trace ID:', response.traceId);</code></pre>
     </div>
   </div>
 
-  <!-- Dodo Payments Checkout Modal -->
+  <!-- Modal 2: Connect Existing Key Modal -->
+  <div class="modal-overlay" id="connect-modal" style="display: none;" onclick="handleBackdropClick(event, 'connect-modal')">
+    <div class="modal-content">
+      <div class="modal-head">
+        <h3 class="modal-title" style="color:#00f0ff;">🔑 CONNECT EXISTING API KEY</h3>
+        <button class="modal-close" onclick="closeConnectModal()">✕</button>
+      </div>
+      <div>
+        <p style="font-size:0.85rem;color:var(--text-slate);margin-bottom:1rem;line-height:1.5;">
+          Paste your existing Gateway API Key to restore your historical fleet telemetry, audit logs, and ROI stats from Supabase on this device.
+        </p>
+        <label class="input-label">YOUR API KEY:</label>
+        <input type="password" id="connect-key-input" placeholder="mcp_live_sec_..." class="cyber-input">
+      </div>
+      <div class="modal-actions">
+        <button class="cyber-btn btn-dim" onclick="closeConnectModal()">CANCEL</button>
+        <button class="cyber-btn btn-cyan" onclick="handleConnectExistingKey()">RESTORE STATS</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 3: Passwordless Auth Modal -->
+  <div class="modal-overlay" id="auth-modal" style="display: none;" onclick="handleBackdropClick(event, 'auth-modal')">
+    <div class="modal-content">
+      <div class="modal-head">
+        <h3 class="modal-title" style="color:#a855f7;">🔐 SIGN IN / LINK EMAIL</h3>
+        <button class="modal-close" onclick="closeAuthModal()">✕</button>
+      </div>
+      <div>
+        <p style="font-size:0.85rem;color:var(--text-slate);margin-bottom:1.25rem;line-height:1.5;">
+          Link your company email to enable permanent cross-device syncing, encrypted database credentials, and multi-user RBAC.
+        </p>
+
+        <button class="cyber-btn btn-google" onclick="simulateGoogleAuth()">
+          <span style="font-size:1.1rem;">🇬</span> Continue with Google
+        </button>
+
+        <div class="auth-divider"><span>OR CONTINUE WITH EMAIL</span></div>
+
+        <label class="input-label">CORPORATE EMAIL:</label>
+        <input type="email" id="auth-email-input" placeholder="you@company.com" class="cyber-input">
+      </div>
+      <div class="modal-actions">
+        <button class="cyber-btn btn-dim" onclick="closeAuthModal()">CANCEL</button>
+        <button class="cyber-btn btn-cyan" onclick="handleSendMagicLink()">SEND MAGIC LINK</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 4: Dodo Payments Checkout Modal -->
   <div class="modal-overlay" id="checkout-modal" style="display: none;" onclick="handleBackdropClick(event, 'checkout-modal')">
     <div class="modal-content">
       <div class="modal-head">

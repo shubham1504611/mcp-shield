@@ -1,6 +1,6 @@
 /**
  * MCP Shield Commercial Web Platform Controller
- * Interactive Code Tabs, Real-Time Waveform Generator, Threat Simulator & Telemetry Stream
+ * Interactive Code Tabs, Real-Time Waveform Generator, Threat Simulator, Connect Key & Auth Handlers
  */
 
 let traceLogs = [
@@ -61,10 +61,12 @@ document.addEventListener('DOMContentLoaded', () => {
   renderKeyList();
   initWaveform();
 
-  // Escape key closes modals
+  // Escape key closes all modals
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       closeKeyModal();
+      closeConnectModal();
+      closeAuthModal();
       closeCheckoutModal();
     }
   });
@@ -302,15 +304,28 @@ function openKeyModal() {
   document.getElementById('btn-generate').style.display = 'inline-flex';
   document.getElementById('key-name-input').value = '';
 }
-
 function closeKeyModal() {
   document.getElementById('key-modal').style.display = 'none';
+}
+
+function openConnectModal() {
+  document.getElementById('connect-modal').style.display = 'flex';
+  document.getElementById('connect-key-input').value = '';
+}
+function closeConnectModal() {
+  document.getElementById('connect-modal').style.display = 'none';
+}
+
+function openAuthModal() {
+  document.getElementById('auth-modal').style.display = 'flex';
+}
+function closeAuthModal() {
+  document.getElementById('auth-modal').style.display = 'none';
 }
 
 function openCheckoutModal() {
   document.getElementById('checkout-modal').style.display = 'flex';
 }
-
 function closeCheckoutModal() {
   document.getElementById('checkout-modal').style.display = 'none';
 }
@@ -321,6 +336,7 @@ function handleBackdropClick(event, modalId) {
   }
 }
 
+// 8. Key Generation & Reconnection
 function handleGenerateKey() {
   const name = document.getElementById('key-name-input').value || 'Production Key Alpha';
   const randomHex = Array.from(crypto.getRandomValues(new Uint8Array(16))).map(b => b.toString(16).padStart(2, '0')).join('');
@@ -344,6 +360,41 @@ function handleGenerateKey() {
 function copyNewKey() {
   const code = document.getElementById('new-key-code').innerText;
   copySnippet(code);
+}
+
+function handleConnectExistingKey() {
+  const key = document.getElementById('connect-key-input').value.trim();
+  if (!key || !key.startsWith('mcp_live_sec_')) {
+    alert('Please enter a valid MCP Shield key starting with "mcp_live_sec_"');
+    return;
+  }
+
+  activeKeys.unshift({
+    name: 'Reconnected Fleet Key',
+    prefix: key.substring(0, 16) + '...',
+    rpm: 120,
+    created: 'Active'
+  });
+
+  closeConnectModal();
+  renderKeyList();
+  showToast('⚡ Key Reconnected! Live Fleet Telemetry Restored from Supabase.');
+}
+
+// 9. Auth Handlers
+function simulateGoogleAuth() {
+  closeAuthModal();
+  showToast('🔐 Signed in with Google! Workspace linked to your account.');
+}
+
+function handleSendMagicLink() {
+  const email = document.getElementById('auth-email-input').value.trim();
+  if (!email || !email.includes('@')) {
+    alert('Please enter a valid corporate email address.');
+    return;
+  }
+  closeAuthModal();
+  showToast(`✉️ Magic Link sent to ${email}! Check your inbox to sign in.`);
 }
 
 function simulateCheckoutSuccess() {
