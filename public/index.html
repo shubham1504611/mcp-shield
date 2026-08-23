@@ -3,379 +3,237 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MCP Shield | Zero-Trust Security Firewall & Gateway for AI Agents</title>
-  <meta name="description" content="The enterprise-grade Zero-Trust Security Firewall & Gateway for Model Context Protocol (MCP) AI agents. Intercept prompt injections, block destructive SQL, and generate SOC 2 cryptographic attestation in <1.5ms.">
+  <title>MCP Shield | The Zero-Trust Security Gateway for Model Context Protocol</title>
+  <meta name="description" content="High-performance, in-memory security proxy and policy engine for Model Context Protocol (MCP) servers and autonomous AI agents.">
   <link rel="stylesheet" href="/style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
 
-  <!-- Ambient Glow Canvas Backdrop -->
-  <div class="ambient-glow"></div>
-
-  <!-- Top Sticky Navigation Bar -->
-  <header class="command-header">
+  <!-- Top Navigation -->
+  <header class="navbar">
     <div class="nav-container">
-      <a href="#" class="brand-logo">
-        <span class="logo-shield">⚡</span>
-        <span class="logo-text">MCP <span class="logo-accent">SHIELD</span></span>
+      <a href="#" class="brand">
+        <svg class="brand-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          <path d="m9 12 2 2 4-4"/>
+        </svg>
+        <span class="brand-name">MCP<span class="brand-light">Shield</span></span>
       </a>
 
-      <nav class="nav-links">
-        <a href="#how-it-works">How It Works</a>
-        <a href="#playground">Live Sandbox</a>
-        <a href="#key-inspector">My Key Telemetry</a>
-        <a href="#pillars">Defense Pillars</a>
-        <a href="#integrations">Integrations</a>
-        <a href="#marketplace">Marketplace</a>
+      <nav class="nav-menu">
+        <a href="#overview">Architecture</a>
+        <a href="#inspector">Interactive Inspector</a>
+        <a href="#quickstart">Quickstart</a>
+        <a href="#features">Security Features</a>
         <a href="#pricing">Pricing</a>
         <a href="#faq">FAQ</a>
       </nav>
 
       <div class="nav-actions">
-        <button class="cyber-btn btn-ghost" onclick="openConnectModal()">🔑 CONNECT KEY</button>
-        <button class="cyber-btn btn-cyan" onclick="openKeyModal()">+ PROVISION KEY</button>
-        <button class="cyber-btn btn-auth" onclick="openAuthModal()">SIGN IN</button>
+        <button class="btn btn-outline" onclick="openConnectModal()">Connect Key</button>
+        <button class="btn btn-primary" onclick="openKeyModal()">Provision Key</button>
       </div>
     </div>
   </header>
 
-  <!-- 1. Hero Section -->
-  <section class="hero-section">
-    <div class="container hero-content">
-      <div class="hero-badge">
-        <span class="badge-spark">🛡️</span>
-        <span>ZERO-TRUST FIREWALL FOR MODEL CONTEXT PROTOCOL (MCP)</span>
+  <!-- Hero Section -->
+  <section class="hero-section" id="overview">
+    <div class="container hero-container">
+      <div class="badge-pill">
+        <span class="status-indicator"></span>
+        <span>Standardized Gateway for MCP Clients & Servers</span>
       </div>
 
-      <h1 class="hero-title">
-        Deploy Autonomous AI Agents.<br>
-        <span class="gradient-text">Zero Injections. Zero Breaches.</span>
+      <h1 class="hero-heading">
+        The Zero-Trust Security Proxy<br>
+        for Model Context Protocol
       </h1>
 
-      <p class="hero-subtitle">
-        MCP Shield intercepts prompt overrides, neutralizes destructive SQL mutations, 
-        and generates verifiable <b>Ed25519 cryptographic attestations</b> in <b>under 1.5ms</b>.
+      <p class="hero-lead">
+        Protect databases, APIs, and file systems from prompt injection overrides and destructive agent actions. Evaluated in-memory with sub-2ms P99 latency and Ed25519 cryptographic signing.
       </p>
 
-      <div class="hero-cta-group">
-        <button class="cyber-btn btn-hero-primary" onclick="openKeyModal()">
-          ⚡ Provision Free Gateway Key
+      <div class="hero-buttons">
+        <button class="btn btn-primary btn-lg" onclick="openKeyModal()">
+          Get Started with Gateway Key
         </button>
-        <a href="#playground" class="cyber-btn btn-hero-secondary">
-          🎮 Launch Live Attack Simulator
+        <a href="#inspector" class="btn btn-secondary btn-lg">
+          Explore Live Request Inspector
         </a>
       </div>
 
-      <!-- Live Terminal Install Banner -->
-      <div class="hero-cli-bar">
-        <div class="cli-icon">❯</div>
-        <div class="cli-label">INSTALL DEVELOPER CLI SHIELD:</div>
-        <div class="cli-code-wrap">
-          <code>npx mcp-shield scan</code>
-          <button class="cli-copy-btn" onclick="copySnippet('npx mcp-shield scan')">COPY</button>
-        </div>
+      <!-- Clean CLI Install Box -->
+      <div class="cli-box">
+        <div class="cli-prefix">$</div>
+        <div class="cli-cmd"><code>npx mcp-shield wrap --target "npx @modelcontextprotocol/server-postgres"</code></div>
+        <button class="btn-copy" onclick="copySnippet('npx mcp-shield wrap')">Copy</button>
       </div>
 
-      <!-- Ecosystem Trust Bar -->
-      <div class="hero-trust-bar">
-        <div class="trust-label">ZERO-CONFIGURATION DROP-IN FOR:</div>
-        <div class="trust-tags">
-          <span class="trust-tag"><span class="tag-dot"></span> Anthropic Claude</span>
-          <span class="trust-tag"><span class="tag-dot"></span> Cursor IDE</span>
-          <span class="trust-tag"><span class="tag-dot"></span> LangChain & LangGraph</span>
-          <span class="trust-tag"><span class="tag-dot"></span> CrewAI</span>
-          <span class="trust-tag"><span class="tag-dot"></span> AutoGen</span>
-          <span class="trust-tag"><span class="tag-dot"></span> LlamaIndex</span>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- 2. Security Posture Strip & Dynamic Oscilloscope -->
-  <section class="container" style="margin-top: 1rem; margin-bottom: 2.5rem;">
-    <div class="posture-strip">
-      <div class="posture-info">
-        <div class="posture-heading">
-          <span class="posture-icon">🛡️</span>
-          <span>Fleet Security Posture: Fully Shielded</span>
-        </div>
-        <div class="posture-sub">
-          Active 4-Phase In-Memory WAF filtering agent payloads with <b>1.4ms P99 latency</b>. 0 unauthorized breaches.
-        </div>
-      </div>
-
-      <!-- Live Oscilloscope Latency Canvas -->
-      <div class="waveform-box">
-        <div>
-          <div class="wave-label">LIVE P99 OSCILLOSCOPE</div>
-          <div class="wave-value" id="wave-latency">1.4 ms</div>
-        </div>
-        <canvas id="latencyCanvas" width="160" height="36"></canvas>
-      </div>
-
-      <div class="posture-roi">
-        <div class="roi-label">ESTIMATED DOWNTIME VALUE PROTECTED</div>
-        <div class="roi-value" id="kpi-roi">$153,000</div>
-        <div class="roi-sub">CALCULATED BREACH DOWNTIME AVOIDANCE</div>
-      </div>
-    </div>
-
-    <!-- 4 High-Impact Telemetry Metric Cards -->
-    <div class="kpi-row">
-      <div class="kpi-block kpi-cyan">
-        <div class="kpi-head">
-          <span>TOTAL AGENT CALLS</span>
-          <span class="kpi-chip chip-cyan">THROUGHPUT</span>
-        </div>
-        <div class="kpi-num" id="kpi-total-calls">128,490</div>
-        <div class="kpi-desc">↑ 2,410 req/s Peak Fleet Velocity</div>
-      </div>
-
-      <div class="kpi-block kpi-danger">
-        <div class="kpi-head">
-          <span>ATTACKS STOPPED COLD</span>
-          <span class="kpi-chip chip-red">100% BLOCKED</span>
-        </div>
-        <div class="kpi-num" id="kpi-blocked">34</div>
-        <div class="kpi-desc">Injections, DDL & Exfiltrations Stopped</div>
-      </div>
-
-      <div class="kpi-block kpi-success">
-        <div class="kpi-head">
-          <span>COMPLIANCE VAULT</span>
-          <span class="kpi-chip chip-green">SOC 2 / HIPAA</span>
-        </div>
-        <div class="kpi-num">100.0%</div>
-        <div class="kpi-desc">Immutable Ed25519 Cryptographic Chain</div>
-      </div>
-
-      <div class="kpi-block kpi-purple">
-        <div class="kpi-head">
-          <span>LATENCY OVERHEAD</span>
-          <span class="kpi-chip chip-purple">&lt; 2.5ms SLA</span>
-        </div>
-        <div class="kpi-num">1.4 <span class="kpi-unit">ms</span></div>
-        <div class="kpi-desc">Zero-Copy In-Memory Inspection</div>
-      </div>
-    </div>
-  </section>
-
-  <!-- 3. Dedicated Active Key Inspector Section -->
-  <section class="container" id="key-inspector" style="margin-bottom: 2.5rem;">
-    <div class="key-inspector-panel">
-      <div class="inspector-header">
-        <div style="display:flex;align-items:center;gap:0.75rem;">
-          <div class="inspector-badge">🔑 ACTIVE KEY INSPECTOR</div>
-          <span style="font-size:0.95rem;font-weight:800;" id="ins-key-name">Production Agent Fleet Key</span>
-        </div>
-        <div style="display:flex;gap:0.5rem;align-items:center;">
-          <span class="tag-pass">🟢 LIVE & INTERCEPTING</span>
-          <button class="cyber-btn btn-cyan btn-sm" onclick="copySnippet(activeKeys[currentKeyIndex].fullKey || activeKeys[currentKeyIndex].prefix)">COPY KEY</button>
-        </div>
-      </div>
-
-      <div class="inspector-grid">
-        <div class="ins-metric-box">
-          <div class="ins-label">KEY PREFIX / ID</div>
-          <div class="ins-value mono" id="ins-key-prefix" style="color:#00f0ff;">mcp_live_sec_89f...</div>
-        </div>
-        <div class="ins-metric-box">
-          <div class="ins-label">TOTAL CALLS FOR THIS KEY</div>
-          <div class="ins-value mono" id="ins-key-calls">1,420</div>
-        </div>
-        <div class="ins-metric-box">
-          <div class="ins-label">THREATS INTERCEPTED</div>
-          <div class="ins-value mono" id="ins-key-threats" style="color:#ff2a5f;">3 Blocked</div>
-        </div>
-        <div class="ins-metric-box">
-          <div class="ins-label">ESTIMATED VALUE PROTECTED</div>
-          <div class="ins-value mono" id="ins-key-roi" style="color:#00ff88;">$13,500</div>
-        </div>
-        <div class="ins-metric-box">
-          <div class="ins-label">RPM RATE LIMIT</div>
-          <div class="ins-value mono" id="ins-key-rpm">240 RPM</div>
-        </div>
-      </div>
-
-      <!-- 1-Click Drop-in Config for This Specific Key -->
-      <div class="ins-config-banner">
-        <div style="font-family:var(--font-mono);font-size:0.78rem;font-weight:700;color:var(--text-slate);margin-bottom:0.4rem;">
-          💡 DROP-IN AGENT CONFIGURATION FOR THIS KEY:
-        </div>
-        <div class="ins-code-row">
-          <code id="ins-agent-snippet">npx mcp-shield proxy --port 8080 --key mcp_live_sec_89f12a...</code>
-          <button class="cli-copy-btn" onclick="copySnippet(document.getElementById('ins-agent-snippet').innerText)">COPY CONFIG</button>
+      <!-- Trust Bar -->
+      <div class="ecosystem-bar">
+        <span class="eco-label">Native compatibility with:</span>
+        <div class="eco-items">
+          <span>Anthropic Claude</span>
+          <span>•</span>
+          <span>Cursor IDE</span>
+          <span>•</span>
+          <span>LangChain</span>
+          <span>•</span>
+          <span>CrewAI</span>
+          <span>•</span>
+          <span>AutoGen</span>
+          <span>•</span>
+          <span>Supabase</span>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- 4. Interactive Security Playground -->
-  <section class="container section-spacing" id="playground">
-    <div class="section-header">
-      <div class="section-tag">LIVE INTERACTIVE PLAYGROUND</div>
-      <h2>Test the Zero-Trust Firewall in Real Time</h2>
-      <p>Click below to simulate real-world attack vectors against our production firewall engine:</p>
-    </div>
+  <!-- Key Architectural Highlights (Clean 3-Column Grid) -->
+  <section class="container section-gap">
+    <div class="highlights-grid">
+      <div class="highlight-card">
+        <div class="highlight-icon">⚡</div>
+        <h3>&lt; 1.5ms In-Memory WAF</h3>
+        <p>Zero external round-trips during payload inspection. AST sanitizers inspect and authorize tool calls in-process with negligible LLM latency overhead.</p>
+      </div>
 
-    <div class="threat-sim-bar">
-      <div class="sim-btn-group">
-        <button class="cyber-btn btn-threat" onclick="simulateAttack('SYSTEM_OVERRIDE')">
-          🚨 Test System Override Jailbreak
-        </button>
-        <button class="cyber-btn btn-threat" onclick="simulateAttack('SQL_DDL')">
-          💣 Test SQL DROP TABLE Mutation
-        </button>
-        <button class="cyber-btn btn-threat" onclick="simulateAttack('EXFILTRATION')">
-          📡 Test Outbound Exfiltration Webhook
-        </button>
-        <button class="cyber-btn btn-cert" onclick="simulateSafeCall()">
-          🟢 Test Certified Safe DB Query
-        </button>
+      <div class="highlight-card">
+        <div class="highlight-icon">🔒</div>
+        <h3>SQL Blast Radius Armor</h3>
+        <p>Enforces strict read-only execution by intercepting destructive DDL mutations (<code>DROP TABLE</code>, <code>TRUNCATE</code>) and unconstrained mass deletions.</p>
+      </div>
+
+      <div class="highlight-card">
+        <div class="highlight-icon">📜</div>
+        <h3>Ed25519 Attestation</h3>
+        <p>Every forwarded and sanitized response is cryptographically signed with an enclave-level digital signature for verifiable SOC 2 compliance audit trails.</p>
       </div>
     </div>
-
-    <!-- Live Telemetry Matrix -->
-    <div class="command-grid">
-      <!-- Left: Real-Time Protection Stream -->
-      <section class="tactical-panel">
-        <div class="panel-bar">
-          <div class="panel-title-wrap">
-            <span class="pulse-dot"></span>
-            <h2>LIVE AGENT INVOCATION & PROTECTION FEED</h2>
-          </div>
-          <div class="stream-filters">
-            <button class="filter-chip active" id="flt-all" onclick="filterLogs('ALL')">ALL (128,490)</button>
-            <button class="filter-chip" id="flt-threats" onclick="filterLogs('THREATS')">THREATS (34)</button>
-            <button class="filter-chip" id="flt-safe" onclick="filterLogs('SAFE')">SAFE ONLY</button>
-          </div>
-        </div>
-        <div class="table-responsive">
-          <table class="hud-table">
-            <thead>
-              <tr>
-                <th>TIME</th>
-                <th>TARGET TOOL</th>
-                <th>METHOD</th>
-                <th>STATUS</th>
-                <th>LATENCY</th>
-                <th>HUMAN-CLEAR ACTION SUMMARY</th>
-              </tr>
-            </thead>
-            <tbody id="trace-tbody">
-              <!-- Dynamically populated via app.js -->
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      <!-- Right: Threat Breakdown & Active Keys -->
-      <div class="tactical-sidebar">
-        <!-- Threat Breakdown Meter -->
-        <section class="tactical-panel">
-          <div class="panel-bar">
-            <h2>THREAT VECTOR DISTRIBUTION</h2>
-          </div>
-          <div class="threat-breakdown">
-            <div class="breakdown-legend">
-              <span style="color:#ff2a5f;">● Injections (55%)</span>
-              <span style="color:#ffb800;">● SQL DDL (30%)</span>
-              <span style="color:#00f0ff;">● Exfil (15%)</span>
-            </div>
-            <div class="threat-meter">
-              <div class="meter-seg-red" id="seg-red"></div>
-              <div class="meter-seg-gold" id="seg-gold"></div>
-              <div class="meter-seg-cyan" id="seg-cyan"></div>
-            </div>
-            <div class="breakdown-footer">
-              Active Sanitizer: MCPSec AST + Zero-Width Unicode Stripper
-            </div>
-          </div>
-        </section>
-
-        <!-- Active Keys -->
-        <section class="tactical-panel">
-          <div class="panel-bar">
-            <h2>ACTIVE FLEET KEYS</h2>
-            <button class="cyber-btn btn-cyan btn-sm" onclick="openKeyModal()">+ ADD KEY</button>
-          </div>
-          <div id="key-list">
-            <!-- Dynamically populated via app.js -->
-          </div>
-        </section>
-      </div>
-    </div>
-
-    <!-- Live Terminal Console Drawer -->
-    <section class="terminal-drawer">
-      <div class="term-head">
-        <div style="display:flex;align-items:center;gap:0.5rem;">
-          <span class="term-dot"></span>
-          <span>LIVE ENCLAVE CRYPTO AUDIT LOGS (STREAMING)</span>
-        </div>
-        <span>PROTOCOL: JSON-RPC 2.0 OVER STREAMABLE HTTP</span>
-      </div>
-      <div class="term-logs" id="term-logs">
-        <div class="term-line">[SYS-ENCLAVE] 17:00:01 TRACE#trc_982a17fc [Ed25519_SIG_VERIFIED] postgres_db -> 200 OK (1.2ms)</div>
-        <div class="term-line threat">[WAF-INTERCEPT] 16:59:48 TRACE#trc_31f8021b RULE#SYSTEM_OVERRIDE [PAYLOAD_NEUTRALIZED] -> 200 OK (-32001)</div>
-        <div class="term-line">[SYS-ENCLAVE] 16:59:22 TRACE#trc_67cc4910 [Ed25519_SIG_VERIFIED] bloomberg_bpipe -> 200 OK (1.8ms)</div>
-      </div>
-    </section>
   </section>
 
-  <!-- 5. Quickstart Code Integration Tabs -->
-  <section class="container section-spacing" id="how-it-works">
-    <div class="section-header">
-      <div class="section-tag">2-MINUTE QUICKSTART</div>
-      <h2>Drop MCP Shield in Front of Any Agent or IDE</h2>
-      <p>Works out-of-the-box with zero architecture rewrites across all standard MCP clients and frameworks:</p>
+  <!-- Interactive Live Request & Policy Inspector -->
+  <section class="container section-gap" id="inspector">
+    <div class="section-heading">
+      <div class="eyebrow">INTERACTIVE DEMONSTRATION</div>
+      <h2>Live MCP Protocol Inspector & Policy Engine</h2>
+      <p>Select a scenario below to observe how MCP Shield parses JSON-RPC 2.0 frames, evaluates security policies, and returns sanitized responses.</p>
     </div>
 
-    <div class="code-tab-container">
-      <div class="code-tabs-header">
-        <button class="tab-btn active" onclick="switchCodeTab('claude')">Anthropic Claude</button>
-        <button class="tab-btn" onclick="switchCodeTab('cursor')">Cursor IDE</button>
-        <button class="tab-btn" onclick="switchCodeTab('python')">Python SDK</button>
-        <button class="tab-btn" onclick="switchCodeTab('nodejs')">Node / TypeScript</button>
-        <button class="tab-btn" onclick="switchCodeTab('curl')">cURL HTTP</button>
+    <!-- Scenario Switcher -->
+    <div class="scenario-nav">
+      <button class="scenario-btn active" id="btn-scen-1" onclick="loadScenario(1)">
+        <span>1. Legitimate Database Query</span>
+      </button>
+      <button class="scenario-btn" id="btn-scen-2" onclick="loadScenario(2)">
+        <span>2. Prompt Override Injection</span>
+      </button>
+      <button class="scenario-btn" id="btn-scen-3" onclick="loadScenario(3)">
+        <span>3. Destructive SQL DDL Block</span>
+      </button>
+      <button class="scenario-btn" id="btn-scen-4" onclick="loadScenario(4)">
+        <span>4. Exfiltration Webhook Intercept</span>
+      </button>
+    </div>
+
+    <!-- Side-by-Side Request / Response Inspector Window -->
+    <div class="inspector-window">
+      <div class="window-pane">
+        <div class="pane-header">
+          <span class="pane-title">INCOMING JSON-RPC 2.0 FRAME (FROM AGENT)</span>
+          <span class="pane-badge badge-neutral" id="inspector-method">tools/call</span>
+        </div>
+        <div class="pane-body">
+          <pre><code id="inspector-req-code"></code></pre>
+        </div>
       </div>
 
-      <div class="code-tab-content">
-        <!-- Claude Tab -->
-        <div class="tab-pane active" id="tab-claude">
-          <div class="code-meta">Add this 2-line wrapper to your <code>claude_desktop_config.json</code>:</div>
+      <div class="window-pane">
+        <div class="pane-header">
+          <span class="pane-title">MCP SHIELD GATEWAY VERDICT & RESPONSE</span>
+          <span class="pane-badge badge-pass" id="inspector-status-badge">PASS: Ed25519 Signed</span>
+        </div>
+        <div class="pane-body">
+          <pre><code id="inspector-res-code"></code></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- Inspector Telemetry Strip -->
+    <div class="inspector-summary-bar">
+      <div class="summary-item">
+        <span class="summary-label">EVALUATION TIME</span>
+        <span class="summary-value" id="summary-latency">1.1 ms</span>
+      </div>
+      <div class="summary-item">
+        <span class="summary-label">POLICY APPLIED</span>
+        <span class="summary-value" id="summary-policy">strict_read_only_v1</span>
+      </div>
+      <div class="summary-item">
+        <span class="summary-label">CRYPTO SIGNATURE</span>
+        <span class="summary-value mono" id="summary-sig">ed25519:7f89ac12b...</span>
+      </div>
+      <div class="summary-item">
+        <span class="summary-label">TRACE ID</span>
+        <span class="summary-value mono" id="summary-trace">trc_9a810f22</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2-Minute Quickstart Integration Section -->
+  <section class="container section-gap" id="quickstart">
+    <div class="section-heading">
+      <div class="eyebrow">DEVELOPER QUICKSTART</div>
+      <h2>Seamless Drop-In for Existing Clients</h2>
+      <p>Configure in under two minutes with standard MCP clients and frameworks.</p>
+    </div>
+
+    <div class="tab-wrapper">
+      <div class="tab-header">
+        <button class="tab-nav-btn active" onclick="switchQuickTab('claude')">Claude Desktop</button>
+        <button class="tab-nav-btn" onclick="switchQuickTab('cursor')">Cursor IDE</button>
+        <button class="tab-nav-btn" onclick="switchQuickTab('python')">Python (LangChain / CrewAI)</button>
+        <button class="tab-nav-btn" onclick="switchQuickTab('typescript')">TypeScript / Node.js</button>
+        <button class="tab-nav-btn" onclick="switchQuickTab('curl')">cURL HTTP</button>
+      </div>
+
+      <div class="tab-pane-content">
+        <!-- Claude Desktop -->
+        <div class="tab-card active" id="qtab-claude">
+          <p class="tab-desc">Add the proxy wrapper to your <code>claude_desktop_config.json</code>:</p>
           <pre><code>{
   "mcpServers": {
     "shielded-postgres": {
       "command": "npx",
-      "args": ["-y", "mcp-shield", "wrap", "--target", "npx -y @modelcontextprotocol/server-postgres postgresql://..."]
+      "args": [
+        "-y", "mcp-shield", "wrap",
+        "--target", "npx -y @modelcontextprotocol/server-postgres postgresql://user:pass@localhost:5432/db"
+      ]
     }
   }
 }</code></pre>
-          <div class="tab-footer">
-            <button class="cyber-btn btn-cyan btn-sm" onclick="copySnippet('npx -y mcp-shield wrap --target')">COPY CLAUDE CONFIG</button>
-            <span class="tab-hint">Zero local installation required via npx</span>
+          <div class="tab-action">
+            <button class="btn btn-outline btn-sm" onclick="copySnippet('npx -y mcp-shield wrap --target')">Copy Claude Configuration</button>
           </div>
         </div>
 
-        <!-- Cursor Tab -->
-        <div class="tab-pane" id="tab-cursor">
-          <div class="code-meta">In Cursor Settings ➔ Features ➔ MCP Servers, enter:</div>
+        <!-- Cursor IDE -->
+        <div class="tab-card" id="qtab-cursor">
+          <p class="tab-desc">In Cursor Settings ➔ Features ➔ MCP Servers, configure:</p>
           <pre><code>Name: MCP-Shield-Gateway
 Type: command
 Command: npx mcp-shield proxy --port 8080 --key mcp_live_sec_your_key</code></pre>
-          <div class="tab-footer">
-            <button class="cyber-btn btn-cyan btn-sm" onclick="copySnippet('npx mcp-shield proxy --port 8080')">COPY CURSOR COMMAND</button>
-            <span class="tab-hint">Protects all Cursor Composer autonomous operations</span>
+          <div class="tab-action">
+            <button class="btn btn-outline btn-sm" onclick="copySnippet('npx mcp-shield proxy --port 8080')">Copy Cursor Command</button>
           </div>
         </div>
 
-        <!-- Python Tab -->
-        <div class="tab-pane" id="tab-python">
-          <div class="code-meta">Python LangChain / CrewAI / AutoGen 2-line wrapper:</div>
+        <!-- Python -->
+        <div class="tab-card" id="qtab-python">
+          <p class="tab-desc">Python SDK integration for LangChain and CrewAI agents:</p>
           <pre><code>from mcp_shield import ShieldClient
 
 client = ShieldClient(
@@ -383,18 +241,17 @@ client = ShieldClient(
     api_key="mcp_live_sec_your_key"
 )
 
-# Safe tool call with automatic Ed25519 attestation
-result = client.call_tool("sql_query", {"query": "SELECT * FROM sales"})
-print("Cryptographic Signature:", result.signature)</code></pre>
-          <div class="tab-footer">
-            <button class="cyber-btn btn-cyan btn-sm" onclick="copySnippet('pip install mcp-shield')">COPY PYTHON SNIPPET</button>
-            <span class="tab-hint">Async & Sync support with automatic retries</span>
+# Executes safe query through the policy firewall
+response = client.call_tool("postgres_read", {"query": "SELECT id, name FROM users LIMIT 100"})
+print("Signature:", response.attestation_signature)</code></pre>
+          <div class="tab-action">
+            <button class="btn btn-outline btn-sm" onclick="copySnippet('pip install mcp-shield')">Copy Python Code</button>
           </div>
         </div>
 
-        <!-- Node.js Tab -->
-        <div class="tab-pane" id="tab-nodejs">
-          <div class="code-meta">TypeScript / Node.js client:</div>
+        <!-- TypeScript -->
+        <div class="tab-card" id="qtab-typescript">
+          <p class="tab-desc">Standard TypeScript / Node.js integration:</p>
           <pre><code>import { McpShieldClient } from '@mcp-shield/sdk';
 
 const shield = new McpShieldClient({
@@ -402,414 +259,285 @@ const shield = new McpShieldClient({
   apiKey: process.env.MCP_SHIELD_KEY
 });
 
-const response = await shield.executeTool('postgres_read', { query: 'SELECT * FROM users' });
-console.log('Attested Trace ID:', response.traceId);</code></pre>
-          <div class="tab-footer">
-            <button class="cyber-btn btn-cyan btn-sm" onclick="copySnippet('npm install @mcp-shield/sdk')">COPY TYPESCRIPT SNIPPET</button>
-            <span class="tab-hint">Fully typed with JSON-RPC 2.0 error schemas</span>
+const result = await shield.executeTool('database_query', { query: 'SELECT * FROM inventory' });
+console.log('Attested Trace ID:', result.traceId);</code></pre>
+          <div class="tab-action">
+            <button class="btn btn-outline btn-sm" onclick="copySnippet('npm install @mcp-shield/sdk')">Copy TypeScript Code</button>
           </div>
         </div>
 
-        <!-- cURL Tab -->
-        <div class="tab-pane" id="tab-curl">
-          <div class="code-meta">Direct REST / JSON-RPC 2.0 HTTP invocation:</div>
+        <!-- cURL -->
+        <div class="tab-card" id="qtab-curl">
+          <p class="tab-desc">Direct HTTP JSON-RPC 2.0 request:</p>
           <pre><code>curl -X POST https://mcp-shield-gateway-core.vercel.app/v1/mcp \
   -H "Authorization: Bearer mcp_live_sec_your_key" \
   -H "Content-Type: application/json" \
-  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"query_db","arguments":{"query":"SELECT * FROM users"}}}'</code></pre>
-          <div class="tab-footer">
-            <button class="cyber-btn btn-cyan btn-sm" onclick="copySnippet('curl -X POST https://mcp-shield-gateway-core.vercel.app/v1/mcp')">COPY CURL COMMAND</button>
-            <span class="tab-hint">Standard JSON-RPC 2.0 conforming to Linux Foundation MCP Spec</span>
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"sql_read","arguments":{"query":"SELECT * FROM organizations"}}}'</code></pre>
+          <div class="tab-action">
+            <button class="btn btn-outline btn-sm" onclick="copySnippet('curl -X POST https://mcp-shield-gateway-core.vercel.app/v1/mcp')">Copy cURL Command</button>
           </div>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- 6. Four Core Security Pillars -->
-  <section class="container section-spacing" id="pillars">
-    <div class="section-header">
-      <div class="section-tag">DEFENSE-IN-DEPTH</div>
-      <h2>4 Layers of Autonomous Agent Protection</h2>
-      <p>Purpose-built for the unique security attack surfaces of Large Language Models and MCP tool callers.</p>
+  <!-- Security Engine Architecture Grid -->
+  <section class="container section-gap" id="features">
+    <div class="section-heading">
+      <div class="eyebrow">CORE CAPABILITIES</div>
+      <h2>Enterprise Defense in Depth</h2>
+      <p>Engineered specifically for the security attack surfaces introduced by autonomous tool callers.</p>
     </div>
 
-    <div class="pillars-grid">
-      <div class="pillar-card card-glow-red">
-        <div class="pillar-icon-box" style="color:#ff2a5f;background:rgba(255,42,95,0.12);">🛡️</div>
-        <h3>Prompt Injection WAF</h3>
-        <p>Zero-allocation AST sanitizer strips zero-width unicode obfuscations, detects DAN/developer-mode jailbreaks, and neutralizes indirect prompt overrides.</p>
-        <ul class="pillar-list">
-          <li>✓ Unicode normalization & zero-width stripper</li>
-          <li>✓ System prompt override detection</li>
-          <li>✓ Role reversal & DAN vector defense</li>
-        </ul>
+    <div class="features-grid">
+      <div class="feature-item">
+        <h4>Prompt Injection Neutralization</h4>
+        <p>Strips zero-width unicode obfuscations, detects system override patterns, and prevents indirect prompt injection from compromised tool outputs.</p>
       </div>
 
-      <div class="pillar-card card-glow-gold">
-        <div class="pillar-icon-box" style="color:#ffb800;background:rgba(255,184,0,0.12);">⚡</div>
-        <h3>Blast Radius & SQL Armor</h3>
-        <p>Prevents rogue agent mutations from deleting production tables. Restricts database tools to safe parameterized SELECT reads with strict limits.</p>
-        <ul class="pillar-list">
-          <li>✓ Blocks DROP TABLE, TRUNCATE, ALTER</li>
-          <li>✓ Restricts unconstrained DELETE / UPDATE</li>
-          <li>✓ 1MB maximum payload safety limits</li>
-        </ul>
+      <div class="feature-item">
+        <h4>Database Blast Radius Armor</h4>
+        <p>Enforces AST-level query validation to block destructive DDL (<code>DROP</code>, <code>TRUNCATE</code>, <code>ALTER</code>) and unconstrained bulk mutations.</p>
       </div>
 
-      <div class="pillar-card card-glow-green">
-        <div class="pillar-icon-box" style="color:#00ff88;background:rgba(0,255,136,0.12);">🔐</div>
-        <h3>Ed25519 Hardware Attestation</h3>
-        <p>Every tool execution and return payload is cryptographically signed with high-speed Ed25519 digital signatures for verifiable SOC 2 audit trails.</p>
-        <ul class="pillar-list">
-          <li>✓ Sub-millisecond signing engine</li>
-          <li>✓ Immutable Supabase PostgreSQL logs</li>
-          <li>✓ Tamper-evident trace ID verification</li>
-        </ul>
+      <div class="feature-item">
+        <h4>Cryptographic Audit Attestation</h4>
+        <p>Signs every permitted transaction with Ed25519 keys, creating an immutable cryptographic chain of custody for SOC 2 Type II and ISO 27001 audits.</p>
       </div>
 
-      <div class="pillar-card card-glow-cyan">
-        <div class="pillar-icon-box" style="color:#00f0ff;background:rgba(0,240,255,0.12);">📡</div>
-        <h3>Data Exfiltration Firewall</h3>
-        <p>Stops compromised LLMs from dumping API keys, database credentials, or sensitive customer records to unauthorized external webhooks.</p>
-        <ul class="pillar-list">
-          <li>✓ Intercepts webhook.site & ngrok tunnels</li>
-          <li>✓ Prevents secret dumping & credential leaks</li>
-          <li>✓ Enforces strict domain allowlists</li>
-        </ul>
+      <div class="feature-item">
+        <h4>Data Exfiltration Prevention</h4>
+        <p>Monitors tool arguments for unauthorized webhook destinations and credential dumping patterns to prevent accidental secrets leaks.</p>
+      </div>
+
+      <div class="feature-item">
+        <h4>Role-Based Tool Access (RBAC)</h4>
+        <p>Define granular policies per agent key—restricting specific autonomous agents to specific subsets of tools and database schemas.</p>
+      </div>
+
+      <div class="feature-item">
+        <h4>Stateless In-Memory Evaluation</h4>
+        <p>Your confidential prompts and database payloads are evaluated in-memory and never written to third-party disks or shared model training sets.</p>
       </div>
     </div>
   </section>
 
-  <!-- 7. Ecosystem Integrations Grid -->
-  <section class="container section-spacing" id="integrations">
-    <div class="section-header">
-      <div class="section-tag">COMPATIBILITY MATRIX</div>
-      <h2>Plugs Directly Into Your Existing AI Stack</h2>
-      <p>Works natively across all leading IDEs, agent orchestrators, and enterprise database connectors.</p>
+  <!-- Pricing Plans -->
+  <section class="container section-gap" id="pricing">
+    <div class="section-heading">
+      <div class="eyebrow">PRICING</div>
+      <h2>Transparent, Scalable Plans</h2>
+      <p>Start for free in developer sandbox, or scale with enterprise-grade audit controls.</p>
     </div>
 
-    <div class="eco-grid">
-      <div class="eco-card">
-        <div class="eco-icon">🤖</div>
-        <div class="eco-title">Anthropic Claude</div>
-        <div class="eco-desc">1-click JSON wrapping for Claude Desktop on macOS & Windows.</div>
-      </div>
-      <div class="eco-card">
-        <div class="eco-icon">💻</div>
-        <div class="eco-title">Cursor IDE</div>
-        <div class="eco-desc">Shield your local and remote Cursor MCP composer agents.</div>
-      </div>
-      <div class="eco-card">
-        <div class="eco-icon">🦜</div>
-        <div class="eco-title">LangChain & LangGraph</div>
-        <div class="eco-desc">Python and TypeScript middleware for autonomous multi-agent graphs.</div>
-      </div>
-      <div class="eco-card">
-        <div class="eco-icon">👥</div>
-        <div class="eco-title">CrewAI & AutoGen</div>
-        <div class="eco-desc">Autonomous multi-agent fleet security with per-agent RBAC policies.</div>
-      </div>
-      <div class="eco-card">
-        <div class="eco-icon">🐘</div>
-        <div class="eco-title">PostgreSQL & Supabase</div>
-        <div class="eco-desc">Read-only SQL policy enforcement and blast radius controls.</div>
-      </div>
-      <div class="eco-card">
-        <div class="eco-icon">🐙</div>
-        <div class="eco-title">GitHub & Corporate Tools</div>
-        <div class="eco-desc">Prevent unauthorized repo mutations, deletions, and force pushes.</div>
-      </div>
-    </div>
-  </section>
-
-  <!-- 8. Paid Creator Marketplace -->
-  <section class="container section-spacing" id="marketplace">
-    <div class="section-header">
-      <div class="section-tag">CREATOR MARKETPLACE</div>
-      <h2>Verified High-Value Tool Marketplace</h2>
-      <p>Publish and monetize proprietary high-value MCP tools with automated per-call metering and 15% platform take-rates.</p>
-    </div>
-
-    <div class="market-grid">
-      <div class="market-card">
-        <div class="market-head">
-          <div>
-            <div class="market-title">📈 Bloomberg B-PIPE Equities Feed</div>
-            <div class="market-pub">Publisher: AlphaQuant Capital • 85% Creator Payout</div>
-          </div>
-          <div class="market-badge">$0.01 / call</div>
-        </div>
-        <p class="market-desc">Real-time institutional Level 2 orderbook depth and quotes with sub-5ms P99 hardware attestation.</p>
-        <button class="cyber-btn btn-cyan btn-sm" onclick="showToast('Subscribed to Bloomberg B-PIPE Tool in Sandbox')">TEST TOOL IN SANDBOX</button>
-      </div>
-
-      <div class="market-card">
-        <div class="market-head">
-          <div>
-            <div class="market-title">⚖️ LexisNexis Legal Precedents Matrix</div>
-            <div class="market-pub">Publisher: LegalTech AI Lab • 85% Creator Payout</div>
-          </div>
-          <div class="market-badge">$0.05 / call</div>
-        </div>
-        <p class="market-desc">Complete US Federal, Circuit, and Supreme Court case law semantic search index for legal agents.</p>
-        <button class="cyber-btn btn-cyan btn-sm" onclick="showToast('Subscribed to LexisNexis Legal Tool in Sandbox')">TEST TOOL IN SANDBOX</button>
-      </div>
-    </div>
-  </section>
-
-  <!-- 9. Pricing Matrix -->
-  <section class="container section-spacing" id="pricing">
-    <div class="section-header">
-      <div class="section-tag">TRANSPARENT PRICING</div>
-      <h2>Institutional Subscription Matrix</h2>
-      <p>Settled via Merchant of Record (Dodo Payments). 95%+ Gross Margin Model.</p>
-    </div>
-
-    <div class="matrix-grid">
-      <!-- Tier 1: Free Sandbox -->
-      <div class="tier-card">
-        <div class="tier-name">DEVELOPER SANDBOX</div>
-        <div class="tier-price">$0 <span>/ month</span></div>
-        <ul class="tier-features">
-          <li>✓ 50,000 tool calls / month</li>
-          <li>✓ Local Developer CLI Shield (`npx mcp-shield`)</li>
-          <li>✓ Prompt Injection WAF Engine</li>
-          <li>✓ 24-hour immutable telemetry</li>
-          <li>✓ Standard Community Support</li>
+    <div class="pricing-grid">
+      <!-- Developer Sandbox -->
+      <div class="pricing-card">
+        <div class="tier-title">Developer Sandbox</div>
+        <div class="tier-cost">$0 <span class="period">/ month</span></div>
+        <p class="tier-summary">For individual developers and local evaluation.</p>
+        <ul class="tier-list">
+          <li>✓ 50,000 tool invocations / month</li>
+          <li>✓ Local CLI Shield (<code>npx mcp-shield</code>)</li>
+          <li>✓ Core Prompt Injection Sanitizer</li>
+          <li>✓ Standard JSON-RPC 2.0 proxy</li>
+          <li>✓ Community Support</li>
         </ul>
-        <button class="cyber-btn btn-cyan" style="width:100%;" onclick="openKeyModal()">GET STARTED FREE</button>
+        <button class="btn btn-outline full-width" onclick="openKeyModal()">Get Started Free</button>
       </div>
 
-      <!-- Tier 2: Team Pro -->
-      <div class="tier-card tier-pro">
-        <div class="tier-badge">MISSION CRITICAL</div>
-        <div class="tier-name" style="color:#00f0ff;">ENGINEERING TEAM PRO</div>
-        <div class="tier-price">$99 <span>/ month</span></div>
-        <ul class="tier-features">
-          <li>✓ 1,000,000 tool calls / month</li>
-          <li>✓ Role-Based Access Control (RBAC)</li>
-          <li>✓ 30-Day SOC 2 Audit Retention</li>
-          <li>✓ Ed25519 Cryptographic Attestation</li>
-          <li>✓ Outbound Zero-Knowledge VPC Tunnels</li>
+      <!-- Engineering Team Pro -->
+      <div class="pricing-card pricing-featured">
+        <div class="featured-badge">RECOMMENDED</div>
+        <div class="tier-title">Engineering Team Pro</div>
+        <div class="tier-cost">$99 <span class="period">/ month</span></div>
+        <p class="tier-summary">For production engineering teams deploying agent fleets.</p>
+        <ul class="tier-list">
+          <li>✓ 1,000,000 tool invocations / month</li>
+          <li>✓ Multi-Agent RBAC Policy Engine</li>
+          <li>✓ Ed25519 Cryptographic Attestations</li>
+          <li>✓ 30-Day Audit Log Retention in Supabase</li>
           <li>✓ Automated Dodo Payments Invoicing</li>
+          <li>✓ Priority Technical Support</li>
         </ul>
-        <button class="cyber-btn btn-cyan" style="width:100%;" onclick="openCheckoutModal()">UPGRADE TO PRO ($99)</button>
+        <button class="btn btn-primary full-width" onclick="openCheckoutModal()">Upgrade to Pro ($99/mo)</button>
       </div>
 
-      <!-- Tier 3: Enterprise Fleet -->
-      <div class="tier-card">
-        <div class="tier-name">ENTERPRISE FLEET</div>
-        <div class="tier-price">$1,500 <span>/ month</span></div>
-        <ul class="tier-features">
-          <li>✓ Unlimited tool calls & agents</li>
-          <li>✓ Okta / Microsoft Entra SAML SSO</li>
+      <!-- Enterprise Fleet -->
+      <div class="pricing-card">
+        <div class="tier-title">Enterprise Fleet</div>
+        <div class="tier-cost">$1,500 <span class="period">/ month</span></div>
+        <p class="tier-summary">For organizations requiring dedicated infrastructure and SLAs.</p>
+        <ul class="tier-list">
+          <li>✓ Unlimited tool invocations</li>
+          <li>✓ Okta / SAML SSO & Directory Sync</li>
           <li>✓ 1-Year Immutable Compliance Vault</li>
-          <li>✓ Dedicated Air-Gapped Cloud Pod</li>
-          <li>✓ 99.999% SLA & 24/7 Red-Team Support</li>
-          <li>✓ Custom DDL AST security policies</li>
+          <li>✓ Dedicated Cloud Pod Deployment</li>
+          <li>✓ 99.99% Availability SLA</li>
+          <li>✓ Dedicated Security Architect</li>
         </ul>
-        <button class="cyber-btn btn-cyan" style="width:100%;" onclick="showToast('Connecting to Enterprise Security Architects...')">CONTACT ENTERPRISE</button>
+        <button class="btn btn-outline full-width" onclick="alert('Please contact enterprise@mcpshield.dev for custom deployments.')">Contact Enterprise</button>
       </div>
     </div>
   </section>
 
-  <!-- 10. Customer FAQ Accordion -->
-  <section class="container section-spacing" id="faq">
-    <div class="section-header">
-      <div class="section-tag">FREQUENTLY ASKED QUESTIONS</div>
-      <h2>Everything You Need to Know</h2>
+  <!-- FAQ Section -->
+  <section class="container section-gap" id="faq">
+    <div class="section-heading">
+      <div class="eyebrow">FAQ</div>
+      <h2>Frequently Asked Questions</h2>
     </div>
 
-    <div class="faq-accordion">
-      <div class="faq-item">
-        <div class="faq-q" onclick="toggleFaq(this)">
-          <span>Does MCP Shield add noticeable latency to agent tool calls?</span>
-          <span class="faq-icon">+</span>
+    <div class="faq-list">
+      <div class="faq-card">
+        <div class="faq-question" onclick="toggleFaqCard(this)">
+          <span>Does MCP Shield add noticeable latency to LLM tool calls?</span>
+          <span class="faq-toggle">+</span>
         </div>
-        <div class="faq-a">
-          No. MCP Shield is engineered with a zero-copy, in-memory AST engine written in pure Node.js. P99 latency overhead is strictly under 1.5ms, which is completely imperceptible to LLMs.
-        </div>
-      </div>
-
-      <div class="faq-item">
-        <div class="faq-q" onclick="toggleFaq(this)">
-          <span>Do you store our confidential data or prompts?</span>
-          <span class="faq-icon">+</span>
-        </div>
-        <div class="faq-a">
-          No. MCP Shield operates statelessly. Raw tool payloads are evaluated in-memory and discarded immediately. Only anonymized metadata (status code, latency, tool name, and cryptographic SHA-256 hashes) is written to your Supabase audit log.
+        <div class="faq-answer">
+          No. MCP Shield uses an in-process, zero-copy evaluation engine written in high-efficiency Node.js. P99 latency overhead is consistently under 1.5ms, which represents less than 0.1% of typical LLM generation latency.
         </div>
       </div>
 
-      <div class="faq-item">
-        <div class="faq-q" onclick="toggleFaq(this)">
-          <span>How does Ed25519 cryptographic attestation help with compliance?</span>
-          <span class="faq-icon">+</span>
+      <div class="faq-card">
+        <div class="faq-question" onclick="toggleFaqCard(this)">
+          <span>Do you store raw prompts or confidential database payloads?</span>
+          <span class="faq-toggle">+</span>
         </div>
-        <div class="faq-a">
-          Every tool execution is signed by an isolated enclave key. This creates an unbroken, tamper-evident cryptographic chain of custody required for SOC 2 Type II, ISO 27001, and HIPAA AI compliance audits.
+        <div class="faq-answer">
+          No. All tool inputs and responses are evaluated in volatile memory and immediately discarded. Only anonymized telemetry metadata (latency, tool identifier, status code, and SHA-256 hashes) is recorded in your Supabase audit log.
         </div>
       </div>
 
-      <div class="faq-item">
-        <div class="faq-q" onclick="toggleFaq(this)">
-          <span>Can I use MCP Shield locally in Claude Desktop or Cursor?</span>
-          <span class="faq-icon">+</span>
+      <div class="faq-card">
+        <div class="faq-question" onclick="toggleFaqCard(this)">
+          <span>How does Ed25519 cryptographic signing work?</span>
+          <span class="faq-toggle">+</span>
         </div>
-        <div class="faq-a">
-          Yes! You can run <code>npx mcp-shield wrap</code> to intercept local stdio tool calls on your laptop, or route through our cloud gateway (<code>https://mcp-shield-gateway-core.vercel.app/v1/mcp</code>).
+        <div class="faq-answer">
+          Every tool execution approved by the gateway is digitally signed using an Ed25519 enclave key. This produces a lightweight cryptographic receipt that can be independently verified for SOC 2 Type II and HIPAA compliance audits.
+        </div>
+      </div>
+
+      <div class="faq-card">
+        <div class="faq-question" onclick="toggleFaqCard(this)">
+          <span>Can I run MCP Shield locally on my machine?</span>
+          <span class="faq-toggle">+</span>
+        </div>
+        <div class="faq-answer">
+          Yes. The <code>npx mcp-shield wrap</code> command runs directly on your local machine, intercepting stdio tool calls between Claude Desktop or Cursor and your local MCP servers without transmitting any database credentials to the cloud.
         </div>
       </div>
     </div>
   </section>
 
-  <!-- 11. Enterprise Footer -->
-  <footer class="command-footer">
-    <div class="container footer-grid">
-      <div>
-        <div class="brand-logo" style="margin-bottom:0.75rem;">
-          <span class="logo-shield">⚡</span>
-          <span class="logo-text">MCP <span class="logo-accent">SHIELD</span></span>
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container footer-content">
+      <div class="footer-brand-col">
+        <div class="brand">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            <path d="m9 12 2 2 4-4"/>
+          </svg>
+          <span class="brand-name">MCP<span class="brand-light">Shield</span></span>
         </div>
-        <p style="font-size:0.85rem;color:var(--text-slate);line-height:1.6;max-width:320px;">
-          The enterprise Zero-Trust Firewall & Attestation Gateway for Model Context Protocol (MCP) servers and AI agents.
-        </p>
-        <div style="font-family:var(--font-mono);font-size:0.75rem;color:var(--text-dim);margin-top:1.25rem;">
-          © 2026 MCP Shield Platform Inc. All rights reserved.
-        </div>
+        <p class="footer-tagline">Zero-Trust Security Gateway for Model Context Protocol.</p>
+        <div class="footer-copy">© 2026 MCP Shield. Built for the open agent ecosystem.</div>
       </div>
 
-      <div>
-        <div class="footer-title">PRODUCT</div>
-        <ul class="footer-links">
-          <li><a href="#how-it-works">How It Works</a></li>
-          <li><a href="#playground">Interactive Demo</a></li>
-          <li><a href="#pillars">Security Engine</a></li>
-          <li><a href="#pricing">Pricing Matrix</a></li>
-        </ul>
+      <div class="footer-links-col">
+        <div class="footer-header">PRODUCT</div>
+        <a href="#overview">Architecture</a>
+        <a href="#inspector">Protocol Inspector</a>
+        <a href="#quickstart">Quickstart</a>
+        <a href="#pricing">Pricing</a>
       </div>
 
-      <div>
-        <div class="footer-title">ECOSYSTEM</div>
-        <ul class="footer-links">
-          <li><a href="#integrations">Claude Desktop</a></li>
-          <li><a href="#integrations">Cursor IDE</a></li>
-          <li><a href="#marketplace">Creator Marketplace</a></li>
-          <li><a href="https://github.com/shubham1504611/mcp-shield" target="_blank">GitHub Repository</a></li>
-        </ul>
+      <div class="footer-links-col">
+        <div class="footer-header">RESOURCES</div>
+        <a href="https://github.com/shubham1504611/mcp-shield" target="_blank">GitHub Repository</a>
+        <a href="https://modelcontextprotocol.io" target="_blank">MCP Specification</a>
+        <a href="#features">Security Engine</a>
       </div>
 
-      <div>
-        <div class="footer-title">COMPLIANCE & LEGAL</div>
-        <ul class="footer-links">
-          <li><a href="#pillars">SOC 2 Type II Attestation</a></li>
-          <li><a href="#pillars">Ed25519 Crypto Enclave</a></li>
-          <li><a href="#" onclick="alert('Privacy Policy: All payloads are inspected in-memory with zero plaintext logging.')">Privacy Policy</a></li>
-          <li><a href="#" onclick="alert('Terms of Service: Apache-2.0 Open Core with Enterprise Support SLAs.')">Terms of Service</a></li>
-        </ul>
+      <div class="footer-links-col">
+        <div class="footer-header">COMPLIANCE</div>
+        <a href="#features">SOC 2 Type II Attestation</a>
+        <a href="#features">Ed25519 Crypto Enclave</a>
+        <a href="#" onclick="alert('Privacy Policy: All payloads are evaluated statelessly in-memory with zero plaintext persistence.')">Privacy Policy</a>
       </div>
     </div>
   </footer>
 
-  <!-- Modal 1: Provision Key Modal -->
-  <div class="modal-overlay" id="key-modal" style="display: none;" onclick="handleBackdropClick(event, 'key-modal')">
-    <div class="modal-content">
-      <div class="modal-head">
-        <h3 class="modal-title">⚡ PROVISION GATEWAY KEY</h3>
+  <!-- Key Provisioning Modal -->
+  <div class="modal-backdrop" id="key-modal" style="display: none;" onclick="handleModalBackdrop(event, 'key-modal')">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>Provision Gateway Key</h3>
         <button class="modal-close" onclick="closeKeyModal()">✕</button>
       </div>
-      <div>
-        <label class="input-label">KEY NAME / AGENT IDENTIFIER:</label>
-        <input type="text" id="key-name-input" placeholder="e.g. Production Cluster Agent Key" class="cyber-input">
-        
-        <label class="input-label" style="margin-top:1rem;">RPM RATE LIMIT (CALLS/MIN):</label>
-        <input type="number" id="key-rate-input" value="120" class="cyber-input">
-        
-        <div id="new-key-result" style="display:none;margin-top:1.25rem;">
-          <label style="font-family:var(--font-mono);font-size:0.75rem;color:#00ff88;font-weight:800;">PROVISIONED KEY (COPY IMMEDIATELY):</label>
-          <div class="key-box">
-            <code id="new-key-code"></code>
-            <button class="cyber-btn btn-cyan btn-sm" onclick="copyNewKey()">COPY</button>
+      <div class="modal-body">
+        <label class="form-label">Key Name / Identifier:</label>
+        <input type="text" id="modal-key-name" placeholder="e.g. Production Cluster Agent" class="form-input">
+
+        <label class="form-label" style="margin-top: 1rem;">Rate Limit (RPM):</label>
+        <input type="number" id="modal-key-rpm" value="120" class="form-input">
+
+        <div id="modal-key-output" style="display: none; margin-top: 1.25rem;">
+          <label class="form-label" style="color: var(--color-success);">Provisioned API Key (Copy & Save):</label>
+          <div class="key-display-box">
+            <code id="modal-key-val"></code>
+            <button class="btn btn-primary btn-sm" onclick="copySnippet(document.getElementById('modal-key-val').innerText)">Copy</button>
           </div>
         </div>
       </div>
-      <div class="modal-actions">
-        <button class="cyber-btn btn-dim" onclick="closeKeyModal()">CANCEL</button>
-        <button class="cyber-btn btn-cyan" id="btn-generate" onclick="handleGenerateKey()">PROVISION KEY</button>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeKeyModal()">Cancel</button>
+        <button class="btn btn-primary" id="btn-modal-generate" onclick="generateGatewayKey()">Generate Key</button>
       </div>
     </div>
   </div>
 
-  <!-- Modal 2: Connect Existing Key Modal -->
-  <div class="modal-overlay" id="connect-modal" style="display: none;" onclick="handleBackdropClick(event, 'connect-modal')">
-    <div class="modal-content">
-      <div class="modal-head">
-        <h3 class="modal-title" style="color:#00f0ff;">🔑 CONNECT EXISTING API KEY</h3>
+  <!-- Connect Key Modal -->
+  <div class="modal-backdrop" id="connect-modal" style="display: none;" onclick="handleModalBackdrop(event, 'connect-modal')">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>Connect Existing Key</h3>
         <button class="modal-close" onclick="closeConnectModal()">✕</button>
       </div>
-      <div>
-        <p style="font-size:0.85rem;color:var(--text-slate);margin-bottom:1rem;line-height:1.5;">
-          Paste your existing Gateway API Key to restore your historical fleet telemetry, audit logs, and ROI stats from Supabase on this device.
+      <div class="modal-body">
+        <p style="font-size: 0.88rem; color: var(--color-muted); margin-bottom: 1rem;">
+          Enter your existing <code>mcp_live_sec_...</code> key to link this session to your organization's telemetry and security policies.
         </p>
-        <label class="input-label">YOUR API KEY:</label>
-        <input type="password" id="connect-key-input" placeholder="mcp_live_sec_..." class="cyber-input">
+        <label class="form-label">API Key:</label>
+        <input type="password" id="modal-connect-val" placeholder="mcp_live_sec_..." class="form-input">
       </div>
-      <div class="modal-actions">
-        <button class="cyber-btn btn-dim" onclick="closeConnectModal()">CANCEL</button>
-        <button class="cyber-btn btn-cyan" onclick="handleConnectExistingKey()">RESTORE STATS</button>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeConnectModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="submitConnectKey()">Connect</button>
       </div>
     </div>
   </div>
 
-  <!-- Modal 3: Passwordless Auth Modal -->
-  <div class="modal-overlay" id="auth-modal" style="display: none;" onclick="handleBackdropClick(event, 'auth-modal')">
-    <div class="modal-content">
-      <div class="modal-head">
-        <h3 class="modal-title" style="color:#a855f7;">🔐 SIGN IN / LINK EMAIL</h3>
-        <button class="modal-close" onclick="closeAuthModal()">✕</button>
-      </div>
-      <div>
-        <p style="font-size:0.85rem;color:var(--text-slate);margin-bottom:1.25rem;line-height:1.5;">
-          Link your company email to enable permanent cross-device syncing, encrypted database credentials, and multi-user RBAC.
-        </p>
-
-        <button class="cyber-btn btn-google" onclick="simulateGoogleAuth()">
-          <span style="font-size:1.1rem;">🇬</span> Continue with Google
-        </button>
-
-        <div class="auth-divider"><span>OR CONTINUE WITH EMAIL</span></div>
-
-        <label class="input-label">CORPORATE EMAIL:</label>
-        <input type="email" id="auth-email-input" placeholder="you@company.com" class="cyber-input">
-      </div>
-      <div class="modal-actions">
-        <button class="cyber-btn btn-dim" onclick="closeAuthModal()">CANCEL</button>
-        <button class="cyber-btn btn-cyan" onclick="handleSendMagicLink()">SEND MAGIC LINK</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Modal 4: Dodo Payments Checkout Modal -->
-  <div class="modal-overlay" id="checkout-modal" style="display: none;" onclick="handleBackdropClick(event, 'checkout-modal')">
-    <div class="modal-content">
-      <div class="modal-head">
-        <h3 class="modal-title" style="color:#00ff88;">💳 DODO PAYMENTS SECURE CHECKOUT</h3>
+  <!-- Checkout Modal -->
+  <div class="modal-backdrop" id="checkout-modal" style="display: none;" onclick="handleModalBackdrop(event, 'checkout-modal')">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3>Engineering Team Pro</h3>
         <button class="modal-close" onclick="closeCheckoutModal()">✕</button>
       </div>
-      <div>
-        <div class="checkout-summary">
-          <div style="font-size:1.1rem;font-weight:800;">Engineering Team Pro</div>
-          <div style="font-family:var(--font-mono);font-size:1.5rem;font-weight:900;color:#00ff88;margin:0.25rem 0;">$99.00 <span style="font-size:0.8rem;color:var(--text-slate);">/ month</span></div>
-          <div style="font-size:0.8rem;color:var(--text-slate);">Includes 1,000,000 tool calls/mo, RBAC & Ed25519 Attestation.</div>
+      <div class="modal-body">
+        <div class="checkout-box">
+          <div style="font-size: 1.25rem; font-weight: 700;">$99.00 <span style="font-size: 0.85rem; color: var(--color-muted);">/ month</span></div>
+          <p style="font-size: 0.85rem; color: var(--color-muted); margin-top: 0.25rem;">Includes 1,000,000 tool calls/mo, RBAC, and Ed25519 attestation.</p>
         </div>
-
-        <label class="input-label" style="margin-top:1.2rem;">ORGANIZATION BILLING EMAIL:</label>
-        <input type="email" id="checkout-email" placeholder="billing@yourcompany.com" class="cyber-input" value="admin@acme.com">
+        <label class="form-label" style="margin-top: 1rem;">Billing Email:</label>
+        <input type="email" id="checkout-email-val" value="admin@company.com" class="form-input">
       </div>
-      <div class="modal-actions">
-        <button class="cyber-btn btn-dim" onclick="closeCheckoutModal()">CANCEL</button>
-        <button class="cyber-btn btn-cert" onclick="simulateCheckoutSuccess()">CONFIRM & ACTIVATE PRO</button>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeCheckoutModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="simulateProActivation()">Confirm & Activate Plan</button>
       </div>
     </div>
   </div>
