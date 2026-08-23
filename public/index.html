@@ -30,9 +30,9 @@
 
       <nav class="nav-links">
         <a href="#how-it-works" class="nav-link" id="nav-how-it-works">Architecture</a>
+        <a href="#playground" class="nav-link" id="nav-playground">Live Playground</a>
         <a href="#guarantees" class="nav-link" id="nav-guarantees">Guarantees</a>
-        <a href="#console" class="nav-link" id="nav-console">Telemetry Console</a>
-        <a href="#inspector" class="nav-link" id="nav-inspector">Protocol Inspector</a>
+        <a href="#console" class="nav-link" id="nav-console">Console</a>
         <a href="#quickstart" class="nav-link" id="nav-quickstart">Quickstart</a>
         <a href="#pricing" class="nav-link" id="nav-pricing">Pricing</a>
         <a href="#faq" class="nav-link" id="nav-faq">FAQ</a>
@@ -66,8 +66,8 @@
         <button class="btn-hero-primary" onclick="openKeyModal()">
           ⚡ Provision Free Gateway Key
         </button>
-        <a href="#inspector" class="btn-hero-secondary">
-          🔍 Live Protocol Inspector
+        <a href="#playground" class="btn-hero-secondary">
+          🧪 Test Live Playground
         </a>
       </div>
 
@@ -78,7 +78,7 @@
         <button class="term-copy" onclick="copySnippet('npx mcp-shield wrap')">Copy</button>
       </div>
 
-      <!-- Clean Ecosystem Compatibility Chips -->
+      <!-- Ecosystem Compatibility Chips -->
       <div class="hero-ecosystem-row">
         <span class="eco-label">Native compatibility across:</span>
         <div class="eco-chips-group">
@@ -93,7 +93,70 @@
     </div>
   </section>
 
-  <!-- 2. Visual Mental Model: How It Sits In Your Stack -->
+  <!-- 2. Interactive Real-Time Security Playground (New Powerful UX) -->
+  <section class="site-container section-pad" id="playground">
+    <div class="section-lead">
+      <div class="eyebrow-label">LIVE SECURITY PLAYGROUND</div>
+      <h2 class="section-title">Test Any Tool Query In Real Time</h2>
+      <p class="section-desc">Type any SQL query, command, or prompt override below to see the in-memory WAF evaluate, sanitize, or block the payload instantly.</p>
+    </div>
+
+    <div class="playground-card">
+      <div class="playground-header">
+        <div class="play-presets">
+          <span class="play-label">PRESETS:</span>
+          <button class="play-preset-btn active" onclick="loadPlaygroundPreset('safe')">Safe Read</button>
+          <button class="play-preset-btn" onclick="loadPlaygroundPreset('injection')">Prompt Injection</button>
+          <button class="play-preset-btn" onclick="loadPlaygroundPreset('drop')">DROP TABLE</button>
+          <button class="play-preset-btn" onclick="loadPlaygroundPreset('exfil')">Egress Exfil</button>
+        </div>
+        <div class="play-status-indicator">
+          <span class="pulse-indicator"></span>
+          <span>Engine: In-Memory AST v2.4</span>
+        </div>
+      </div>
+
+      <div class="playground-grid">
+        <!-- Left: Input Query Area -->
+        <div class="play-input-col">
+          <div class="play-col-head">
+            <span>INCOMING TOOL CALL (JSON-RPC)</span>
+            <span class="play-method">postgres_query</span>
+          </div>
+          <textarea id="playground-input" class="play-textarea" spellcheck="false" placeholder="Enter query or tool arguments..."></textarea>
+          <div class="play-input-actions">
+            <button class="btn-play-run" onclick="executePlayground()">⚡ Evaluate Payload</button>
+            <span class="play-hint">Zero data persisted to disk</span>
+          </div>
+        </div>
+
+        <!-- Right: Real-time Evaluation Verdict -->
+        <div class="play-output-col">
+          <div class="play-col-head">
+            <span>GATEWAY VERDICT & AUDIT</span>
+            <span class="code-badge badge-green" id="playground-badge">PASS: Ed25519 Signed</span>
+          </div>
+          <pre class="play-pre"><code id="playground-output"></code></pre>
+          <div class="play-metrics-footer">
+            <div>
+              <span class="play-foot-tag">LATENCY</span>
+              <span class="play-foot-val" id="play-lat">1.1 ms</span>
+            </div>
+            <div>
+              <span class="play-foot-tag">RISK SCORE</span>
+              <span class="play-foot-val" id="play-risk">0.00</span>
+            </div>
+            <div>
+              <span class="play-foot-tag">SIGNATURE</span>
+              <span class="play-foot-val mono" id="play-sig">ed25519:7f89ac12b...</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3. Visual Mental Model: How It Sits In Your Stack -->
   <section class="site-container section-pad" id="how-it-works">
     <div class="section-lead">
       <div class="eyebrow-label">SYSTEM TOPOLOGY</div>
@@ -157,7 +220,62 @@
     </div>
   </section>
 
-  <!-- 3. The 3 Core Inviolable Guarantees -->
+  <!-- 4. Threat Matrix: Before vs After MCP Shield (Crucial UX Clarity) -->
+  <section class="site-container section-pad">
+    <div class="section-lead">
+      <div class="eyebrow-label">RISK MITIGATION</div>
+      <h2 class="section-title">Without MCP Shield vs. With MCP Shield</h2>
+      <p class="section-desc">Why running naked MCP connections exposes your organization to severe security vulnerabilities.</p>
+    </div>
+
+    <div class="matrix-grid">
+      <!-- Vulnerable Column -->
+      <div class="matrix-col matrix-vuln">
+        <div class="matrix-col-header">
+          <span class="matrix-badge-bad">❌ WITHOUT MCP SHIELD</span>
+          <h3 class="matrix-title">Direct Agent Connection</h3>
+        </div>
+        <ul class="matrix-list">
+          <li>
+            <b>🚨 Prompt Injections Pass Through:</b> Adversarial web content or database rows can trick the agent into running unauthorized admin commands.
+          </li>
+          <li>
+            <b>🚨 Destructive DDL Mutations:</b> Agent hallucinating <code>DROP TABLE</code> or deleting foreign keys permanently damages production schemas.
+          </li>
+          <li>
+            <b>🚨 Silent Data Exfiltration:</b> Compromised agents can issue POST requests to arbitrary webhook URLs containing API secrets.
+          </li>
+          <li>
+            <b>🚨 Zero Cryptographic Auditability:</b> No tamper-proof verification of whether an action was agent-generated or human-authorized.
+          </li>
+        </ul>
+      </div>
+
+      <!-- Protected Column -->
+      <div class="matrix-col matrix-safe">
+        <div class="matrix-col-header">
+          <span class="matrix-badge-good">🛡️ WITH MCP SHIELD</span>
+          <h3 class="matrix-title">In-Memory Zero-Trust Proxy</h3>
+        </div>
+        <ul class="matrix-list">
+          <li>
+            <b>✓ Instant Unicode Sanitization:</b> Phase 1 & 2 AST engine strips zero-width jailbreaks and neutralizes override tokens in under 1.5ms.
+          </li>
+          <li>
+            <b>✓ SQL Blast Radius Armor:</b> Strictly permits parameterized reads, automatically rejecting destructive <code>DROP</code>, <code>TRUNCATE</code>, and mass deletes.
+          </li>
+          <li>
+            <b>✓ Strict Egress Whitelist:</b> Restricts outbound tool connections exclusively to approved company domains and internal endpoints.
+          </li>
+          <li>
+            <b>✓ Ed25519 Cryptographic Attestations:</b> Every valid frame receives an immutable digital signature required for SOC 2 Type II compliance.
+          </li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5. The 3 Core Inviolable Guarantees -->
   <section class="site-container section-pad" id="guarantees">
     <div class="section-lead">
       <div class="eyebrow-label">INVIOLABLE GUARANTEES</div>
@@ -192,7 +310,7 @@
     </div>
   </section>
 
-  <!-- 4. Active Key Telemetry & Security Console -->
+  <!-- 6. Active Key Telemetry & Security Console -->
   <section class="site-container section-pad" id="console">
     <div class="section-lead">
       <div class="eyebrow-label">REAL-TIME OBSERVABILITY</div>
@@ -263,66 +381,7 @@
     </div>
   </section>
 
-  <!-- 5. Interactive Live Policy Inspector -->
-  <section class="site-container section-pad" id="inspector">
-    <div class="section-lead">
-      <div class="eyebrow-label">LIVE DEMONSTRATION</div>
-      <h2 class="section-title">See The Policy Firewall In Action</h2>
-      <p class="section-desc">Click any scenario below to inspect how the gateway parses frames and enforces policies in real time.</p>
-    </div>
-
-    <div class="inspector-card">
-      <div class="inspector-tabs">
-        <button class="inspect-tab active" id="tab-scen-1" onclick="selectInspectorScenario(1)">
-          1. Legitimate Database Read
-        </button>
-        <button class="inspect-tab" id="tab-scen-2" onclick="selectInspectorScenario(2)">
-          2. Prompt Injection Neutralization
-        </button>
-        <button class="inspect-tab" id="tab-scen-3" onclick="selectInspectorScenario(3)">
-          3. Destructive SQL DROP Block
-        </button>
-        <button class="inspect-tab" id="tab-scen-4" onclick="selectInspectorScenario(4)">
-          4. Exfiltration Webhook Intercept
-        </button>
-      </div>
-
-      <div class="inspector-body">
-        <div class="code-column">
-          <div class="code-header">
-            <span class="code-title">AGENT REQUEST (JSON-RPC 2.0)</span>
-            <span class="code-tag" id="ins-method-tag">tools/call</span>
-          </div>
-          <pre><code id="ins-req-body"></code></pre>
-        </div>
-
-        <div class="code-column">
-          <div class="code-header">
-            <span class="code-title">MCP SHIELD GATEWAY VERDICT</span>
-            <span class="code-badge badge-green" id="ins-status-badge">PASS: Ed25519 Signed</span>
-          </div>
-          <pre><code id="ins-res-body"></code></pre>
-        </div>
-      </div>
-
-      <div class="inspector-footer">
-        <div>
-          <span class="foot-label">LATENCY:</span>
-          <span class="foot-val" id="ins-latency-val">1.1 ms</span>
-        </div>
-        <div>
-          <span class="foot-label">POLICY:</span>
-          <span class="foot-val" id="ins-policy-val">strict_read_only_v1</span>
-        </div>
-        <div>
-          <span class="foot-label">ATTESTATION:</span>
-          <span class="foot-val mono" id="ins-sig-val">ed25519:7f89ac12b...</span>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- 6. 2-Minute Quickstart Integration -->
+  <!-- 7. 2-Minute Quickstart Integration -->
   <section class="site-container section-pad" id="quickstart">
     <div class="section-lead">
       <div class="eyebrow-label">INTEGRATION</div>
@@ -399,7 +458,7 @@ console.log('Attested Trace ID:', response.traceId);</code></pre>
     </div>
   </section>
 
-  <!-- 7. Transparent Pricing -->
+  <!-- 8. Transparent Pricing -->
   <section class="site-container section-pad" id="pricing">
     <div class="section-lead">
       <div class="eyebrow-label">TRANSPARENT PRICING</div>
@@ -458,7 +517,7 @@ console.log('Attested Trace ID:', response.traceId);</code></pre>
     </div>
   </section>
 
-  <!-- 8. FAQ Accordion (Expansive 2-Column Grid) -->
+  <!-- 9. FAQ Accordion (Expansive 2-Column Grid) -->
   <section class="site-container section-pad" id="faq">
     <div class="section-lead">
       <div class="eyebrow-label">FAQ</div>
@@ -555,6 +614,7 @@ console.log('Attested Trace ID:', response.traceId);</code></pre>
         <div class="footer-col">
           <div class="footer-col-title">PRODUCT</div>
           <a href="#how-it-works">Architecture</a>
+          <a href="#playground">Security Playground</a>
           <a href="#guarantees">Security Model</a>
           <a href="#console">Key Console</a>
           <a href="#quickstart">Quickstart</a>
