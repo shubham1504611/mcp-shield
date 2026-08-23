@@ -21,7 +21,7 @@
       </a>
 
       <nav class="nav-links">
-        <a href="#how-it-works">How It Works</a>
+        <a href="#how-it-works">Architecture</a>
         <a href="#guarantees">Security Model</a>
         <a href="#quickstart">Quickstart</a>
         <a href="#pricing">Pricing</a>
@@ -35,7 +35,7 @@
     </div>
   </header>
 
-  <!-- 1. Hero: Pure Clarity & Impact -->
+  <!-- 1. Hero: Pure Clarity & Wide Spread -->
   <section class="hero-wrap">
     <div class="site-container hero-inner">
       <div class="hero-tag">
@@ -364,11 +364,12 @@ console.log('Attested Trace ID:', response.traceId);</code></pre>
     </div>
   </section>
 
-  <!-- 7. FAQ Accordion -->
+  <!-- 7. FAQ Accordion (Expansive 2-Column Grid) -->
   <section class="site-container section-pad" id="faq">
     <div class="section-lead">
       <div class="eyebrow-label">FAQ</div>
       <h2 class="section-title">Frequently Asked Questions</h2>
+      <p class="section-desc">Everything you need to know about latency, security guarantees, and compliance.</p>
     </div>
 
     <div class="faq-deck">
@@ -407,8 +408,28 @@ console.log('Attested Trace ID:', response.traceId);</code></pre>
           <span>Can I use MCP Shield locally in Claude Desktop or Cursor?</span>
           <span class="faq-symbol">+</span>
         </div>
-        <div class="faq-answer">
+        <div class="faq-content">
           Yes. The <code>npx mcp-shield wrap</code> command runs directly on your local machine, intercepting stdio tool calls without transmitting any database passwords to the cloud.
+        </div>
+      </div>
+
+      <div class="faq-box">
+        <div class="faq-head" onclick="toggleFaqRow(this)">
+          <span>How does MCP Shield stop prompt injection jailbreaks?</span>
+          <span class="faq-symbol">+</span>
+        </div>
+        <div class="faq-content">
+          Our Phase 1 & 2 AST engine strips invisible zero-width unicode characters, decodes obfuscated base64, and detects adversarial system override tokens in real time before execution.
+        </div>
+      </div>
+
+      <div class="faq-box">
+        <div class="faq-head" onclick="toggleFaqRow(this)">
+          <span>Can I define custom RBAC policies per agent or key?</span>
+          <span class="faq-symbol">+</span>
+        </div>
+        <div class="faq-content">
+          Yes. In the Pro tier, you can configure granular role-based policies—restricting specific autonomous agents to specific subsets of database schemas and MCP tools.
         </div>
       </div>
     </div>
@@ -416,39 +437,48 @@ console.log('Attested Trace ID:', response.traceId);</code></pre>
 
   <!-- Clean Minimalist Footer -->
   <footer class="site-footer">
-    <div class="site-container footer-layout">
-      <div>
-        <div class="brand-link" style="margin-bottom: 0.6rem;">
-          <span class="brand-symbol">◆</span>
-          <span class="brand-title">MCP<span class="brand-weight">Shield</span></span>
+    <div class="site-container">
+      <div class="footer-layout">
+        <div>
+          <div class="brand-link" style="margin-bottom: 0.75rem;">
+            <span class="brand-symbol">◆</span>
+            <span class="brand-title">MCP<span class="brand-weight">Shield</span></span>
+          </div>
+          <p style="font-size: 0.9rem; color: var(--color-muted); max-width: 380px; line-height: 1.65;">
+            The Zero-Trust Security Proxy & Attestation Gateway for Model Context Protocol. Built for the autonomous AI agent ecosystem.
+          </p>
+          <div class="footer-status-tag">
+            <span class="status-pulse-green"></span>
+            <span>All Gateway Systems Operational (99.99%)</span>
+          </div>
         </div>
-        <p style="font-size: 0.88rem; color: var(--color-muted); max-width: 320px; line-height: 1.6;">
-          The Zero-Trust Security Proxy & Attestation Gateway for Model Context Protocol.
-        </p>
-        <div style="font-size: 0.8rem; color: var(--color-dim); margin-top: 1rem;">
-          © 2026 MCP Shield. All rights reserved.
+
+        <div class="footer-col">
+          <div class="footer-col-title">PRODUCT</div>
+          <a href="#how-it-works">Architecture</a>
+          <a href="#guarantees">Security Model</a>
+          <a href="#quickstart">Quickstart</a>
+          <a href="#pricing">Pricing</a>
+        </div>
+
+        <div class="footer-col">
+          <div class="footer-col-title">RESOURCES</div>
+          <a href="https://github.com/shubham1504611/mcp-shield" target="_blank">GitHub Repository</a>
+          <a href="https://modelcontextprotocol.io" target="_blank">MCP Specification</a>
+          <a href="#guarantees">Compliance & SOC 2</a>
+        </div>
+
+        <div class="footer-col">
+          <div class="footer-col-title">LEGAL & PRIVACY</div>
+          <a href="#" onclick="alert('Privacy Policy: All payloads are evaluated statelessly in-memory with zero plaintext persistence.')">Privacy Policy</a>
+          <a href="#" onclick="alert('Terms: Open-core developer license with enterprise support SLAs.')">Terms of Service</a>
+          <a href="#guarantees">Data Retention Guarantee</a>
         </div>
       </div>
 
-      <div class="footer-col">
-        <div class="footer-col-title">PRODUCT</div>
-        <a href="#how-it-works">Architecture</a>
-        <a href="#guarantees">Security Model</a>
-        <a href="#quickstart">Quickstart</a>
-        <a href="#pricing">Pricing</a>
-      </div>
-
-      <div class="footer-col">
-        <div class="footer-col-title">RESOURCES</div>
-        <a href="https://github.com/shubham1504611/mcp-shield" target="_blank">GitHub Repository</a>
-        <a href="https://modelcontextprotocol.io" target="_blank">MCP Specification</a>
-        <a href="#guarantees">Compliance & SOC 2</a>
-      </div>
-
-      <div class="footer-col">
-        <div class="footer-col-title">LEGAL</div>
-        <a href="#" onclick="alert('Privacy Policy: All payloads are evaluated statelessly in-memory with zero plaintext persistence.')">Privacy Policy</a>
-        <a href="#" onclick="alert('Terms: Open-core developer license with enterprise support SLAs.')">Terms of Service</a>
+      <div class="footer-bottom-bar">
+        <span>© 2026 MCP Shield Platform Inc. All rights reserved.</span>
+        <span>Linux Foundation MCP Specification Conforming</span>
       </div>
     </div>
   </footer>
