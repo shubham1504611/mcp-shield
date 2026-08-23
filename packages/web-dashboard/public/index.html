@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MCP Shield | The Zero-Trust Security Gateway for Model Context Protocol</title>
+  <title>MCP Shield — The Zero-Trust Security Gateway for Model Context Protocol</title>
   <meta name="description" content="High-performance, in-memory security proxy and policy engine for Model Context Protocol (MCP) servers and autonomous AI agents.">
   <link rel="stylesheet" href="/style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -16,18 +16,20 @@
   <header class="navbar">
     <div class="nav-container">
       <a href="#" class="brand">
-        <svg class="brand-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-          <path d="m9 12 2 2 4-4"/>
-        </svg>
-        <span class="brand-name">MCP<span class="brand-light">Shield</span></span>
+        <div class="brand-badge-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            <path d="m9 12 2 2 4-4"/>
+          </svg>
+        </div>
+        <span class="brand-name">MCP<span class="brand-accent">Shield</span></span>
       </a>
 
       <nav class="nav-menu">
         <a href="#overview">Architecture</a>
-        <a href="#inspector">Interactive Inspector</a>
+        <a href="#inspector">Protocol Inspector</a>
         <a href="#quickstart">Quickstart</a>
-        <a href="#features">Security Features</a>
+        <a href="#features">Defense Engine</a>
         <a href="#pricing">Pricing</a>
         <a href="#faq">FAQ</a>
       </nav>
@@ -44,24 +46,24 @@
     <div class="container hero-container">
       <div class="badge-pill">
         <span class="status-indicator"></span>
-        <span>Standardized Gateway for MCP Clients & Servers</span>
+        <span>Standardized Security Gateway for MCP Clients & Servers</span>
       </div>
 
       <h1 class="hero-heading">
         The Zero-Trust Security Proxy<br>
-        for Model Context Protocol
+        for <span class="gradient-headline">Model Context Protocol</span>
       </h1>
 
       <p class="hero-lead">
-        Protect databases, APIs, and file systems from prompt injection overrides and destructive agent actions. Evaluated in-memory with sub-2ms P99 latency and Ed25519 cryptographic signing.
+        Protect databases, cloud APIs, and file systems from prompt injection overrides and destructive agent actions. Evaluated in-memory with <b>sub-2ms P99 latency</b> and <b>Ed25519 cryptographic signing</b>.
       </p>
 
       <div class="hero-buttons">
         <button class="btn btn-primary btn-lg" onclick="openKeyModal()">
-          Get Started with Gateway Key
+          ⚡ Provision Free Gateway Key
         </button>
         <a href="#inspector" class="btn btn-secondary btn-lg">
-          Explore Live Request Inspector
+          🔍 Explore Request Inspector
         </a>
       </div>
 
@@ -74,43 +76,54 @@
 
       <!-- Trust Bar -->
       <div class="ecosystem-bar">
-        <span class="eco-label">Native compatibility with:</span>
+        <span class="eco-label">Native compatibility across:</span>
         <div class="eco-items">
-          <span>Anthropic Claude</span>
-          <span>•</span>
-          <span>Cursor IDE</span>
-          <span>•</span>
-          <span>LangChain</span>
-          <span>•</span>
-          <span>CrewAI</span>
-          <span>•</span>
-          <span>AutoGen</span>
-          <span>•</span>
-          <span>Supabase</span>
+          <span class="eco-chip">Anthropic Claude</span>
+          <span class="eco-chip">Cursor IDE</span>
+          <span class="eco-chip">LangChain</span>
+          <span class="eco-chip">CrewAI</span>
+          <span class="eco-chip">AutoGen</span>
+          <span class="eco-chip">PostgreSQL & Supabase</span>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- Key Architectural Highlights (Clean 3-Column Grid) -->
+  <!-- 3 High-Trust Architectural Pillar Cards -->
   <section class="container section-gap">
     <div class="highlights-grid">
       <div class="highlight-card">
-        <div class="highlight-icon">⚡</div>
+        <div class="highlight-icon-wrap icon-indigo">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+          </svg>
+        </div>
         <h3>&lt; 1.5ms In-Memory WAF</h3>
-        <p>Zero external round-trips during payload inspection. AST sanitizers inspect and authorize tool calls in-process with negligible LLM latency overhead.</p>
+        <p>Zero external network round-trips during payload authorization. In-process AST sanitizers inspect tool arguments with negligible latency overhead.</p>
       </div>
 
       <div class="highlight-card">
-        <div class="highlight-icon">🔒</div>
+        <div class="highlight-icon-wrap icon-emerald">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+          </svg>
+        </div>
         <h3>SQL Blast Radius Armor</h3>
-        <p>Enforces strict read-only execution by intercepting destructive DDL mutations (<code>DROP TABLE</code>, <code>TRUNCATE</code>) and unconstrained mass deletions.</p>
+        <p>Enforces strict read-only execution by intercepting destructive DDL mutations (<code>DROP TABLE</code>, <code>TRUNCATE</code>) and unconstrained bulk updates.</p>
       </div>
 
       <div class="highlight-card">
-        <div class="highlight-icon">📜</div>
-        <h3>Ed25519 Attestation</h3>
-        <p>Every forwarded and sanitized response is cryptographically signed with an enclave-level digital signature for verifiable SOC 2 compliance audit trails.</p>
+        <div class="highlight-icon-wrap icon-blue">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <line x1="16" y1="13" x2="8" y2="13"/>
+            <line x1="16" y1="17" x2="8" y2="17"/>
+          </svg>
+        </div>
+        <h3>Ed25519 Crypto Attestation</h3>
+        <p>Every forwarded and sanitized response is cryptographically signed with an isolated enclave signature for verifiable SOC 2 Type II audit trails.</p>
       </div>
     </div>
   </section>
@@ -120,7 +133,7 @@
     <div class="section-heading">
       <div class="eyebrow">INTERACTIVE DEMONSTRATION</div>
       <h2>Live MCP Protocol Inspector & Policy Engine</h2>
-      <p>Select a scenario below to observe how MCP Shield parses JSON-RPC 2.0 frames, evaluates security policies, and returns sanitized responses.</p>
+      <p>Select an agent scenario below to observe how MCP Shield parses JSON-RPC 2.0 frames, evaluates security policies, and returns verified responses.</p>
     </div>
 
     <!-- Scenario Switcher -->
@@ -178,7 +191,7 @@
       </div>
       <div class="summary-item">
         <span class="summary-label">TRACE ID</span>
-        <span class="summary-value mono" id="summary-trace">trc_9a810f22</span>
+        <span class="summary-value mono" id="summary-trace">trc_881902fc</span>
       </div>
     </div>
   </section>
@@ -187,8 +200,8 @@
   <section class="container section-gap" id="quickstart">
     <div class="section-heading">
       <div class="eyebrow">DEVELOPER QUICKSTART</div>
-      <h2>Seamless Drop-In for Existing Clients</h2>
-      <p>Configure in under two minutes with standard MCP clients and frameworks.</p>
+      <h2>Seamless Drop-In for Existing Frameworks</h2>
+      <p>Configure in under two minutes with standard MCP clients and agent orchestration frameworks.</p>
     </div>
 
     <div class="tab-wrapper">
@@ -291,31 +304,37 @@ console.log('Attested Trace ID:', result.traceId);</code></pre>
 
     <div class="features-grid">
       <div class="feature-item">
+        <div class="feat-badge">WAF</div>
         <h4>Prompt Injection Neutralization</h4>
         <p>Strips zero-width unicode obfuscations, detects system override patterns, and prevents indirect prompt injection from compromised tool outputs.</p>
       </div>
 
       <div class="feature-item">
+        <div class="feat-badge">SQL</div>
         <h4>Database Blast Radius Armor</h4>
         <p>Enforces AST-level query validation to block destructive DDL (<code>DROP</code>, <code>TRUNCATE</code>, <code>ALTER</code>) and unconstrained bulk mutations.</p>
       </div>
 
       <div class="feature-item">
+        <div class="feat-badge">CRYPTO</div>
         <h4>Cryptographic Audit Attestation</h4>
-        <p>Signs every permitted transaction with Ed25519 keys, creating an immutable cryptographic chain of custody for SOC 2 Type II and ISO 27001 audits.</p>
+        <p>Signs every permitted transaction with Ed25519 keys, creating an immutable cryptographic chain of custody for SOC 2 Type II audits.</p>
       </div>
 
       <div class="feature-item">
+        <div class="feat-badge">EGRESS</div>
         <h4>Data Exfiltration Prevention</h4>
         <p>Monitors tool arguments for unauthorized webhook destinations and credential dumping patterns to prevent accidental secrets leaks.</p>
       </div>
 
       <div class="feature-item">
-        <h4>Role-Based Tool Access (RBAC)</h4>
+        <div class="feat-badge">RBAC</div>
+        <h4>Role-Based Tool Access</h4>
         <p>Define granular policies per agent key—restricting specific autonomous agents to specific subsets of tools and database schemas.</p>
       </div>
 
       <div class="feature-item">
+        <div class="feat-badge">PRIVACY</div>
         <h4>Stateless In-Memory Evaluation</h4>
         <p>Your confidential prompts and database payloads are evaluated in-memory and never written to third-party disks or shared model training sets.</p>
       </div>
@@ -325,8 +344,8 @@ console.log('Attested Trace ID:', result.traceId);</code></pre>
   <!-- Pricing Plans -->
   <section class="container section-gap" id="pricing">
     <div class="section-heading">
-      <div class="eyebrow">PRICING</div>
-      <h2>Transparent, Scalable Plans</h2>
+      <div class="eyebrow">TRANSPARENT PRICING</div>
+      <h2>Plans for Every Stage of Agent Deployment</h2>
       <p>Start for free in developer sandbox, or scale with enterprise-grade audit controls.</p>
     </div>
 
@@ -348,7 +367,7 @@ console.log('Attested Trace ID:', result.traceId);</code></pre>
 
       <!-- Engineering Team Pro -->
       <div class="pricing-card pricing-featured">
-        <div class="featured-badge">RECOMMENDED</div>
+        <div class="featured-badge">MOST POPULAR</div>
         <div class="tier-title">Engineering Team Pro</div>
         <div class="tier-cost">$99 <span class="period">/ month</span></div>
         <p class="tier-summary">For production engineering teams deploying agent fleets.</p>
@@ -384,8 +403,8 @@ console.log('Attested Trace ID:', result.traceId);</code></pre>
   <!-- FAQ Section -->
   <section class="container section-gap" id="faq">
     <div class="section-heading">
-      <div class="eyebrow">FAQ</div>
-      <h2>Frequently Asked Questions</h2>
+      <div class="eyebrow">FREQUENTLY ASKED QUESTIONS</div>
+      <h2>Common Technical Questions</h2>
     </div>
 
     <div class="faq-list">
@@ -436,11 +455,13 @@ console.log('Attested Trace ID:', result.traceId);</code></pre>
     <div class="container footer-content">
       <div class="footer-brand-col">
         <div class="brand">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-            <path d="m9 12 2 2 4-4"/>
-          </svg>
-          <span class="brand-name">MCP<span class="brand-light">Shield</span></span>
+          <div class="brand-badge-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              <path d="m9 12 2 2 4-4"/>
+            </svg>
+          </div>
+          <span class="brand-name">MCP<span class="brand-accent">Shield</span></span>
         </div>
         <p class="footer-tagline">Zero-Trust Security Gateway for Model Context Protocol.</p>
         <div class="footer-copy">© 2026 MCP Shield. Built for the open agent ecosystem.</div>
@@ -458,7 +479,7 @@ console.log('Attested Trace ID:', result.traceId);</code></pre>
         <div class="footer-header">RESOURCES</div>
         <a href="https://github.com/shubham1504611/mcp-shield" target="_blank">GitHub Repository</a>
         <a href="https://modelcontextprotocol.io" target="_blank">MCP Specification</a>
-        <a href="#features">Security Engine</a>
+        <a href="#features">Defense Engine</a>
       </div>
 
       <div class="footer-links-col">
@@ -529,7 +550,7 @@ console.log('Attested Trace ID:', result.traceId);</code></pre>
       </div>
       <div class="modal-body">
         <div class="checkout-box">
-          <div style="font-size: 1.25rem; font-weight: 700;">$99.00 <span style="font-size: 0.85rem; color: var(--color-muted);">/ month</span></div>
+          <div style="font-size: 1.25rem; font-weight: 700; color: var(--color-text);">$99.00 <span style="font-size: 0.85rem; color: var(--color-muted);">/ month</span></div>
           <p style="font-size: 0.85rem; color: var(--color-muted); margin-top: 0.25rem;">Includes 1,000,000 tool calls/mo, RBAC, and Ed25519 attestation.</p>
         </div>
         <label class="form-label" style="margin-top: 1rem;">Billing Email:</label>
