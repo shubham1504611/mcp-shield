@@ -1,6 +1,6 @@
 /**
- * MCP Shield — Clean Minimalist Controller
- * Protocol Inspector, Active Key Console, Legal Modals, Quickstart Tabs & Key Provisioning
+ * MCP Shield — Clean Minimalist Controller (Master Edition)
+ * Protocol Inspector, Active Key Console, Legal Modals, Quickstart Tabs & Scrollspy
  */
 
 const SCENARIOS = {
@@ -155,6 +155,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (el) el.innerText = savedKey;
   }
 
+  // Keyboard shortcut: Escape to close modals
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       closeKeyModal();
@@ -164,6 +165,25 @@ document.addEventListener('DOMContentLoaded', () => {
       closeTermsModal();
       closeRetentionModal();
     }
+  });
+
+  // Scrollspy for active nav link
+  window.addEventListener('scroll', () => {
+    const sections = ['how-it-works', 'guarantees', 'console', 'inspector', 'quickstart', 'pricing', 'faq'];
+    const scrollPos = window.scrollY + 120;
+
+    sections.forEach(id => {
+      const el = document.getElementById(id);
+      const navEl = document.getElementById(`nav-${id}`);
+      if (el && navEl) {
+        const top = el.offsetTop;
+        const height = el.offsetHeight;
+        if (scrollPos >= top && scrollPos < top + height) {
+          document.querySelectorAll('.nav-link').forEach(n => n.classList.remove('active'));
+          navEl.classList.add('active');
+        }
+      }
+    });
   });
 });
 
