@@ -1,8 +1,9 @@
 {
   "version": 2,
   "rewrites": [
+    { "source": "/v1/mcp", "destination": "/api/index" },
     { "source": "/healthz", "destination": "/api/index" },
     { "source": "/readyz", "destination": "/api/index" },
-    { "source": "/api/(.*)", "destination": "/api/index" }
+    { "source": "/(.*)", "destination": "/api/index" }
   ]
 }
