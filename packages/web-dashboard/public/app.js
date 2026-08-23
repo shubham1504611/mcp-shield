@@ -60,6 +60,14 @@ document.addEventListener('DOMContentLoaded', () => {
   renderTraceTable();
   renderKeyList();
   initWaveform();
+
+  // Escape key closes modals
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      closeKeyModal();
+      closeCheckoutModal();
+    }
+  });
 });
 
 // 1. Code Tab Switcher
@@ -99,8 +107,8 @@ function initWaveform() {
 
     ctx.beginPath();
     ctx.strokeStyle = '#00f0ff';
-    ctx.lineWidth = 1.5;
-    ctx.shadowBlur = 8;
+    ctx.lineWidth = 1.8;
+    ctx.shadowBlur = 10;
     ctx.shadowColor = '#00f0ff';
 
     const width = canvas.width;
@@ -108,8 +116,8 @@ function initWaveform() {
     const midY = height / 2;
 
     for (let x = 0; x < width; x++) {
-      const angle = (x + step) * 0.1;
-      const pulse = Math.sin(angle) * (Math.cos(angle * 0.5) * 8);
+      const angle = (x + step) * 0.08;
+      const pulse = Math.sin(angle) * (Math.cos(angle * 0.5) * 10);
       const y = midY + pulse;
 
       if (x === 0) {
@@ -182,9 +190,9 @@ function renderKeyList() {
     div.innerHTML = `
       <div>
         <div style="font-weight:700;font-size:0.82rem;">${k.name}</div>
-        <div style="font-size:0.72rem;font-family:var(--font-mono);color:var(--text-dim);margin-top:0.15rem;"><code>${k.prefix}</code> • ${k.rpm} RPM Rate Limit</div>
+        <div style="font-size:0.72rem;font-family:var(--font-mono);color:var(--text-dim);margin-top:0.15rem;"><code>${k.prefix}</code> • ${k.rpm} RPM Limit</div>
       </div>
-      <button class="cyber-btn btn-cyan" style="padding:0.25rem 0.6rem;font-size:0.7rem;" onclick="copySnippet('${k.prefix}')">COPY</button>
+      <button class="cyber-btn btn-cyan btn-sm" onclick="copySnippet('${k.prefix}')">COPY</button>
     `;
     container.appendChild(div);
   });
@@ -276,14 +284,14 @@ function showToast(msg) {
 
   setTimeout(() => {
     toast.remove();
-  }, 2500);
+  }, 2800);
 }
 
 function copySnippet(text) {
   navigator.clipboard.writeText(text).then(() => {
     showToast(`COPIED TO CLIPBOARD: ${text}`);
   }).catch(() => {
-    alert(`COPIED: ${text}`);
+    showToast(`COPIED: ${text}`);
   });
 }
 
@@ -297,6 +305,20 @@ function openKeyModal() {
 
 function closeKeyModal() {
   document.getElementById('key-modal').style.display = 'none';
+}
+
+function openCheckoutModal() {
+  document.getElementById('checkout-modal').style.display = 'flex';
+}
+
+function closeCheckoutModal() {
+  document.getElementById('checkout-modal').style.display = 'none';
+}
+
+function handleBackdropClick(event, modalId) {
+  if (event.target.id === modalId) {
+    document.getElementById(modalId).style.display = 'none';
+  }
 }
 
 function handleGenerateKey() {
@@ -316,9 +338,15 @@ function handleGenerateKey() {
   document.getElementById('btn-generate').style.display = 'none';
 
   renderKeyList();
+  showToast('🔑 New API Key Provisioned & Attested!');
 }
 
 function copyNewKey() {
   const code = document.getElementById('new-key-code').innerText;
   copySnippet(code);
+}
+
+function simulateCheckoutSuccess() {
+  closeCheckoutModal();
+  showToast('🎉 Subscription Activated! Upgraded to Engineering Team Pro ($99/mo)');
 }
