@@ -428,6 +428,39 @@
           <span><b>Egress Firewall:</b> Blocks unauthorized outbound webhooks</span>
         </div>
       </div>
+
+      <!-- Live Blocked Requests & Security Audit Feed -->
+      <div class="console-feed-card">
+        <div class="feed-header">
+          <div class="feed-title-wrap">
+            <span class="feed-live-dot"></span>
+            <span class="feed-title">REAL-TIME BLOCKED REQUESTS & SECURITY AUDIT FEED</span>
+          </div>
+          <div class="feed-filters">
+            <button class="feed-filter-btn active" id="filter-all" onclick="filterAuditFeed('all')">All Events</button>
+            <button class="feed-filter-btn" id="filter-blocked" onclick="filterAuditFeed('blocked')">Blocked Threats</button>
+            <button class="feed-filter-btn" id="filter-passed" onclick="filterAuditFeed('passed')">Passed & Signed</button>
+          </div>
+        </div>
+
+        <div class="feed-table-wrap">
+          <table class="feed-table">
+            <thead>
+              <tr>
+                <th>TIMESTAMP</th>
+                <th>CLIENT / AGENT</th>
+                <th>TOOL METHOD</th>
+                <th>PAYLOAD PATTERN</th>
+                <th>SECURITY VERDICT</th>
+                <th>LATENCY</th>
+              </tr>
+            </thead>
+            <tbody id="console-audit-tbody">
+              <!-- Dynamically rendered via app.js -->
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -726,7 +759,7 @@ console.log('Attested Trace ID:', response.traceId);</code></pre>
       <div class="footer-bottom-bar">
         <div class="foot-copy">© 2026 MCP Shield Platform Inc. All rights reserved.</div>
         <div class="foot-center-tag">Designed for Autonomous Agent Security</div>
-        <div class="foot-conforming">Linux Foundation MCP Specification Conforming</div>
+        <div class="foot-conforming">Official Model Context Protocol (MCP) JSON-RPC 2.0 Compliant</div>
       </div>
     </div>
   </footer>
