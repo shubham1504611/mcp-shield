@@ -1,6 +1,6 @@
 /**
  * MCP Shield — Clean Minimalist Controller
- * Protocol Inspector, Active Key Console, Quickstart Tabs, FAQ Toggles & Key Provisioning
+ * Protocol Inspector, Active Key Console, Legal Modals, Quickstart Tabs & Key Provisioning
  */
 
 const SCENARIOS = {
@@ -160,6 +160,9 @@ document.addEventListener('DOMContentLoaded', () => {
       closeKeyModal();
       closeConnectModal();
       closeCheckoutModal();
+      closePrivacyModal();
+      closeTermsModal();
+      closeRetentionModal();
     }
   });
 });
@@ -270,6 +273,28 @@ function openCheckoutModal() {
 }
 function closeCheckoutModal() {
   document.getElementById('checkout-modal').style.display = 'none';
+}
+
+// 7. Legal & Privacy Modals
+function openPrivacyModal() {
+  document.getElementById('privacy-modal').style.display = 'flex';
+}
+function closePrivacyModal() {
+  document.getElementById('privacy-modal').style.display = 'none';
+}
+
+function openTermsModal() {
+  document.getElementById('terms-modal').style.display = 'flex';
+}
+function closeTermsModal() {
+  document.getElementById('terms-modal').style.display = 'none';
+}
+
+function openRetentionModal() {
+  document.getElementById('retention-modal').style.display = 'flex';
+}
+function closeRetentionModal() {
+  document.getElementById('retention-modal').style.display = 'none';
 }
 
 function handleModalBackdrop(event, modalId) {

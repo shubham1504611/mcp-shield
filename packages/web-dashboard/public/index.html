@@ -543,9 +543,9 @@ console.log('Attested Trace ID:', response.traceId);</code></pre>
 
         <div class="footer-col">
           <div class="footer-col-title">LEGAL & PRIVACY</div>
-          <a href="#" onclick="alert('Privacy Policy: All payloads are evaluated statelessly in-memory with zero plaintext persistence.')">Privacy Policy</a>
-          <a href="#" onclick="alert('Terms: Open-core developer license with enterprise support SLAs.')">Terms of Service</a>
-          <a href="#guarantees">Data Retention Guarantee</a>
+          <a href="javascript:void(0)" onclick="openPrivacyModal()">Privacy Policy</a>
+          <a href="javascript:void(0)" onclick="openTermsModal()">Terms of Service</a>
+          <a href="javascript:void(0)" onclick="openRetentionModal()">Data Retention Guarantee</a>
         </div>
       </div>
 
@@ -615,8 +615,8 @@ console.log('Attested Trace ID:', response.traceId);</code></pre>
       </div>
       <div class="modal-body">
         <div class="checkout-box">
-          <div style="font-size: 1.3rem; font-weight: 800; color: var(--color-text-heading);">$99.00 <span style="font-size: 0.85rem; color: var(--color-muted);">/ month</span></div>
-          <p style="font-size: 0.85rem; color: var(--color-muted); margin-top: 0.25rem;">Includes 1,000,000 tool calls/mo, RBAC & Ed25519 attestation.</p>
+          <div style="font-size: 1.3rem; font-weight: 800; color: var(--color-text-title);">$99.00 <span style="font-size: 0.85rem; color: var(--color-text-muted);">/ month</span></div>
+          <p style="font-size: 0.85rem; color: var(--color-text-muted); margin-top: 0.25rem;">Includes 1,000,000 tool calls/mo, RBAC & Ed25519 attestation.</p>
         </div>
         <label class="form-label" style="margin-top: 1rem;">Billing Email:</label>
         <input type="email" id="checkout-email-val" value="admin@company.com" class="form-input">
@@ -624,6 +624,95 @@ console.log('Attested Trace ID:', response.traceId);</code></pre>
       <div class="modal-footer">
         <button class="btn-cancel" onclick="closeCheckoutModal()">Cancel</button>
         <button class="btn-submit" onclick="simulateProActivation()">Confirm & Activate Plan</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 1. Privacy Policy Modal Window -->
+  <div class="modal-backdrop" id="privacy-modal" style="display: none;" onclick="handleModalBackdrop(event, 'privacy-modal')">
+    <div class="modal-card modal-large">
+      <div class="modal-header">
+        <h3>Privacy & In-Memory Data Processing Policy</h3>
+        <button class="modal-close" onclick="closePrivacyModal()">✕</button>
+      </div>
+      <div class="modal-body modal-scroll">
+        <p class="legal-p"><b>Last Updated:</b> August 2026</p>
+        
+        <h4 class="legal-h4">1. Zero-Persistence Philosophy</h4>
+        <p class="legal-p">MCP Shield operates under a strict in-memory stateless architecture. When autonomous AI agents invoke tools through our proxy, raw prompt text, parameter values, and downstream database payloads are evaluated exclusively in volatile RAM and immediately freed. No customer tool inputs or query results are ever written to non-volatile disks, shared with third parties, or used for model training.</p>
+
+        <h4 class="legal-h4">2. Telemetry Metadata Collected</h4>
+        <p class="legal-p">To provide security monitoring, rate limiting, and compliance auditing, our gateway logs only anonymized metadata:</p>
+        <ul class="legal-ul">
+          <li>SHA-256 one-way cryptographic hashes of tool arguments (for audit verification).</li>
+          <li>Execution latency (P99 in milliseconds) and HTTP/JSON-RPC status codes.</li>
+          <li>Tool method identifier (e.g. <code>postgres_read</code>, <code>filesystem_list</code>).</li>
+          <li>API key prefix and timestamp for quota tracking.</li>
+        </ul>
+
+        <h4 class="legal-h4">3. Cryptographic Key Custody</h4>
+        <p class="legal-p">API keys issued to your organization are salted and hashed using SHA-256 before storage in our database. The gateway never possesses access to your plaintext credentials once generated. Ed25519 digital signatures are generated in isolated memory enclaves.</p>
+
+        <h4 class="legal-h4">4. GDPR, CCPA & Data Subject Rights</h4>
+        <p class="legal-p">You maintain complete ownership of your organization's telemetry records. Organization administrators can request instant deletion or export of all historical metadata at any time by contacting privacy@mcpshield.dev.</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-submit" onclick="closePrivacyModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. Terms of Service Modal Window -->
+  <div class="modal-backdrop" id="terms-modal" style="display: none;" onclick="handleModalBackdrop(event, 'terms-modal')">
+    <div class="modal-card modal-large">
+      <div class="modal-header">
+        <h3>Terms of Service & Usage Agreement</h3>
+        <button class="modal-close" onclick="closeTermsModal()">✕</button>
+      </div>
+      <div class="modal-body modal-scroll">
+        <p class="legal-p"><b>Effective Date:</b> August 2026</p>
+
+        <h4 class="legal-h4">1. Permitted Service Utilization</h4>
+        <p class="legal-p">MCP Shield grants you a revocable, non-exclusive license to route Model Context Protocol (MCP) JSON-RPC 2.0 traffic through our security proxy and WAF. You agree to utilize the gateway solely for lawful tool orchestration and security governance.</p>
+
+        <h4 class="legal-h4">2. Fair Use & Prohibited Conduct</h4>
+        <p class="legal-p">You may not intentionally exploit the gateway to launch Denial of Service (DoS) attacks, attempt to extract cryptographic private keys from our signing enclaves, or bypass rate limiting thresholds. Unauthorized reverse-engineering of AST sanitization filters is strictly prohibited.</p>
+
+        <h4 class="legal-h4">3. Subscriptions & Merchant of Record</h4>
+        <p class="legal-p">Paid tiers (Engineering Team Pro at $99/month, Enterprise Fleet at $1,500/month) are processed securely through Dodo Payments (Merchant of Record). All applicable taxes, VAT, and invoices are handled automatically. Subscriptions may be canceled at any time with active access continuing through the end of the billing cycle.</p>
+
+        <h4 class="legal-h4">4. Limitation of Liability</h4>
+        <p class="legal-p">MCP Shield provides AST-level query validation and prompt injection defenses with high statistical efficacy. However, organizations are responsible for maintaining proper database permissions (such as read-only database roles) on their downstream systems.</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-submit" onclick="closeTermsModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. Data Retention Guarantee Modal Window -->
+  <div class="modal-backdrop" id="retention-modal" style="display: none;" onclick="handleModalBackdrop(event, 'retention-modal')">
+    <div class="modal-card modal-large">
+      <div class="modal-header">
+        <h3>Data Retention & Attestation Guarantee</h3>
+        <button class="modal-close" onclick="closeRetentionModal()">✕</button>
+      </div>
+      <div class="modal-body modal-scroll">
+        <h4 class="legal-h4">1. Zero Plaintext Persistence Guarantee</h4>
+        <p class="legal-p">Every tool invocation evaluated by MCP Shield has a <b>0.00-second persistence lifecycle</b> for plaintext payloads. Once the proxy sanitizes the parameters and computes the Ed25519 attestation signature, the payload buffer is permanently purged from memory.</p>
+
+        <h4 class="legal-h4">2. Retention Schedule by Plan Tier</h4>
+        <ul class="legal-ul">
+          <li><b>Developer Sandbox ($0/mo):</b> Volatile in-memory session tracking only. Telemetry discarded when browser or CLI process exits.</li>
+          <li><b>Engineering Team Pro ($99/mo):</b> 30-day encrypted retention of anonymized call metadata (SHA-256 hashes, latency metrics, tool names) in PostgreSQL/Supabase.</li>
+          <li><b>Enterprise Fleet ($1,500/mo):</b> 365-day immutable, tamper-evident audit vault designed for SOC 2 Type II and HIPAA compliance reviews.</li>
+        </ul>
+
+        <h4 class="legal-h4">3. Independent Cryptographic Verification</h4>
+        <p class="legal-p">Every permitted response forwarded by the gateway includes an <code>X-MCP-Signature</code> header generated with our Ed25519 public enclave. Compliance auditors can verify transaction integrity mathematically without requiring access to confidential payload text.</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-submit" onclick="closeRetentionModal()">Close</button>
       </div>
     </div>
   </div>

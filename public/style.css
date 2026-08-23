@@ -1035,6 +1035,39 @@ body {
   padding: 2rem;
   box-shadow: 0 20px 40px rgba(15, 23, 42, 0.2);
 }
+.modal-large {
+  max-width: 640px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+}
+.modal-scroll {
+  overflow-y: auto;
+  padding-right: 0.5rem;
+  max-height: 55vh;
+}
+.legal-h4 {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--color-text-title);
+  margin-top: 1.15rem;
+  margin-bottom: 0.35rem;
+}
+.legal-p {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  line-height: 1.6;
+  margin-bottom: 0.75rem;
+}
+.legal-ul {
+  list-style: disc;
+  margin-left: 1.25rem;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  line-height: 1.6;
+  margin-bottom: 0.85rem;
+}
+
 .modal-header {
   display: flex;
   justify-content: space-between;
