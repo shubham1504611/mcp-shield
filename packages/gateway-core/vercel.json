@@ -3,7 +3,6 @@
   "rewrites": [
     { "source": "/v1/mcp", "destination": "/api/index" },
     { "source": "/healthz", "destination": "/api/index" },
-    { "source": "/readyz", "destination": "/api/index" },
-    { "source": "/(.*)", "destination": "/api/index" }
+    { "source": "/readyz", "destination": "/api/index" }
   ]
 }

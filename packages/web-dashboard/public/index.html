@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MCP SHIELD | AI AGENT ZERO-TRUST SECURITY COMMAND</title>
+  <link rel="stylesheet" href="/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800;900&family=JetBrains+Mono:wght@500;600;700;800;900&display=swap" rel="stylesheet">
+</head>
+<body>
+  <!-- Top Command Telemetry HUD -->
+  <header class="command-header">
+    <div class="hud-left">
+      <div class="brand-logo">
+        <span>⚡</span> MCP <span>SHIELD</span>
+      </div>
+      <div class="hud-status-pill">
+        <span class="pulse-dot"></span>
+        <span>DEFCON 1: ARMED & INTERCEPTING</span>
+      </div>
+      <div>CRYPTO ENCLAVE: <b style="color:#00f0ff;">Ed25519 ATTESTED</b></div>
+      <div>CORE ENGINE: <b style="color:#00ff88;">STATELESS (14.2 MB RAM)</b></div>
+    </div>
+    <div class="hud-right">
+      <div>FLEET CLUSTER: <b style="color:#ffffff;">ACME PRO FLEET</b></div>
+      <button class="cyber-btn btn-cyan" onclick="openKeyModal()">+ PROVISION KEY</button>
+    </div>
+  </header>
+
+  <!-- Main Tactical Container -->
+  <main class="container">
+    <!-- Hero Security Posture Strip with Live Oscilloscope -->
+    <section class="posture-strip">
+      <div>
+        <div class="posture-heading">
+          <span style="color:#00ff88;">🛡️</span> All AI Agents are Fully Protected
+        </div>
+        <div class="posture-sub">
+          Zero-Trust WAF is actively intercepting attacks with <b>1.4ms P99 latency</b>. 0 breaches allowed.
+        </div>
+      </div>
+
+      <!-- Live Oscilloscope Latency Canvas -->
+      <div class="waveform-box">
+        <div>
+          <div style="font-family:var(--font-mono);font-size:0.68rem;color:var(--text-dim);font-weight:700;">LIVE P99 OSCILLOSCOPE</div>
+          <div style="font-family:var(--font-mono);font-size:0.92rem;color:#00f0ff;font-weight:800;" id="wave-latency">1.4 ms</div>
+        </div>
+        <canvas id="latencyCanvas" width="160" height="32"></canvas>
+      </div>
+
+      <div style="text-align:right;">
+        <div style="font-family:var(--font-mono);font-size:0.7rem;color:var(--text-slate);">ESTIMATED DOWNTIME VALUE SAVED</div>
+        <div style="font-family:var(--font-mono);font-size:1.8rem;font-weight:900;color:#00ff88;" id="kpi-roi">$153,000</div>
+        <div style="font-family:var(--font-mono);font-size:0.68rem;color:var(--text-dim);">CALCULATED INCIDENT DOWNTIME SAVED</div>
+      </div>
+    </section>
+
+    <!-- 4 High-Impact Executive Metrics -->
+    <section class="kpi-row">
+      <div class="kpi-block">
+        <div class="kpi-head">
+          <span>TOTAL AGENT CALLS</span>
+          <span style="color:#00f0ff;">THROUGHPUT</span>
+        </div>
+        <div class="kpi-num" style="color:#00f0ff;" id="kpi-total-calls">128,490</div>
+        <div class="kpi-desc">↑ 2,410 req/s Peak Fleet Velocity</div>
+      </div>
+
+      <div class="kpi-block kpi-danger">
+        <div class="kpi-head">
+          <span>ATTACKS STOPPED COLD</span>
+          <span style="color:#ff2a5f;">100% BLOCKED</span>
+        </div>
+        <div class="kpi-num" style="color:#ff2a5f;" id="kpi-blocked">34</div>
+        <div class="kpi-desc">Injections, DDL & Exfiltration Neutralized</div>
+      </div>
+
+      <div class="kpi-block kpi-success">
+        <div class="kpi-head">
+          <span>COMPLIANCE VAULT</span>
+          <span style="color:#00ff88;">SOC 2 / HIPAA</span>
+        </div>
+        <div class="kpi-num" style="color:#00ff88;">100.0%</div>
+        <div class="kpi-desc">Immutable Ed25519 Cryptographic Chain</div>
+      </div>
+
+      <div class="kpi-block">
+        <div class="kpi-head">
+          <span>LATENCY OVERHEAD</span>
+          <span style="color:#00f0ff;">&lt; 2.5ms SLA</span>
+        </div>
+        <div class="kpi-num" style="color:#ffffff;">1.4 <span style="font-size:1rem;color:var(--text-slate);">ms</span></div>
+        <div class="kpi-desc">Zero-Copy In-Memory Engine</div>
+      </div>
+    </section>
+
+    <!-- Interactive Threat Vector Simulator Bar -->
+    <section class="threat-sim-bar">
+      <div>
+        <div style="font-size:0.95rem;font-weight:800;letter-spacing:-0.01em;">
+          ⚡ Interactive Security Test Playground
+        </div>
+        <div style="font-size:0.8rem;color:var(--text-slate);margin-top:0.15rem;">
+          Click below to test the real-time firewall in action (instant safe demonstration):
+        </div>
+      </div>
+      <div class="sim-btn-group">
+        <button class="cyber-btn btn-threat" onclick="simulateAttack('SYSTEM_OVERRIDE')">🚨 Test System Override</button>
+        <button class="cyber-btn btn-threat" onclick="simulateAttack('SQL_DDL')">💣 Test SQL DROP TABLE</button>
+        <button class="cyber-btn btn-threat" onclick="simulateAttack('EXFILTRATION')">📡 Test Webhook Exfil</button>
+        <button class="cyber-btn btn-cert" onclick="simulateSafeCall()">🟢 Test Safe Normal Query</button>
+      </div>
+    </section>
+
+    <!-- Main Command Matrix Layout -->
+    <div class="command-grid">
+      <!-- Left: Real-Time Protection Feed -->
+      <section class="tactical-panel">
+        <div class="panel-bar">
+          <h2>LIVE AGENT INVOCATION & PROTECTION FEED</h2>
+          <div class="stream-filters">
+            <button class="filter-chip active" id="flt-all" onclick="filterLogs('ALL')">ALL (128,490)</button>
+            <button class="filter-chip" id="flt-threats" onclick="filterLogs('THREATS')">THREATS ONLY (34)</button>
+            <button class="filter-chip" id="flt-safe" onclick="filterLogs('SAFE')">SAFE ONLY</button>
+          </div>
+        </div>
+        <table class="hud-table">
+          <thead>
+            <tr>
+              <th>TIME</th>
+              <th>TARGET TOOL</th>
+              <th>METHOD</th>
+              <th>STATUS</th>
+              <th>LATENCY</th>
+              <th>HUMAN-CLEAR ACTION SUMMARY</th>
+            </tr>
+          </thead>
+          <tbody id="trace-tbody">
+            <!-- Populated dynamically via app.js -->
+          </tbody>
+        </table>
+      </section>
+
+      <!-- Right: Threat Breakdown & Provisioned Keys -->
+      <div style="display:flex;flex-direction:column;gap:1.5rem;">
+        <!-- Threat Breakdown Meter -->
+        <section class="tactical-panel">
+          <div class="panel-bar">
+            <h2>THREAT DISTRIBUTION</h2>
+          </div>
+          <div class="threat-breakdown">
+            <div style="display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:0.75rem;">
+              <span style="color:#ff2a5f;">● Injections (55%)</span>
+              <span style="color:#ffb800;">● SQL DDL (30%)</span>
+              <span style="color:#00f0ff;">● Exfil (15%)</span>
+            </div>
+            <div class="threat-meter">
+              <div class="meter-seg-red"></div>
+              <div class="meter-seg-gold"></div>
+              <div class="meter-seg-cyan"></div>
+            </div>
+            <div style="font-size:0.75rem;color:var(--text-dim);">
+              Active Inspection Engine: MCPSec AST + Zero-Width Unicode Sanitizer
+            </div>
+          </div>
+        </section>
+
+        <!-- Active Keys -->
+        <section class="tactical-panel">
+          <div class="panel-bar">
+            <h2>ACTIVE FLEET KEYS</h2>
+            <button class="cyber-btn btn-cyan" style="padding:0.25rem 0.6rem;font-size:0.7rem;" onclick="openKeyModal()">+ ADD KEY</button>
+          </div>
+          <div id="key-list">
+            <!-- Populated via JS -->
+          </div>
+        </section>
+
+        <!-- Paid Marketplace -->
+        <section class="tactical-panel">
+          <div class="panel-bar">
+            <h2>CREATOR MARKETPLACE</h2>
+            <span style="font-family:var(--font-mono);font-size:0.7rem;color:#00f0ff;font-weight:800;">15% TAKE-RATE</span>
+          </div>
+          <div class="cyber-row">
+            <div>
+              <div style="font-size:0.85rem;font-weight:700;">📈 Bloomberg Market Data</div>
+              <div style="font-size:0.75rem;color:var(--text-dim);">Real-time equities & orderbook</div>
+            </div>
+            <div style="font-family:var(--font-mono);color:#00ff88;font-weight:800;font-size:0.82rem;">$0.01 / call</div>
+          </div>
+          <div class="cyber-row">
+            <div>
+              <div style="font-size:0.85rem;font-weight:700;">⚖️ LexisNexis Legal Matrix</div>
+              <div style="font-size:0.75rem;color:var(--text-dim);">US Federal & Supreme Court precedents</div>
+            </div>
+            <div style="font-family:var(--font-mono);color:#00ff88;font-weight:800;font-size:0.82rem;">$0.05 / call</div>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <!-- Live Terminal Console Drawer -->
+    <section class="terminal-drawer">
+      <div class="term-head">
+        <span>🖥️ LIVE ENCLAVE CRYPTO AUDIT LOGS (STREAMING)</span>
+        <span>SECURITY PROTOCOL: JSON-RPC 2.0 OVER STREAMABLE HTTP</span>
+      </div>
+      <div class="term-logs" id="term-logs">
+        <div class="term-line">[SYS-ENCLAVE] 17:00:01 TRACE#trc_982a17fc [Ed25519_SIG_VERIFIED] postgres_db -> 200 OK (1.2ms)</div>
+        <div class="term-line threat">[WAF-INTERCEPT] 16:59:48 TRACE#trc_31f8021b RULE#SYSTEM_OVERRIDE [PAYLOAD_NEUTRALIZED] -> 200 OK (-32001)</div>
+        <div class="term-line">[SYS-ENCLAVE] 16:59:22 TRACE#trc_67cc4910 [Ed25519_SIG_VERIFIED] bloomberg_bpipe -> 200 OK (1.8ms)</div>
+      </div>
+    </section>
+
+    <!-- Pricing Matrix -->
+    <section class="pricing-matrix">
+      <div style="text-align:center;margin-bottom:2.5rem;">
+        <h2 style="font-size:2rem;font-weight:900;letter-spacing:-0.03em;">INSTITUTIONAL SUBSCRIPTION MATRIX</h2>
+        <p style="color:var(--text-slate);font-size:0.9rem;margin-top:0.3rem;">
+          Settled via Merchant of Record (Dodo Payments / Lemon Squeezy). 95%+ Gross Margin Model.
+        </p>
+      </div>
+      <div class="matrix-grid">
+        <div class="tier-card">
+          <div style="font-weight:800;font-size:1.15rem;">DEVELOPER SANDBOX</div>
+          <div class="tier-price">$0 <span>/ month</span></div>
+          <ul class="tier-features">
+            <li>✓ 50,000 tool calls / month</li>
+            <li>✓ Local Developer CLI Shield (`npx mcp-shield`)</li>
+            <li>✓ Prompt Injection WAF Engine</li>
+            <li>✓ 24-hour immutable telemetry</li>
+          </ul>
+          <button class="cyber-btn btn-cyan" style="width:100%;" disabled>CURRENT SANDBOX</button>
+        </div>
+
+        <div class="tier-card tier-pro">
+          <div class="tier-badge">MISSION CRITICAL</div>
+          <div style="font-weight:900;font-size:1.15rem;color:#00f0ff;">ENGINEERING TEAM PRO</div>
+          <div class="tier-price">$99 <span>/ month</span></div>
+          <ul class="tier-features">
+            <li>✓ 1,000,000 tool calls / month</li>
+            <li>✓ Role-Based Access Control (RBAC)</li>
+            <li>✓ 30-Day SOC 2 Audit Retention</li>
+            <li>✓ Ed25519 Cryptographic Attestation</li>
+            <li>✓ Outbound Zero-Knowledge VPC Tunnels</li>
+          </ul>
+          <button class="cyber-btn btn-cyan" style="width:100%;" onclick="alert('Initiating Dodo Payments / Lemon Squeezy Secure MoR Checkout...')">UPGRADE TO PRO ($99)</button>
+        </div>
+
+        <div class="tier-card">
+          <div style="font-weight:800;font-size:1.15rem;">ENTERPRISE FLEET</div>
+          <div class="tier-price">$1,500 <span>/ month</span></div>
+          <ul class="tier-features">
+            <li>✓ Unlimited tool calls & agents</li>
+            <li>✓ Okta / Microsoft Entra SAML SSO</li>
+            <li>✓ 1-Year Immutable Compliance Vault</li>
+            <li>✓ Dedicated Air-Gapped Cloud Pod</li>
+            <li>✓ 99.999% SLA & 24/7 Red-Team Support</li>
+          </ul>
+          <button class="cyber-btn btn-cyan" style="width:100%;" onclick="alert('Connecting to Enterprise Sales...')">CONTACT ENTERPRISE</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Key Modal -->
+  <div class="modal-overlay" id="key-modal" style="display: none;">
+    <div class="modal-content">
+      <div style="display:flex;justify-content:space-between;margin-bottom:1.5rem;">
+        <h3 style="font-family:var(--font-mono);font-weight:800;font-size:0.95rem;color:#00f0ff;">PROVISION GATEWAY KEY</h3>
+        <button onclick="closeKeyModal()" style="background:transparent;border:none;color:var(--text-slate);font-size:1.2rem;cursor:pointer;">✕</button>
+      </div>
+      <div>
+        <label style="font-family:var(--font-mono);font-size:0.75rem;color:var(--text-slate);display:block;margin-bottom:0.4rem;">KEY NAME / IDENTIFIER:</label>
+        <input type="text" id="key-name-input" placeholder="e.g. Production Cluster Agent Key" class="cyber-input">
+        
+        <label style="font-family:var(--font-mono);font-size:0.75rem;color:var(--text-slate);display:block;margin-top:1rem;margin-bottom:0.4rem;">RPM RATE LIMIT (CALLS/MIN):</label>
+        <input type="number" id="key-rate-input" value="120" class="cyber-input">
+        
+        <div id="new-key-result" style="display:none;margin-top:1.2rem;">
+          <label style="font-family:var(--font-mono);font-size:0.75rem;color:#00ff88;font-weight:800;">PROVISIONED KEY (COPY IMMEDIATELY):</label>
+          <div style="display:flex;justify-content:space-between;background:#020305;border:1px solid #00f0ff;padding:0.6rem 0.8rem;border-radius:2px;margin-top:0.4rem;">
+            <code id="new-key-code" style="font-family:var(--font-mono);color:#00f0ff;font-size:0.8rem;"></code>
+            <button class="cyber-btn btn-cyan" style="padding:0.2rem 0.5rem;font-size:0.7rem;" onclick="copyNewKey()">COPY</button>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;gap:0.75rem;margin-top:1.75rem;">
+        <button class="cyber-btn" style="background:#111622;color:var(--text-slate);" onclick="closeKeyModal()">CANCEL</button>
+        <button class="cyber-btn btn-cyan" id="btn-generate" onclick="handleGenerateKey()">PROVISION KEY</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>
