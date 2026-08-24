@@ -13,18 +13,14 @@
     }
   ],
   "rewrites": [
-    { "source": "/api/evaluate", "destination": "/api/evaluate" },
-    { "source": "/api/keys/:match*", "destination": "/api/index" },
-    { "source": "/api/keys", "destination": "/api/index" },
-    { "source": "/api/audit/:match*", "destination": "/api/index" },
-    { "source": "/api/telemetry/:match*", "destination": "/api/index" },
-    { "source": "/api/registry", "destination": "/api/index" },
-    { "source": "/api/stats", "destination": "/api/index" },
-    { "source": "/v1/mcp", "destination": "/api/mcp" },
-    { "source": "/v1/audit/logs", "destination": "/api/index" },
-    { "source": "/v1/registry/tools", "destination": "/api/index" },
-    { "source": "/healthz", "destination": "/api/index" },
-    { "source": "/readyz", "destination": "/api/index" },
-    { "source": "/api/:match*", "destination": "/api/index" }
+    { "source": "/api/evaluate", "destination": "/api/evaluate.js" },
+    { "source": "/api/keys/generate", "destination": "/api/keys/generate.js" },
+    { "source": "/api/keys", "destination": "/api/keys/index.js" },
+    { "source": "/api/audit/logs", "destination": "/api/audit/logs.js" },
+    { "source": "/api/telemetry/metrics", "destination": "/api/telemetry/metrics.js" },
+    { "source": "/api/registry", "destination": "/api/registry.js" },
+    { "source": "/v1/mcp", "destination": "/api/mcp.js" },
+    { "source": "/v1/audit/logs", "destination": "/api/audit/logs.js" },
+    { "source": "/v1/registry/tools", "destination": "/api/registry.js" }
   ]
 }

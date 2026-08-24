@@ -195,15 +195,15 @@
           <div class="play-metrics-footer">
             <div>
               <span class="play-foot-tag">LATENCY</span>
-              <span class="play-foot-val" id="play-lat">1.1 ms</span>
+              <span class="play-foot-val" id="play-lat">-- ms</span>
             </div>
             <div>
               <span class="play-foot-tag">RISK SCORE</span>
-              <span class="play-foot-val" id="play-risk">0.00</span>
+              <span class="play-foot-val" id="play-risk">--</span>
             </div>
             <div>
               <span class="play-foot-tag">SIGNATURE</span>
-              <span class="play-foot-val mono" id="play-sig">ed25519:7f89ac12b...</span>
+              <span class="play-foot-val mono" id="play-sig">Awaiting evaluation...</span>
             </div>
           </div>
         </div>
@@ -420,20 +420,20 @@
       <div class="console-metrics-grid">
         <div class="console-stat-card">
           <div class="stat-meta">TOTAL TOOL CALLS</div>
-          <div class="stat-value" id="kpi-total-calls">1,428</div>
+          <div class="stat-value" id="kpi-total-calls">--</div>
           <div class="stat-subtext">Evaluated in-memory</div>
         </div>
 
         <div class="console-stat-card">
           <div class="stat-meta">ATTACKS INTERCEPTED</div>
-          <div class="stat-value text-emerald" id="kpi-threats-blocked">37</div>
+          <div class="stat-value text-emerald" id="kpi-threats-blocked">--</div>
           <div class="stat-subtext">Prompt injections & DDL</div>
         </div>
 
         <div class="console-stat-card">
           <div class="stat-meta">P99 LATENCY</div>
-          <div class="stat-value" id="kpi-latency">1.1 ms</div>
-          <div class="stat-subtext">Zero network roundtrips</div>
+          <div class="stat-value" id="kpi-latency">-- ms</div>
+          <div class="stat-subtext">Real serverless measurement</div>
         </div>
 
         <div class="console-stat-card">
@@ -566,15 +566,15 @@
           <pre><code>{
   "mcpServers": {
     "shielded-postgres": {
-      "command": "npx",
+      "command": "node",
       "args": [
-        "-y", "@mcp-shield/cli", "wrap",
+        "/path/to/mcp-shield/packages/cli-shield/bin/mcp-shield.js", "wrap",
         "--target", "npx -y @modelcontextprotocol/server-postgres postgresql://user:pass@localhost:5432/db"
       ]
     }
   }
 }</code></pre>
-          <button class="btn-copy-code" onclick="copySnippet('npx -y @mcp-shield/cli wrap --target')">Copy Configuration</button>
+          <button class="btn-copy-code" onclick="copySnippet('node /path/to/mcp-shield/packages/cli-shield/bin/mcp-shield.js wrap')">Copy Configuration</button>
         </div>
 
         <!-- Cursor Pane -->
@@ -582,62 +582,69 @@
           <p class="pane-instruction">In Cursor Settings ➔ Features ➔ MCP Servers, enter:</p>
           <pre><code>Name: MCP-Shield-Gateway
 Type: command
-Command: npx @mcp-shield/cli proxy --port 8080 --key mcp_live_sec_your_key</code></pre>
-          <button class="btn-copy-code" onclick="copySnippet('npx @mcp-shield/cli proxy --port 8080')">Copy Cursor Command</button>
+Command: node /path/to/mcp-shield/packages/cli-shield/bin/mcp-shield.js proxy --port 8080</code></pre>
+          <button class="btn-copy-code" onclick="copySnippet('node /path/to/mcp-shield/packages/cli-shield/bin/mcp-shield.js proxy --port 8080')">Copy Cursor Command</button>
         </div>
 
         <!-- mcp-tunnel Pane -->
         <div class="quick-pane" id="pane-tunnel">
           <p class="pane-instruction">Connect private VPC tools with ZERO open inbound ports using outbound reverse tunnel:</p>
-          <pre><code># Run on your private internal database host or bastion
-npx @mcp-shield/cli tunnel \
-  --target "npx -y @modelcontextprotocol/server-postgres postgresql://internal-vpc-db:5432/mydb" \
-  --key "mcp_live_sec_your_key"
+          <pre><code># Run locally on your database host or bastion
+node packages/cli-shield/bin/mcp-shield.js tunnel \
+  --target "npx -y @modelcontextprotocol/server-postgres postgresql://internal-vpc-db:5432/mydb"
 
-# Active tunnel is securely routed through the gateway without open ports</code></pre>
-          <button class="btn-copy-code" onclick="copySnippet('npx @mcp-shield/cli tunnel --target')">Copy Tunnel Command</button>
+# Active tunnel is securely attested without opening inbound firewall ports</code></pre>
+          <button class="btn-copy-code" onclick="copySnippet('node packages/cli-shield/bin/mcp-shield.js tunnel')">Copy Tunnel Command</button>
         </div>
 
         <!-- CLI Doctor Pane -->
         <div class="quick-pane" id="pane-doctor">
           <p class="pane-instruction">Run instant diagnostic scan on local Cursor & Claude configs with 1-click auto-patching:</p>
           <pre><code># Scan local configs for unshielded tools & hardcoded passwords
-npx @mcp-shield/cli doctor
+node packages/cli-shield/bin/mcp-shield.js doctor
 
 # Automatically wrap all vulnerable servers in 1-click
-npx @mcp-shield/cli doctor --fix</code></pre>
-          <button class="btn-copy-code" onclick="copySnippet('npx @mcp-shield/cli doctor --fix')">Copy Doctor Command</button>
+node packages/cli-shield/bin/mcp-shield.js doctor --fix</code></pre>
+          <button class="btn-copy-code" onclick="copySnippet('node packages/cli-shield/bin/mcp-shield.js doctor --fix')">Copy Doctor Command</button>
         </div>
 
         <!-- Python Pane -->
         <div class="quick-pane" id="pane-python">
-          <p class="pane-instruction">Python SDK integration for LangChain and CrewAI agents:</p>
-          <pre><code>from mcp_shield import ShieldClient
+          <p class="pane-instruction">Python integration for LangChain, CrewAI, or direct agent tool calls:</p>
+          <pre><code>import requests
 
-client = ShieldClient(
-    gateway_url="https://mcp-shield-gateway-core.vercel.app/v1/mcp",
-    api_key="mcp_live_sec_your_key"
+# Send tool calls through the live Zero-Trust Gateway
+res = requests.post(
+    "https://mcp-shield-gateway-core.vercel.app/api/evaluate",
+    json={
+        "tool": "postgres_query",
+        "query": "SELECT id, name FROM users LIMIT 50"
+    }
 )
 
-# Intercepts prompt injections, DLP leaks, and blocks destructive SQL
-result = client.call_tool("sql_query", {"query": "SELECT id, name FROM users LIMIT 50"})
-print("Attestation Signature:", result.signature)</code></pre>
-          <button class="btn-copy-code" onclick="copySnippet('pip install mcp-shield')">Copy Python Snippet</button>
+data = res.json()
+print("Verdict:", "SAFE (Signed)" if data.get("isSafe") else f"BLOCKED: {data.get('rule')}")
+print("Ed25519 Signature:", data.get("signature"))</code></pre>
+          <button class="btn-copy-code" onclick="copySnippet('https://mcp-shield-gateway-core.vercel.app/api/evaluate')">Copy Python Code</button>
         </div>
 
         <!-- Node.js Pane -->
         <div class="quick-pane" id="pane-nodejs">
           <p class="pane-instruction">TypeScript / Node.js integration:</p>
-          <pre><code>import { McpShieldClient } from '@mcp-shield/sdk';
-
-const shield = new McpShieldClient({
-  gatewayUrl: 'https://mcp-shield-gateway-core.vercel.app/v1/mcp',
-  apiKey: process.env.MCP_SHIELD_KEY
+          <pre><code>// Direct zero-dependency tool evaluation
+const res = await fetch('https://mcp-shield-gateway-core.vercel.app/api/evaluate', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    tool: 'postgres_query',
+    query: 'SELECT id, name FROM users LIMIT 50'
+  })
 });
 
-const response = await shield.executeTool('postgres_read', { query: 'SELECT * FROM users' });
-console.log('Attested Trace ID:', response.traceId);</code></pre>
-          <button class="btn-copy-code" onclick="copySnippet('npm install @mcp-shield/sdk')">Copy TypeScript Snippet</button>
+const data = await res.json();
+console.log('Attested Signature:', data.signature);
+console.log('Sanitized Payload:', data.sanitizedPayload);</code></pre>
+          <button class="btn-copy-code" onclick="copySnippet('https://mcp-shield-gateway-core.vercel.app/api/evaluate')">Copy TypeScript Code</button>
         </div>
       </div>
     </div>
