@@ -124,18 +124,16 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Live real-time evaluation as user types (debounced 400ms)
-  let playgroundDebounceTimer = null;
+  // Live input change listener
   const playInput = document.getElementById('playground-input');
   if (playInput) {
     playInput.addEventListener('input', () => {
       // Clear active preset tab when typing custom query
       document.querySelectorAll('.play-preset-btn').forEach(b => b.classList.remove('active'));
 
-      clearTimeout(playgroundDebounceTimer);
       const val = playInput.value.trim();
       if (!val) {
-        document.getElementById('playground-output').innerText = '// Select any attack or safe preset above, or type a custom query and click "Evaluate Payload" to test live in-memory WAF inspection...';
+        document.getElementById('playground-output').innerText = '// Select any preset above or enter a query and click "⚡ Evaluate Payload" to test live in-memory WAF inspection...';
         const badge = document.getElementById('playground-badge');
         if (badge) {
           badge.className = 'code-badge badge-neutral';
@@ -147,18 +145,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (riskEl) riskEl.innerText = '--';
         const sigEl = document.getElementById('play-sig');
         if (sigEl) sigEl.innerText = 'Awaiting evaluation...';
-        return;
       }
-
-      playgroundDebounceTimer = setTimeout(() => {
-        executePlayground();
-      }, 400);
     });
 
     // Ctrl+Enter or Cmd+Enter in playground runs evaluation immediately
     playInput.addEventListener('keydown', (e) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-        clearTimeout(playgroundDebounceTimer);
         executePlayground();
       }
     });
@@ -509,7 +501,7 @@ function removeCustomRegexRule(name) {
 function loadPlaygroundPreset(key) {
   document.querySelectorAll('.play-preset-btn').forEach(b => b.classList.remove('active'));
   const activeBtn = Array.from(document.querySelectorAll('.play-preset-btn')).find(b => 
-    b.getAttribute('onclick')?.includes(`'${key}'`)
+    b.dataset?.preset === key || b.getAttribute('onclick')?.includes(`'${key}'`)
   );
   if (activeBtn) activeBtn.classList.add('active');
 
@@ -522,7 +514,22 @@ function loadPlaygroundPreset(key) {
   const toolBadge = document.querySelector('.play-method');
   if (toolBadge && p.tool) toolBadge.innerText = p.tool;
 
-  executePlayground(p.tool);
+  // Set the verdict & audit panel to awaiting state until user clicks Evaluate
+  const outputEl = document.getElementById('playground-output');
+  if (outputEl) {
+    outputEl.innerText = `// Preset loaded [${p.tool}]:\n// Click "⚡ Evaluate Payload" below to run in-memory AST & DLP security inspection...`;
+  }
+  const badge = document.getElementById('playground-badge');
+  if (badge) {
+    badge.className = 'code-badge badge-neutral';
+    badge.innerText = 'AWAITING EVALUATION';
+  }
+  const latEl = document.getElementById('play-lat');
+  if (latEl) latEl.innerText = '-- ms';
+  const riskEl = document.getElementById('play-risk');
+  if (riskEl) riskEl.innerText = '--';
+  const sigEl = document.getElementById('play-sig');
+  if (sigEl) sigEl.innerText = 'Awaiting evaluation...';
 }
 
 // 10. Quickstart Code Switcher
