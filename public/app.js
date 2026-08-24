@@ -39,7 +39,7 @@ const PRESETS = {
   }
 };
 
-// 2. Community Verified MCP Tools Dataset
+/// 2. Community Verified MCP Tools Dataset
 const COMMUNITY_TOOLS = [
   {
     id: 'postgres',
@@ -49,19 +49,19 @@ const COMMUNITY_TOOLS = [
     desc: 'Direct SQL execution and table inspection with AST-level mutation protection.',
     package: '@modelcontextprotocol/server-postgres',
     command: 'npx -y @modelcontextprotocol/server-postgres <DATABASE_URL>',
-    shieldCommand: 'npx @mcp-shield/cli wrap --target "npx -y @modelcontextprotocol/server-postgres postgresql://..."',
-    rules: ['AST SQL Armor (No DROP/TRUNCATE)', 'Parameter Normalizer', 'Ed25519 Signed']
+    shieldCommand: 'node bin/mcp-shield.js wrap --target "npx -y @modelcontextprotocol/server-postgres postgresql://..."',
+    rules: ['AST SQL Armor (Blocks DROP/TRUNCATE/UNION)', 'Tautology Filter', 'Ed25519 Signed']
   },
   {
-    id: 'sqlite',
-    name: 'SQLite Embedded DB',
-    category: 'Databases',
+    id: 'fetch',
+    name: 'Secure Web & API Fetcher',
+    category: 'Web & Search',
     author: 'Anthropic / MCP Core',
-    desc: 'Embedded relational storage for agent context, vector search, and local logs.',
-    package: '@modelcontextprotocol/server-sqlite',
-    command: 'npx -y @modelcontextprotocol/server-sqlite ./mydb.sqlite',
-    shieldCommand: 'npx @mcp-shield/cli wrap --target "npx -y @modelcontextprotocol/server-sqlite ./mydb.sqlite"',
-    rules: ['Unconstrained Delete Shield', 'AST Armor', 'Ed25519 Signed']
+    desc: 'Converts web pages into markdown for LLM consumption with SSRF and redirect protection.',
+    package: '@modelcontextprotocol/server-fetch',
+    command: 'npx -y @modelcontextprotocol/server-fetch',
+    shieldCommand: 'node bin/mcp-shield.js wrap --target "npx -y @modelcontextprotocol/server-fetch"',
+    rules: ['SSRF Protection (Blocks localhost / private IP)', 'Exfil Sink Filter', 'Ed25519 Signed']
   },
   {
     id: 'github',
@@ -71,7 +71,7 @@ const COMMUNITY_TOOLS = [
     desc: 'Inspect PRs, create issues, search code trees, and review git commit histories.',
     package: '@modelcontextprotocol/server-github',
     command: 'npx -y @modelcontextprotocol/server-github',
-    shieldCommand: 'npx @mcp-shield/cli wrap --target "npx -y @modelcontextprotocol/server-github"',
+    shieldCommand: 'node bin/mcp-shield.js wrap --target "npx -y @modelcontextprotocol/server-github"',
     rules: ['Egress Whitelist (api.github.com only)', 'Prompt Sanitizer', 'Ed25519 Signed']
   },
   {
@@ -82,19 +82,19 @@ const COMMUNITY_TOOLS = [
     desc: 'Read and edit source code, manage workspaces, and inspect local project trees.',
     package: '@modelcontextprotocol/server-filesystem',
     command: 'npx -y @modelcontextprotocol/server-filesystem /path/to/project',
-    shieldCommand: 'npx @mcp-shield/cli wrap --target "npx -y @modelcontextprotocol/server-filesystem /path/to/project"',
+    shieldCommand: 'node bin/mcp-shield.js wrap --target "npx -y @modelcontextprotocol/server-filesystem /path/to/project"',
     rules: ['Path Traversal Guard (Blocks /etc)', 'Unicode Normalizer', 'Ed25519 Signed']
   },
   {
-    id: 'docker',
-    name: 'Docker Engine Manager',
+    id: 'gitlab',
+    name: 'GitLab Projects & Pipelines',
     category: 'Developer Tools',
-    author: 'Community Verified',
-    desc: 'Inspect running containers, stream container logs, and manage local images.',
-    package: '@modelcontextprotocol/server-docker',
-    command: 'npx -y @modelcontextprotocol/server-docker',
-    shieldCommand: 'npx @mcp-shield/cli wrap --target "npx -y @modelcontextprotocol/server-docker"',
-    rules: ['Privilege Escalation Guard', 'Host Mount Restriction', 'Ed25519 Signed']
+    author: 'Anthropic / MCP Core',
+    desc: 'Interact with GitLab repositories, issue tracking, and CI/CD pipelines securely.',
+    package: '@modelcontextprotocol/server-gitlab',
+    command: 'npx -y @modelcontextprotocol/server-gitlab',
+    shieldCommand: 'node bin/mcp-shield.js wrap --target "npx -y @modelcontextprotocol/server-gitlab"',
+    rules: ['Token Redaction Guard', 'Role Privilege Armor', 'Ed25519 Signed']
   },
   {
     id: 'brave-search',
@@ -104,7 +104,7 @@ const COMMUNITY_TOOLS = [
     desc: 'Real-time private web search without tracking or prompt extraction.',
     package: '@modelcontextprotocol/server-brave-search',
     command: 'npx -y @modelcontextprotocol/server-brave-search',
-    shieldCommand: 'npx @mcp-shield/cli wrap --target "npx -y @modelcontextprotocol/server-brave-search"',
+    shieldCommand: 'node bin/mcp-shield.js wrap --target "npx -y @modelcontextprotocol/server-brave-search"',
     rules: ['Indirect Injection Scrubber', 'Data Exfil Shield', 'Ed25519 Signed']
   },
   {
@@ -115,7 +115,7 @@ const COMMUNITY_TOOLS = [
     desc: 'Headless browser automation, screenshotting, and web page DOM scraping.',
     package: '@modelcontextprotocol/server-puppeteer',
     command: 'npx -y @modelcontextprotocol/server-puppeteer',
-    shieldCommand: 'npx @mcp-shield/cli wrap --target "npx -y @modelcontextprotocol/server-puppeteer"',
+    shieldCommand: 'node bin/mcp-shield.js wrap --target "npx -y @modelcontextprotocol/server-puppeteer"',
     rules: ['Strict Egress Whitelist', 'Script Neutralizer', 'Ed25519 Signed']
   },
   {
@@ -126,7 +126,7 @@ const COMMUNITY_TOOLS = [
     desc: 'Post channel notifications, read threads, and coordinate team agent updates.',
     package: '@modelcontextprotocol/server-slack',
     command: 'npx -y @modelcontextprotocol/server-slack',
-    shieldCommand: 'npx @mcp-shield/cli wrap --target "npx -y @modelcontextprotocol/server-slack"',
+    shieldCommand: 'node bin/mcp-shield.js wrap --target "npx -y @modelcontextprotocol/server-slack"',
     rules: ['Rate Limit (20 RPM)', 'Prompt Injection Scrubber', 'Ed25519 Signed']
   },
   {
@@ -137,8 +137,8 @@ const COMMUNITY_TOOLS = [
     desc: 'Knowledge-graph based long-term memory allowing agents to retain context.',
     package: '@modelcontextprotocol/server-memory',
     command: 'npx -y @modelcontextprotocol/server-memory',
-    shieldCommand: 'npx @mcp-shield/cli wrap --target "npx -y @modelcontextprotocol/server-memory"',
-    rules: ['Adversarial Memory Guard', 'Ed25519 Signed']
+    shieldCommand: 'node bin/mcp-shield.js wrap --target "npx -y @modelcontextprotocol/server-memory"',
+    rules: ['Adversarial Memory Poisoning Guard', 'Ed25519 Signed']
   }
 ];
 

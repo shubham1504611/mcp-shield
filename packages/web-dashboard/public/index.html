@@ -652,52 +652,51 @@ console.log('Attested Trace ID:', response.traceId);</code></pre>
     </div>
 
     <div class="pricing-deck">
-      <!-- Free Sandbox -->
+      <!-- Community Open Source -->
       <div class="price-card">
-        <div class="card-tier-name">Developer Sandbox</div>
-        <div class="card-tier-price">$0 <span class="price-period">/ month</span></div>
-        <p class="card-tier-desc">For local agent development and CLI evaluation.</p>
+        <div class="card-tier-name">Open-Source Developer</div>
+        <div class="card-tier-price">$0 <span class="price-period">/ Free Forever (MIT)</span></div>
+        <p class="card-tier-desc">Direct local stdio proxy and security filters for individual AI developers.</p>
         <ul class="card-features">
-          <li>✓ 50,000 tool calls / month</li>
-          <li>✓ Local Developer CLI (<code>npx mcp-shield</code>)</li>
-          <li>✓ Core Prompt Injection Sanitizer</li>
-          <li>✓ Standard JSON-RPC 2.0 proxy</li>
-          <li>✓ Community Support</li>
+          <li>✓ Unlimited local tool calls & queries</li>
+          <li>✓ Local Developer CLI & Stdio Proxy</li>
+          <li>✓ 4-Phase In-Memory AST Security WAF</li>
+          <li>✓ Standard JSON-RPC 2.0 conformance</li>
+          <li>✓ 100% MIT Licensed Open Source</li>
         </ul>
-        <button class="price-btn-outline" onclick="openKeyModal()">Start Free Sandbox</button>
+        <a href="#quickstart" class="price-btn-outline" style="text-align:center; display:block; text-decoration:none;">View Quickstart</a>
       </div>
 
-      <!-- Engineering Team Pro -->
+      <!-- Self-Hosted Team -->
       <div class="price-card card-featured">
-        <div class="popular-pill">PRODUCTION GRADE</div>
-        <div class="card-tier-name">Engineering Team Pro</div>
-        <div class="card-tier-price">$99 <span class="price-period">/ month</span></div>
-        <p class="card-tier-desc">For engineering teams deploying autonomous agents in production.</p>
+        <div class="popular-pill">RECOMMENDED</div>
+        <div class="card-tier-name">Self-Hosted Docker Fleet</div>
+        <div class="card-tier-price">$0 <span class="price-period">/ Free & Self-Hosted</span></div>
+        <p class="card-tier-desc">Deploy in your private cloud or VPC via Docker Compose or Kubernetes.</p>
         <ul class="card-features">
-          <li>✓ 1,000,000 tool calls / month</li>
+          <li>✓ High-throughput local gateway proxy</li>
           <li>✓ Custom DLP & Regex Policy Rules</li>
           <li>✓ Outbound Reverse Tunnel (<code>mcp-tunnel</code>)</li>
           <li>✓ Ed25519 Cryptographic Attestation</li>
-          <li>✓ 30-Day Audit Log Retention</li>
-          <li>✓ Priority Technical Support</li>
+          <li>✓ Zero external telemetry transmission</li>
+          <li>✓ Complete source code auditability</li>
         </ul>
-        <button class="price-btn-primary" onclick="openKeyModal()">Deploy Pro Fleet</button>
+        <a href="#quickstart" class="price-btn-primary" style="text-align:center; display:block; text-decoration:none;">Deploy with Docker</a>
       </div>
 
-      <!-- Enterprise Fleet -->
+      <!-- Community Cloud Sandbox -->
       <div class="price-card">
-        <div class="card-tier-name">Enterprise Fleet</div>
-        <div class="card-tier-price">$1,500 <span class="price-period">/ month</span></div>
-        <p class="card-tier-desc">For organizations requiring dedicated air-gapped pods and SLAs.</p>
+        <div class="card-tier-name">Cloud Gateway Sandbox</div>
+        <div class="card-tier-price">$0 <span class="price-period">/ Free Sandbox</span></div>
+        <p class="card-tier-desc">Test tools and queries live in the serverless security playground.</p>
         <ul class="card-features">
-          <li>✓ Unlimited tool calls & agents</li>
-          <li>✓ Okta / SAML SSO & Directory Sync</li>
-          <li>✓ 1-Year Immutable Compliance Vault</li>
-          <li>✓ Dedicated Cloud Pod Deployment</li>
-          <li>✓ 99.99% Availability SLA</li>
-          <li>✓ Dedicated Security Architect</li>
+          <li>✓ Live Interactive Security Playground</li>
+          <li>✓ Real-Time AST & DLP Evaluation API</li>
+          <li>✓ Instant API Key Generation</li>
+          <li>✓ Real-Time Performance & WAF Metrics</li>
+          <li>✓ Community GitHub Support</li>
         </ul>
-        <button class="price-btn-outline" onclick="alert('Contact enterprise@mcpshield.dev for dedicated cloud pod deployments.')">Contact Enterprise</button>
+        <button class="price-btn-outline" onclick="openKeyModal()">Mint Sandbox Key</button>
       </div>
     </div>
   </section>
@@ -962,7 +961,7 @@ console.log('Attested Trace ID:', response.traceId);</code></pre>
         <p class="legal-p">API keys issued to your organization are salted and hashed using SHA-256 before storage in our database. The gateway never possesses access to your plaintext credentials once generated. Ed25519 digital signatures are generated in isolated memory enclaves.</p>
 
         <h4 class="legal-h4">4. GDPR, CCPA & Data Subject Rights</h4>
-        <p class="legal-p">You maintain complete ownership of your organization's telemetry records. Organization administrators can request instant deletion or export of all historical metadata at any time by contacting privacy@mcpshield.dev.</p>
+        <p class="legal-p">You maintain complete ownership of your organization's telemetry records. Organization administrators can request instant deletion or export of all historical metadata at any time via the official <a href="https://github.com/shubham1504611/mcp-shield/issues" target="_blank" style="color:var(--brand-teal);">GitHub Security & Privacy Portal</a>.</p>
       </div>
       <div class="modal-footer">
         <button class="btn-submit" onclick="closePrivacyModal()">Close</button>

@@ -35,7 +35,11 @@ module.exports = async (req, res) => {
   try {
     let body = req.body;
     if (typeof body === 'string') {
-      try { body = JSON.parse(body); } catch (_) { body = {}; }
+      try { 
+        body = JSON.parse(body.replace(/^\uFEFF/, '').trim()); 
+      } catch (_) { 
+        body = {}; 
+      }
     }
     if (!body || typeof body !== 'object') {
       body = {};

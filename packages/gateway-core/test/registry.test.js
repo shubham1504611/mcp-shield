@@ -20,12 +20,12 @@ test('Community Tool Registry Test Suite', async (t) => {
     assert.ok(github);
     assert.strictEqual(github.id, 'github');
     assert.strictEqual(github.category, 'Developer Tools');
-    assert.ok(github.shieldCommand.includes('mcp-shield wrap'));
+    assert.ok(github.shieldCommand.includes('wrap'));
   });
 
   await t.test('Should filter tools by category', () => {
     const dbs = getToolsByCategory('Databases');
-    assert.ok(dbs.length >= 2);
+    assert.ok(dbs.length >= 1);
     assert.ok(dbs.every(d => d.category === 'Databases'));
 
     const web = getToolsByCategory('Web & Search');

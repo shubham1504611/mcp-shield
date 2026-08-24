@@ -89,7 +89,11 @@ module.exports = async (req, res) => {
     if (req.method === 'POST' && url.includes('keys/generate')) {
       let body = req.body;
       if (typeof body === 'string') {
-        try { body = JSON.parse(body); } catch (_) { body = {}; }
+        try { 
+          body = JSON.parse(body.replace(/^\uFEFF/, '').trim()); 
+        } catch (_) { 
+          body = {}; 
+        }
       }
       if (!body || typeof body !== 'object') body = {};
 

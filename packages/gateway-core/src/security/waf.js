@@ -37,9 +37,9 @@ const INJECTION_PATTERNS = [
 // Phase 2: Enterprise Data Loss Prevention (DLP)
 const DLP_PATTERNS = [
   { rule: 'DLP_SSN_DETECTED', regex: /\b\d{3}-\d{2}-\d{4}\b/, desc: 'Social Security Number (SSN)' },
-  { rule: 'DLP_CREDIT_CARD_DETECTED', regex: /\b(?:4[0-9]{12}(?:[0-9]{3})?|5[1-5][0-9]{14}|3[47][0-9]{13}|6(?:011|5[0-9]{2})[0-9]{12})\b/, desc: 'Credit / Debit Card Number' },
+  { rule: 'DLP_CREDIT_CARD_DETECTED', regex: /\b(?:4[0-9]{3}[-\s]?[0-9]{4}[-\s]?[0-9]{4}[-\s]?[0-9]{4}|5[1-5][0-9]{2}[-\s]?[0-9]{4}[-\s]?[0-9]{4}[-\s]?[0-9]{4}|3[47][0-9]{2}[-\s]?[0-9]{6}[-\s]?[0-9]{5}|6(?:011|5[0-9]{2})[-\s]?[0-9]{4}[-\s]?[0-9]{4}[-\s]?[0-9]{4}|(?:4[0-9]{12}(?:[0-9]{3})?|5[1-5][0-9]{14}|3[47][0-9]{13}|6(?:011|5[0-9]{2})[0-9]{12}))\b/, desc: 'Credit / Debit Card Number' },
   { rule: 'DLP_PRIVATE_KEY_DETECTED', regex: /-----BEGIN (RSA|EC|DSA|OPENSSH|PGP) PRIVATE KEY-----/, desc: 'Cryptographic Private Key Block' },
-  { rule: 'DLP_API_SECRET_DETECTED', regex: /(sk_live_[0-9a-zA-Z]{20,}|ghp_[0-9a-zA-Z]{30,}|xox[baprs]-[0-9a-zA-Z]{10,})/, desc: 'Live API / OAuth Token' }
+  { rule: 'DLP_API_SECRET_DETECTED', regex: /\b(AKIA[0-9A-Z]{16}|ghp_[0-9a-zA-Z]{36}|gho_[0-9a-zA-Z]{36}|ghu_[0-9a-zA-Z]{36}|ghs_[0-9a-zA-Z]{36}|ghr_[0-9a-zA-Z]{36}|xox[baprs]-[0-9a-zA-Z]{10,48}|sk_live_[0-9a-zA-Z]{24,34}|rk_live_[0-9a-zA-Z]{24,34}|AIzaSy[0-9a-zA-Z_-]{20,40}|sk-[0-9a-zA-Z]{48})\b/, desc: 'Cloud / Developer API Key' }
 ];
 
 // Phase 3: SQL AST & Blast Radius Patterns (including Tautologies, UNION, Sensitive Tables)

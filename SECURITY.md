@@ -21,9 +21,9 @@ The MCP Shield team takes the security of autonomous agent architectures and too
 
 If you believe you have found a security vulnerability in MCP Shield, please report it privately:
 
-1. **Email**: Send detailed reproduction steps, exploit payloads, and environment details to **`security@mcpshield.dev`**.
-2. **PGP / Encrypted Communication**: Available upon request.
-3. **Response Time**: You will receive an initial response from our security team within **24 hours**.
+1. **GitHub Security Advisory**: Submit a private advisory report at [https://github.com/shubham1504611/mcp-shield/security/advisories](https://github.com/shubham1504611/mcp-shield/security/advisories).
+2. **Issue Tracker**: Open an issue at [https://github.com/shubham1504611/mcp-shield/issues](https://github.com/shubham1504611/mcp-shield/issues).
+3. **Response Time**: You will receive an initial response within **24 hours**.
 
 ---
 

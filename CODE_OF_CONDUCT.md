@@ -51,5 +51,5 @@ an individual is officially representing the community in public spaces.
 ## Contact
 
 Instances of abusive, harassing, or otherwise unacceptable behavior may be
-reported to the project team at **`community@mcpshield.dev`**. All complaints
+reported to the project team via [GitHub Issues](https://github.com/shubham1504611/mcp-shield/issues). All complaints
 will be reviewed and investigated promptly and fairly.

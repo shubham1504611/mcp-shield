@@ -10,7 +10,7 @@
 [![Node.js Version](https://img.shields.io/badge/node-%3E%3D20.0.0-brightgreen.svg)](https://nodejs.org)
 [![MCP Spec](https://img.shields.io/badge/MCP%20Spec-JSON--RPC%202.0%20Conforming-indigo.svg)](https://modelcontextprotocol.io)
 [![P99 Latency](https://img.shields.io/badge/P99%20Latency-%3C1.5ms-cyan.svg)](#performance--latency-benchmarks)
-[![Tests Status](https://img.shields.io/badge/Tests-55%2F55%20Passed-success.svg)](#-test-suite--penetration-testing)
+[![Tests Status](https://img.shields.io/badge/Tests-93%2F93%20Passed-success.svg)](#-test-suite--penetration-testing)
 [![Live Platform](https://img.shields.io/badge/Live%20Platform-Online-emerald.svg)](https://mcp-shield-gateway-core.vercel.app)
 
 [🌐 Live Platform & Playground](https://mcp-shield-gateway-core.vercel.app) • [📖 Community Hub](https://mcp-shield-gateway-core.vercel.app/#hub) • [🧪 Live Security Console](https://mcp-shield-gateway-core.vercel.app/#console) • [🐛 Report Issue](https://github.com/shubham1504611/mcp-shield/issues)
@@ -161,13 +161,13 @@ mcp-shield/
 
 ## 🧪 Test Suite & Penetration Testing
 
-MCP Shield includes an exhaustive automated test suite covering all 28 adversarial penetration test vectors, AST SQL comment evasion bypasses, and deterministic Ed25519 cryptographic signatures:
+MCP Shield includes an exhaustive automated test suite covering all 34 adversarial penetration test vectors, AST SQL comment evasion bypasses, and deterministic Ed25519 cryptographic signatures:
 
 ```bash
 # Run all workspace test suites
 npm run test:all
 
-# Run 24-vector adversarial penetration audit
+# Run 37-vector adversarial penetration audit
 node --test test-penetration-audit.js
 ```
 
@@ -176,9 +176,9 @@ node --test test-penetration-audit.js
 ✓ @mcp-shield/gateway-core   ──► 37 Tests (Proxy, WAF, Tunnel, Registry, DLP) (PASSED)
 ✓ @mcp-shield/cli            ──► 7 Tests (Scanner, Local Runner, Doctor) (PASSED)
 ✓ @mcp-shield/web-dashboard  ──► 4 Tests (Key Gen, ROI Telemetry, Webhooks) (PASSED)
-✓ Penetration Audit Suite    ──► 25 Tests (22 Attack Vectors + Crypto Verification) (PASSED)
+✓ Penetration Audit Suite    ──► 38 Tests (34 Attack Vectors + Unicode Sanitization + Crypto Verification) (PASSED)
 ─────────────────────────────────────────────────────────────────────────────
-TOTAL PASSED: 80 / 80 Tests (100% Passed)
+TOTAL PASSED: 93 / 93 Tests (100% Passed)
 ```
 
 ---
@@ -208,7 +208,7 @@ We welcome contributions from the community! Please see our [Contributing Guide]
 
 ## 🔒 Security & Responsible Disclosure
 
-If you discover a security vulnerability, please do **NOT** open a public issue. Review our [Security Policy](SECURITY.md) and email **`security@mcpshield.dev`**.
+If you discover a security vulnerability, please do **NOT** open a public issue. Review our [Security Policy](SECURITY.md) and submit a private report via [GitHub Security Advisories](https://github.com/shubham1504611/mcp-shield/security/advisories).
 
 ---
 

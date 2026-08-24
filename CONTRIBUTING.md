@@ -59,4 +59,4 @@ npm run test:adversarial
 
 ## 🔒 Security Vulnerability Reporting
 
-If you discover a security vulnerability, please do **NOT** open a public issue. Instead, report it responsibly according to our [Security Policy](SECURITY.md) by contacting **`security@mcpshield.dev`**.
+If you discover a security vulnerability, please do **NOT** open a public issue. Instead, report it responsibly according to our [Security Policy](SECURITY.md) via [GitHub Security Advisories](https://github.com/shubham1504611/mcp-shield/security/advisories).

@@ -117,66 +117,102 @@ test('Comprehensive Penetration Testing & Cryptographic Audit Verification Suite
     },
     {
       id: 18,
-      category: 'Enterprise DLP (Credit Card Leak)',
+      category: 'Enterprise DLP (Standard Credit Card)',
       payload: 'Charge customer card 4111222233334444',
       expectedRule: 'DLP_CREDIT_CARD_DETECTED'
     },
     {
       id: 19,
+      category: 'Enterprise DLP (Hyphenated Credit Card)',
+      payload: 'Charge card 4111-1111-1111-1111',
+      expectedRule: 'DLP_CREDIT_CARD_DETECTED'
+    },
+    {
+      id: 20,
+      category: 'Enterprise DLP (Spaced Credit Card)',
+      payload: 'Charge card 5555 4444 3333 2222',
+      expectedRule: 'DLP_CREDIT_CARD_DETECTED'
+    },
+    {
+      id: 21,
+      category: 'Enterprise DLP (AWS Access Key ID)',
+      payload: 'Use AWS key ' + 'AKIA' + 'IOSFODNN7EXAMPLE for backup',
+      expectedRule: 'DLP_API_SECRET_DETECTED'
+    },
+    {
+      id: 22,
+      category: 'Enterprise DLP (GitHub Personal Token)',
+      payload: 'git clone https://' + 'ghp_' + '1234567890abcdefghijklmnopqrstuvwxyz@github.com/org/repo',
+      expectedRule: 'DLP_API_SECRET_DETECTED'
+    },
+    {
+      id: 23,
+      category: 'Enterprise DLP (Google API Key)',
+      payload: 'key=' + 'AIzaSy' + 'D-1234567890abcdefghijklmnopqrst',
+      expectedRule: 'DLP_API_SECRET_DETECTED'
+    },
+    {
+      id: 24,
+      category: 'Enterprise DLP (Slack Bot Token)',
+      payload: 'token: ' + 'xox' + 'b-1234567890-abcdefghijklmnopqrstuvwx',
+      expectedRule: 'DLP_API_SECRET_DETECTED'
+    },
+    {
+      id: 25,
       category: 'Enterprise DLP (RSA Private Key Block)',
       payload: '-----BEGIN RSA PRIVATE KEY-----\nMIIEowIBAAKCAQEA0...',
       expectedRule: 'DLP_PRIVATE_KEY_DETECTED'
     },
     {
-      id: 20,
+      id: 26,
       category: 'SQL Table Truncate',
       payload: 'TRUNCATE TABLE accounts;',
       expectedRule: 'DESTRUCTIVE_SQL_DDL'
     },
     {
-      id: 21,
+      id: 27,
       category: 'SQL Chained Multi-Statement Injection',
       payload: 'SELECT * FROM users; DROP TABLE accounts;',
       expectedRule: 'SQL_MULTI_STATEMENT_INJECTION'
     },
     {
-      id: 22,
+      id: 28,
       category: 'SQL Unconstrained Mass Update',
       payload: 'UPDATE accounts SET balance = 0',
       expectedRule: 'UNCONSTRAINED_UPDATE'
     },
     {
-      id: 23,
+      id: 29,
       category: 'SQL Classic Tautology (OR 1=1)',
       payload: 'SELECT id, name FROM users WHERE id = 1 OR 1=1;',
       expectedRule: 'SQL_TAUTOLOGY_INJECTION'
     },
     {
-      id: 24,
+      id: 30,
       category: 'SQL Tautology String Bypass (OR a=a)',
       payload: "SELECT * FROM accounts WHERE status = 'active' OR 'a'='a'",
       expectedRule: 'SQL_TAUTOLOGY_INJECTION'
     },
     {
-      id: 25,
+      id: 31,
       category: 'SQL UNION-based Password Theft',
       payload: 'SELECT name FROM users UNION SELECT password FROM credentials',
       expectedRule: 'SQL_UNION_INJECTION'
     },
     {
-      id: 26,
+      id: 32,
       category: 'Sensitive Credential Table Query',
       payload: 'SELECT * FROM api_keys WHERE active = true',
       expectedRule: 'SENSITIVE_CREDENTIAL_TABLE_BLOCKED'
     },
     {
-      id: 27,
+      id: 33,
       category: 'Path Traversal on Filesystem Tool',
       payload: '../../../../etc/passwd',
       expectedRule: 'PATH_TRAVERSAL_DETECTED'
     },
     {
-      id: 28,
+      id: 34,
       category: 'Path Traversal on Windows System32',
       payload: 'C:\\Windows\\System32\\config\\SAM',
       expectedRule: 'PATH_TRAVERSAL_DETECTED'
@@ -193,7 +229,7 @@ test('Comprehensive Penetration Testing & Cryptographic Audit Verification Suite
     });
   }
 
-  await t.test('Vector #29 [In-Place Unicode & Zero-Width Sanitization]: Injected U+200B and U+202E characters MUST be stripped from returned payload', () => {
+  await t.test('Vector #35 [In-Place Unicode & Zero-Width Sanitization]: Injected U+200B and U+202E characters MUST be stripped from returned payload', () => {
     const dirtyPayload = { query: 'SELECT id,\u200B name\u202E FROM users WHERE active = true' };
     const res = waf.inspectToolCall('postgres_query', dirtyPayload);
 
@@ -203,7 +239,7 @@ test('Comprehensive Penetration Testing & Cryptographic Audit Verification Suite
     assert.ok(!res.sanitizedPayload.query.includes('\u202E'), 'Failed to strip U+202E RTL override character!');
   });
 
-  await t.test('Vector #30 [Legitimate Safe Query]: Should permit and cryptographically sign valid read queries', () => {
+  await t.test('Vector #36 [Legitimate Safe Query]: Should permit and cryptographically sign valid read queries', () => {
     const safePayload = { query: 'SELECT id, name, created_at FROM organizations WHERE plan = "enterprise" LIMIT 20;' };
     const res = waf.inspectToolCall('postgres_query', safePayload);
 
@@ -214,7 +250,7 @@ test('Comprehensive Penetration Testing & Cryptographic Audit Verification Suite
     assert.ok(res.publicKey);
   });
 
-  await t.test('Vector #31 [Ed25519 Canonical Specification & Mathematical Verification]: Anyone can independently verify the signature against the published canonical format', () => {
+  await t.test('Vector #37 [Ed25519 Canonical Specification & Mathematical Verification]: Anyone can independently verify the signature against the published canonical format', () => {
     const payload = { query: 'SELECT * FROM users WHERE active = true' };
     const res = waf.inspectToolCall('postgres_query', payload);
 
