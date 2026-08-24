@@ -147,6 +147,17 @@ module.exports = async (req, res) => {
     }
     global.__MCP_METRICS__.latencies.push(latencyMs);
 
+    // Redact sensitive payload tokens before saving to audit stream
+    function redactSensitiveData(str) {
+      if (!str || typeof str !== 'string') return '';
+      return str
+        .replace(/\b(?:github_pat_|gh[pousr]_)[0-9a-zA-Z_]{10,}/gi, '[REDACTED_GITHUB_TOKEN]')
+        .replace(/\bsk-(?:proj-)?[0-9a-zA-Z_-]{10,}/gi, '[REDACTED_API_KEY]')
+        .replace(/\b\d{3}-\d{2}-\d{4}\b/g, '[REDACTED_SSN]')
+        .replace(/\b(?:\d{4}[-\s]?){3}\d{4}\b/g, '[REDACTED_CREDIT_CARD]')
+        .replace(/-----BEGIN[ A-Z0-9_-]*PRIVATE KEY-----[\s\S]*?-----END[ A-Z0-9_-]*PRIVATE KEY-----/gi, '[REDACTED_PRIVATE_KEY]');
+    }
+
     // Record in genuine live audit log stream
     const auditEntry = {
       id: `log_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
@@ -155,7 +166,7 @@ module.exports = async (req, res) => {
       agent,
       agentIcon: agent.includes('Cursor') ? '⬛' : (agent.includes('Claude') ? '🟠' : '🤖'),
       tool: toolName,
-      payload: JSON.stringify(params).substring(0, 150),
+      payload: redactSensitiveData(JSON.stringify(params)).substring(0, 150),
       verdict: result.isSafe ? 'PASS: Ed25519 Signed' : `BLOCKED: ${result.rule}`,
       type: result.isSafe ? 'passed' : 'blocked',
       rule: result.rule || null,

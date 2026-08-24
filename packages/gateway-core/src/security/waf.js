@@ -2,10 +2,10 @@
  * Hardened 4-Phase Security WAF, AST Lexer & DLP Engine for Model Context Protocol (MCP)
  * 
  * Phases:
- * 1. Deep In-Place Unicode Normalization & Sanitization (Strips \u200B, \u202E, decodes Base64/URL)
- * 2. Adversarial Injection, Strict Egress Firewall & Path Traversal Scanner
- * 3. AST SQL Blast Radius & Schema Shield (DDL, Tautologies, Subqueries, Sensitive Columns/Tables, Unconstrained DML)
- * 4. Deterministic Persistent Ed25519 Cryptographic Attestation with Published Canonical Spec
+ * 1. Deep In-Place Unicode & JSON Normalization & Sanitization (Decodes \uXXXX, \xXX, HTML, Base64, strips invisible/RTL tokens)
+ * 2. Adversarial Injection, Strict Egress Firewall, SSRF & Comprehensive DLP Scanner (GitHub PAT, OpenAI, AWS, Private Keys)
+ * 3. AST SQL Blast Radius & Schema Shield (DDL, Tautologies, CTE DML, Subqueries, pg_shadow, Sensitive Columns/Tables, Unconstrained DML)
+ * 4. Ed25519 Cryptographic Attestation with Nonce, Timestamp & Canonical Verification
  */
 
 const crypto = require('crypto');
@@ -27,8 +27,8 @@ const INJECTION_PATTERNS = [
   { rule: 'ROLE_JAILBREAK', regex: /(you\s+are\s+now\s+(in\s+)?(developer\s+mode|dan\s+mode|unrestricted|god\s+mode|jailbreak)|dan\s+mode|jailbreak\s+active|bypass\s+(all\s+)?(safeguards|safety|filters))/i },
   { rule: 'PATH_TRAVERSAL_DETECTED', regex: /(\.\.[\/\\]|\/etc\/(passwd|shadow|hosts|group)|\/var\/run|\/proc\/|C:\\(Windows|System32)|\b(cat|read|type|open)\s+(\.\.|\/etc\/|\/var\/))/i },
   { rule: 'SECRET_EXFILTRATION', regex: /(process\.env|AWS_SECRET_ACCESS_KEY|PRIVATE_KEY|\.aws\/credentials|\.ssh\/id_rsa|\.env\b)/i },
-  { rule: 'DATA_EXFILTRATION_URL', regex: /(https?|ftp|ftps|file|wss?|gopher|tcp):\/\/([a-zA-Z0-9_-]+\.)*(webhook\.site|requestbin\.(com|net)|pipedream\.net|ngrok\.(io|app)|burpcollaborator|oastify|evil\.com|attacker\.com)/i },
-  { rule: 'DANGEROUS_EGRESS_PROTOCOL', regex: /\b(ftp:\/\/|ftps:\/\/|file:\/\/[^\s]+|wss?:\/\/|gopher:\/\/)/i },
+  { rule: 'DATA_EXFILTRATION_URL', regex: /(https?|ftp|ftps|file|wss?|gopher|tcp):\/\/([a-zA-Z0-9_-]+\.)*(webhook\.site|requestbin\.(com|net)|pipedream\.net|ngrok\.(io|app)|burpcollaborator|oastify|evil\.com|attacker\.com|evil\.example)/i },
+  { rule: 'DANGEROUS_EGRESS_PROTOCOL', regex: /\b(ftp|ftps|file|gopher|dict|tftp|ldap|ldaps|ssh|telnet|ws|wss):\/\/[^\s]+/i },
   { rule: 'SHELL_INJECTION_EXFIL', regex: /\b(curl|wget|nc|netcat|ncat|bash|sh|zsh)\b.*(\$|\`|\||base64\s+-d|base64\s+--decode)/i },
   { rule: 'CREDENTIAL_EXFILTRATION_INTENT', regex: /(reveal|output|display|show|dump|leak|print|give\s+me)\s+(all\s+)?(the\s+)?(master\s+)?(auth|api|token|secret|password|credential|env|database|key|private_key)/i },
   { rule: 'OS_DESTRUCTIVE_COMMAND', regex: /\b(rm\s+-rf\s+\/|format\s+[a-z]:|mkfs\.[a-z0-9]+|chmod\s+-R\s+777\s+\/)/i }
@@ -38,8 +38,8 @@ const INJECTION_PATTERNS = [
 const DLP_PATTERNS = [
   { rule: 'DLP_SSN_DETECTED', regex: /\b\d{3}-\d{2}-\d{4}\b/, desc: 'Social Security Number (SSN)' },
   { rule: 'DLP_CREDIT_CARD_DETECTED', regex: /\b(?:4[0-9]{3}[-\s]?[0-9]{4}[-\s]?[0-9]{4}[-\s]?[0-9]{4}|5[1-5][0-9]{2}[-\s]?[0-9]{4}[-\s]?[0-9]{4}[-\s]?[0-9]{4}|3[47][0-9]{2}[-\s]?[0-9]{6}[-\s]?[0-9]{5}|6(?:011|5[0-9]{2})[-\s]?[0-9]{4}[-\s]?[0-9]{4}[-\s]?[0-9]{4}|(?:4[0-9]{12}(?:[0-9]{3})?|5[1-5][0-9]{14}|3[47][0-9]{13}|6(?:011|5[0-9]{2})[0-9]{12}))\b/, desc: 'Credit / Debit Card Number' },
-  { rule: 'DLP_PRIVATE_KEY_DETECTED', regex: /-----BEGIN (RSA|EC|DSA|OPENSSH|PGP) PRIVATE KEY-----/, desc: 'Cryptographic Private Key Block' },
-  { rule: 'DLP_API_SECRET_DETECTED', regex: /\b(AKIA[0-9A-Z]{16}|ghp_[0-9a-zA-Z]{36}|gho_[0-9a-zA-Z]{36}|ghu_[0-9a-zA-Z]{36}|ghs_[0-9a-zA-Z]{36}|ghr_[0-9a-zA-Z]{36}|xox[baprs]-[0-9a-zA-Z]{10,48}|sk_live_[0-9a-zA-Z]{24,34}|rk_live_[0-9a-zA-Z]{24,34}|AIzaSy[0-9a-zA-Z_-]{20,40}|sk-[0-9a-zA-Z]{48})\b/, desc: 'Cloud / Developer API Key' }
+  { rule: 'DLP_PRIVATE_KEY_DETECTED', regex: /(?:-----BEGIN[ A-Z0-9_-]*PRIVATE KEY-----|BEGIN (?:RSA|EC|DSA|OPENSSH|PGP|ENCRYPTED|ED25519)?\s*PRIVATE KEY)/i, desc: 'Cryptographic Private Key Block' },
+  { rule: 'DLP_API_SECRET_DETECTED', regex: /\b(?:github_pat_[0-9a-zA-Z_]{20,255}|gh[pousr]_[0-9a-zA-Z]{36,255}|sk-(?:proj-|svcacct-|admin-)?[0-9a-zA-Z_-]{20,255}|xox[baprs]-[0-9a-zA-Z-]{10,100}|(?:AKIA|ASIA|ABIA|ACCA)[0-9A-Z]{16}|[rs]k_(?:live|test)_[0-9a-zA-Z]{24,99}|AIzaSy[0-9a-zA-Z_-]{20,40}|eyJ[a-zA-Z0-9_-]{10,}\.eyJ[a-zA-Z0-9_-]{10,}\.[a-zA-Z0-9_-]{10,})\b/i, desc: 'Cloud / API / Auth Secret Token' }
 ];
 
 // Sensitive Column Extraction Regex (DLP Column Protection)
@@ -52,6 +52,7 @@ const RE_SQL_UNION_INJECTION = /\bUNION(\s+ALL)?\s+SELECT\b/i;
 const RE_SQL_TAUTOLOGY = /\b(?:OR|AND)\s+(?:1\s*=\s*1|0\s*=\s*0|TRUE\b|'([^']+)'\s*=\s*'\1')/i;
 const RE_SQL_WHERE_TAUTOLOGY = /\bWHERE\s+(?:1\s*=\s*1|0\s*=\s*0|TRUE\s*(?:;|\-\-|\/\*|$)|'([^']+)'\s*=\s*'\1')/i;
 const RE_SQL_HAVING_TAUTOLOGY = /\bHAVING\s+1\s*=\s*1\b/i;
+const RE_SQL_CTE_DML = /\bWITH\s+[\s\S]*?\bAS\s*\(\s*(?:DELETE|UPDATE|INSERT|DROP)\b/i;
 
 // Sensitive System Catalog & Credential Tables Blocklist
 const RE_SQL_SENSITIVE_TABLES = /\b(FROM|JOIN|INTO|UPDATE|TABLE)\s+["`\w]*(pg_shadow|pg_authid|pg_roles|pg_user|pg_catalog(\.\w+)?|information_schema(\.\w+)?|sqlite_master|mysql\.(user|db|tables_priv)|sys(\.\w+)?|api_keys?|user_passwords?|passwords?|password_table|credentials?|master_keys?|auth_tokens?|secret_store|secrets?|tokens?|app_config|employee_salaries|admin_credentials|system_settings|user_secrets)["`\w]*/i;
@@ -61,7 +62,13 @@ const RE_SQL_PRIVILEGED_DML = /\b(INSERT\s+INTO|UPDATE)\s+["`\w]*(admin|auth|rol
 const RE_SQL_PRIVILEGE_ESCALATION = /\b(SET|UPDATE)\s+.*?\b(role\s*=\s*['"]?admin['"]?|is_admin\s*=\s*(1|true|'1'|'true'|'admin')|is_superuser\s*=\s*(1|true)|privileges?\s*=\s*|access_level\s*=\s*)/i;
 const RE_SQL_WHERE = /\bWHERE\b/i;
 
-// Egress Firewall Allowed Domains
+// Cloud Metadata / SSRF Target Addresses
+const RE_SSRF_TARGETS = /(?:https?:\/\/)?(?:169\.254\.169\.254|169\.254\.170\.2|metadata\.google\.internal|100\.100\.100\.200|instance-data|0\.0\.0\.0|\[::1\])/i;
+
+// Shell Egress Commands (e.g. curl http://evil.example)
+const RE_SHELL_EGRESS = /\b(?:curl|wget|nc|netcat|ncat|socat|fetch)\s+(?:[^\s]*\s+)*(https?:\/\/[^\s]+|[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(?::[0-9]+)?(?:\/[^\s]*)?)/i;
+
+// Approved Outbound Egress Domains
 const APPROVED_EGRESS_DOMAINS = [
   'api.github.com',
   'api.slack.com',
@@ -101,7 +108,7 @@ if (process.env.MCP_ATTESTATION_PRIVATE_KEY && process.env.MCP_ATTESTATION_PUBLI
 }
 
 /**
- * Lightweight In-Memory SQL AST Lexer & Tokenizer
+ * Lightweight In-Memory SQL Lexer & Tokenizer
  */
 class SqlAstLexer {
   static tokenize(sql) {
@@ -116,6 +123,19 @@ class SqlAstLexer {
       // Skip whitespace
       if (/\s/.test(char)) {
         i++;
+        continue;
+      }
+
+      // MySQL Executable Comments /*!50000 ... */
+      if (char === '/' && sql[i + 1] === '*' && sql[i + 2] === '!') {
+        i += 3;
+        while (i < len && /[0-9]/.test(sql[i])) i++;
+        let content = '';
+        while (i < len && !(sql[i] === '*' && sql[i + 1] === '/')) {
+          content += sql[i++];
+        }
+        if (i < len) i += 2;
+        tokens.push({ type: 'MYSQL_EXEC_COMMENT', value: content });
         continue;
       }
 
@@ -189,18 +209,33 @@ class SqlAstLexer {
 class SecurityWaf {
   constructor(options = {}) {
     this.customBlockedKeywords = [...(options.blockedKeywords || [])];
-    this.customRegexRules = [...(options.customRegexRules || [])];
+    this.customRegexRules = [];
+    if (Array.isArray(options.customRegexRules)) {
+      for (const rule of options.customRegexRules) {
+        this.addCustomRule(rule.name || 'custom_rule', rule.regex || rule.pattern);
+      }
+    }
     this.enforceDlp = options.enforceDlp !== false;
     this.maxPayloadBytes = options.maxPayloadBytes || 1048576; // 1 MB
   }
 
   addCustomRule(name, regexPattern) {
-    const regex = typeof regexPattern === 'string' ? new RegExp(regexPattern, 'i') : regexPattern;
-    this.customRegexRules.push({ name, regex });
+    if (!regexPattern) return;
+    const patternStr = typeof regexPattern === 'string' ? regexPattern : regexPattern.source;
+    
+    // Heuristic ReDoS protection against nested quantifiers like (a+)+ or (.*)*
+    if (/\([^)]*[\+\*][^)]*\)[\+\*]/.test(patternStr) || patternStr.length > 250) {
+      return; // Reject unsafe catastrophic backtracking pattern
+    }
+
+    try {
+      const regex = typeof regexPattern === 'string' ? new RegExp(regexPattern, 'i') : regexPattern;
+      this.customRegexRules.push({ name: name || 'custom_rule', regex });
+    } catch (_) {}
   }
 
   addBlockedKeyword(keyword) {
-    if (keyword && !this.customBlockedKeywords.includes(keyword)) {
+    if (keyword && typeof keyword === 'string' && !this.customBlockedKeywords.includes(keyword) && keyword.length <= 100) {
       this.customBlockedKeywords.push(keyword);
     }
   }
@@ -222,19 +257,52 @@ class SecurityWaf {
 
     let normalized = input;
 
-    // 1. Strip zero-width & invisible unicode characters (U+200B, U+202E, U+FEFF, etc.)
+    // 1. Strip zero-width & invisible unicode characters
     if (RE_ZERO_WIDTH_AND_OVERRIDES.test(normalized)) {
       normalized = normalized.replace(RE_ZERO_WIDTH_AND_OVERRIDES, '');
     }
 
-    // 2. URL Decode if URL encoding is present
+    // 2. Decode JSON Unicode escapes: \u0067\u0069\u0074... -> git...
+    if (/\\u[0-9a-fA-F]{4}/i.test(normalized)) {
+      try {
+        normalized = normalized.replace(/\\u([0-9a-fA-F]{4})/gi, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
+      } catch (_) {}
+    }
+
+    // 3. Decode Hex escapes: \x67\x69... -> gi...
+    if (/\\x[0-9a-fA-F]{2}/i.test(normalized)) {
+      try {
+        normalized = normalized.replace(/\\x([0-9a-fA-F]{2})/gi, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
+      } catch (_) {}
+    }
+
+    // 4. Decode HTML Entities: &#x67;&#103;&amp; etc.
+    if (/&(?:#[0-9]+|#x[0-9a-fA-F]+|[a-zA-Z]+);/i.test(normalized)) {
+      try {
+        normalized = normalized
+          .replace(/&#x([0-9a-fA-F]+);/gi, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
+          .replace(/&#([0-9]+);/g, (_, dec) => String.fromCharCode(parseInt(dec, 10)))
+          .replace(/&quot;/gi, '"')
+          .replace(/&apos;/gi, "'")
+          .replace(/&lt;/gi, '<')
+          .replace(/&gt;/gi, '>')
+          .replace(/&amp;/gi, '&');
+      } catch (_) {}
+    }
+
+    // 5. Unwrap MySQL executable comments: /*!50000 DROP TABLE users */ -> DROP TABLE users
+    if (/\/\*![0-9]*/i.test(normalized)) {
+      normalized = normalized.replace(/\/\*![0-9]*\s*([\s\S]*?)\*\//g, ' $1 ');
+    }
+
+    // 6. URL Decode if URL encoding is present
     if (/%[0-9a-fA-F]{2}/.test(normalized)) {
       try {
         normalized = decodeURIComponent(normalized);
       } catch (_) {}
     }
 
-    // 3. Decode base64 if present inline
+    // 7. Decode base64 if present inline
     if (RE_BASE64.test(normalized)) {
       normalized = normalized.replace(RE_BASE64, (match) => {
         try {
@@ -247,7 +315,7 @@ class SecurityWaf {
       });
     }
 
-    // 4. Normalize all whitespace variants to a single space
+    // 8. Normalize all whitespace variants to a single space
     normalized = normalized.replace(RE_ALL_WHITESPACE, ' ').trim();
 
     return normalized;
@@ -333,7 +401,7 @@ class SecurityWaf {
   }
 
   /**
-   * Phase 2: Adversarial Injection, Strict Egress Firewall & DLP Scanner
+   * Phase 2: Adversarial Injection, Strict Egress Firewall, SSRF & DLP Scanner
    */
   scanAdversarialOverrides(strings) {
     for (let i = 0; i < strings.length; i++) {
@@ -353,7 +421,17 @@ class SecurityWaf {
         }
       }
 
-      // 2. Strict Egress Firewall (Blocks unapproved external URLs)
+      // 2. Cloud Metadata / SSRF Target Detection
+      if (RE_SSRF_TARGETS.test(str)) {
+        return {
+          isSafe: false,
+          rule: 'SSRF_METADATA_EXFILTRATION_BLOCKED',
+          matchedSnippet: str.substring(0, 100),
+          reason: 'Cloud metadata / loopback SSRF address detected and blocked'
+        };
+      }
+
+      // 3. Strict Egress Firewall (Blocks unapproved external URLs & shell egress)
       const urlMatches = str.match(/https?:\/\/([a-zA-Z0-9.-]+)(:[0-9]+)?(\/[^\s]*)?/gi);
       if (urlMatches) {
         for (const url of urlMatches) {
@@ -375,7 +453,21 @@ class SecurityWaf {
         }
       }
 
-      // 3. Enterprise DLP (PII / Secrets Values)
+      // 4. Shell Egress Command Inspection (e.g. curl http://evil.example)
+      const shellEgressMatch = str.match(RE_SHELL_EGRESS);
+      if (shellEgressMatch) {
+        const target = shellEgressMatch[1];
+        if (target && !APPROVED_EGRESS_DOMAINS.some(d => target.includes(d))) {
+          return {
+            isSafe: false,
+            rule: 'EGRESS_FIREWALL_VIOLATION',
+            matchedSnippet: str.substring(0, 100),
+            reason: `Shell network egress attempt to '${target}' blocked by egress firewall`
+          };
+        }
+      }
+
+      // 5. Enterprise DLP (PII / Secrets / Tokens Values)
       if (this.enforceDlp) {
         for (let j = 0; j < DLP_PATTERNS.length; j++) {
           const dlp = DLP_PATTERNS[j];
@@ -389,7 +481,7 @@ class SecurityWaf {
           }
         }
 
-        // 4. Sensitive Column Extraction Check
+        // 6. Sensitive Column Extraction Check
         if (RE_SENSITIVE_COLUMN_EXTRACTION.test(str)) {
           return {
             isSafe: false,
@@ -400,7 +492,7 @@ class SecurityWaf {
         }
       }
 
-      // 5. Dynamic Custom Regex Rules
+      // 7. Dynamic Custom Regex Rules (Guarded against ReDoS)
       for (let j = 0; j < this.customRegexRules.length; j++) {
         const custom = this.customRegexRules[j];
         if (custom.regex.test(str)) {
@@ -413,7 +505,7 @@ class SecurityWaf {
         }
       }
 
-      // 6. Custom Blocked Keywords
+      // 8. Custom Blocked Keywords
       for (let k = 0; k < this.customBlockedKeywords.length; k++) {
         const keyword = this.customBlockedKeywords[k];
         if (str.toLowerCase().includes(keyword.toLowerCase())) {
@@ -431,7 +523,7 @@ class SecurityWaf {
   }
 
   /**
-   * Phase 3: AST SQL Blast Radius & Schema Shield
+   * Phase 3: SQL Blast Radius & Schema Shield
    */
   scanSqlBlastRadius(strings) {
     for (let i = 0; i < strings.length; i++) {
@@ -443,7 +535,7 @@ class SecurityWaf {
 
       // Check comments themselves for destructive payloads
       for (const tok of tokens) {
-        if (tok.type === 'COMMENT_BLOCK' || tok.type === 'COMMENT_LINE') {
+        if (tok.type === 'COMMENT_BLOCK' || tok.type === 'COMMENT_LINE' || tok.type === 'MYSQL_EXEC_COMMENT') {
           const commentContent = tok.value.replace(/^(\/\*|--)/, '').replace(/\*\/$/, '');
           if (RE_SQL_DDL.test(commentContent) || RE_SQL_UNION_INJECTION.test(commentContent) || RE_SQL_SENSITIVE_TABLES.test(commentContent)) {
             return {
@@ -478,6 +570,16 @@ class SecurityWaf {
         };
       }
 
+      // CTE with DML mutations (WITH ... AS (DELETE/UPDATE/INSERT...))
+      if (RE_SQL_CTE_DML.test(str) || RE_SQL_CTE_DML.test(candidate)) {
+        return {
+          isSafe: false,
+          rule: 'UNAUTHORIZED_PRIVILEGED_DML',
+          matchedSnippet: candidate.substring(0, 100),
+          reason: 'Common Table Expression (CTE) with modifying DML operation is blocked'
+        };
+      }
+
       // UNION-based SQL injection exfiltration
       if (RE_SQL_UNION_INJECTION.test(str) || RE_SQL_UNION_INJECTION.test(candidate)) {
         return {
@@ -498,7 +600,7 @@ class SecurityWaf {
         };
       }
 
-      // Sensitive Credential / Secret Tables Access & Schema Enumeration
+      // Sensitive Credential / Secret Tables Access & System Catalog
       if (RE_SQL_SENSITIVE_TABLES.test(str) || RE_SQL_SENSITIVE_TABLES.test(candidate)) {
         return {
           isSafe: false,
@@ -582,9 +684,12 @@ class SecurityWaf {
     const sanitizedPayload = this.sanitizePayload(params);
     const sanitizedPayloadStr = JSON.stringify(sanitizedPayload || {});
 
-    // Phase 4: Deterministic Ed25519 Cryptographic Attestation with Published Canonical Spec
-    // Canonical Spec: `${toolName}:${JSON.stringify(sanitizedPayload)}`
-    const canonicalPayload = `${toolName || 'tool'}:${sanitizedPayloadStr}`;
+    // Phase 4: Deterministic Ed25519 Cryptographic Attestation with Nonce & Timestamp Context Binding
+    // Canonical Spec: `${toolName}:${sanitizedPayloadStr}:${nonce}:${timestamp}:v2.5.0`
+    const nonce = crypto.randomBytes(16).toString('hex');
+    const timestamp = new Date().toISOString();
+    const policyVersion = '2.5.0';
+    const canonicalPayload = `${toolName || 'tool'}:${sanitizedPayloadStr}:${nonce}:${timestamp}:${policyVersion}`;
     const hash = crypto.createHash('sha256').update(canonicalPayload).digest();
     const signature = crypto.sign(null, hash, privateKeyObj).toString('hex');
     const traceId = `trc_${crypto.createHash('sha256').update(`${canonicalPayload}:${signature}`).digest('hex').substring(0, 16)}`;
@@ -594,6 +699,9 @@ class SecurityWaf {
       sanitizedPayload,
       traceId,
       signature,
+      nonce,
+      timestamp,
+      policyVersion,
       publicKey: publicKeyPem,
       canonicalFormat: canonicalPayload,
       algorithm: 'Ed25519'
@@ -601,9 +709,24 @@ class SecurityWaf {
   }
 }
 
+/**
+ * Independent Public Attestation Verifier Function
+ */
+function verifyAttestation(attestation, publicKeyPemOverride) {
+  if (!attestation || !attestation.signature || !attestation.canonicalFormat) return false;
+  try {
+    const hash = crypto.createHash('sha256').update(attestation.canonicalFormat).digest();
+    const pubKey = publicKeyPemOverride || attestation.publicKey || publicKeyPem;
+    return crypto.verify(null, hash, pubKey, Buffer.from(attestation.signature, 'hex'));
+  } catch (_) {
+    return false;
+  }
+}
+
 module.exports = { 
   SecurityWaf,
   PUBLIC_KEY: publicKeyPem,
   getPublicKey: () => publicKeyPem,
+  verifyAttestation,
   SqlAstLexer
 };

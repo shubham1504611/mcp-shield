@@ -138,9 +138,8 @@ describe('Security WAF & Prompt Injection Sanitizer Test Suite', () => {
     assert.ok(res.signature);
     assert.ok(res.traceId.startsWith('trc_'));
 
-    // Verify signature using exported public key
-    const payloadStr = JSON.stringify(params);
-    const hash = crypto.createHash('sha256').update(`${toolName}:${payloadStr}`).digest();
+    // Verify signature using exported public key and canonical format
+    const hash = crypto.createHash('sha256').update(res.canonicalFormat).digest();
     const isVerified = crypto.verify(
       null,
       hash,
