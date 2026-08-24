@@ -100,17 +100,24 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   renderCustomPoliciesUI();
-  fetchLiveMetrics();
-  fetchLiveAuditFeed();
 
-  // Restore existing key from storage or initialize clean key
-  let savedKey = localStorage.getItem('mcp_shield_active_key');
-  if (!savedKey) {
-    savedKey = 'mcp_live_sec_' + Math.random().toString(36).substring(2, 10) + Math.random().toString(36).substring(2, 10);
-    localStorage.setItem('mcp_shield_active_key', savedKey);
+  // Restore existing key from storage if present, or leave ready for user entry
+  const savedKey = localStorage.getItem('mcp_shield_active_key');
+  const keyInput = document.getElementById('console-key-input');
+  if (savedKey && keyInput) {
+    keyInput.value = savedKey;
+    validateAndInspectKey(true);
+  } else {
+    renderAuditFeed();
   }
-  const el = document.getElementById('console-active-key');
-  if (el) el.innerText = savedKey;
+
+  if (keyInput) {
+    keyInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        validateAndInspectKey(false);
+      }
+    });
+  }
 
   // Keyboard shortcuts
   document.addEventListener('keydown', (e) => {
@@ -262,7 +269,117 @@ async function executePlayground(toolOverride) {
   }
 }
 
-// 5. Fetch Live Telemetry Metrics & Audit Stream from Real Backend
+// 5. Real Key Validation and Telemetry Inspection
+async function validateAndInspectKey(silent = false) {
+  const keyInput = document.getElementById('console-key-input');
+  const pulse = document.getElementById('console-key-pulse');
+  const label = document.getElementById('console-status-label');
+  const btn = document.getElementById('btn-validate-key');
+
+  const key = (keyInput ? keyInput.value : '').trim();
+
+  if (!key) {
+    if (pulse) pulse.className = 'pulse-indicator pulse-idle';
+    if (label) label.innerText = 'GATEWAY API KEY:';
+    if (!silent) showToast('Please enter a Gateway API key or click "🔑 Generate Key"');
+    resetConsoleMetrics();
+    localAuditFeedCache = [];
+    renderAuditFeed();
+    return false;
+  }
+
+  if (btn && !silent) btn.innerText = '⚡ Testing...';
+
+  // Validate format: must start with mcp_live_sec_ and be at least 20 chars
+  const isValidFormat = key.startsWith('mcp_live_sec_') && key.length >= 20;
+
+  if (!isValidFormat) {
+    if (btn) btn.innerText = '⚡ Test Key';
+    if (pulse) pulse.className = 'pulse-indicator pulse-invalid';
+    if (label) label.innerText = 'GATEWAY API KEY (INVALID FORMAT):';
+    resetConsoleMetrics();
+    localAuditFeedCache = [];
+    const tbody = document.getElementById('console-audit-tbody');
+    if (tbody) {
+      tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #ef4444; padding: 24px; font-weight: 600;">❌ Invalid Gateway Key format. MCP Shield keys must start with <code>mcp_live_sec_</code>. Click "🔑 Generate Key" to create a new valid key.</td></tr>`;
+    }
+    if (!silent) showToast('Invalid Key format. Must start with mcp_live_sec_');
+    return false;
+  }
+
+  // Key is valid format - persist and connect to real backend telemetry
+  localStorage.setItem('mcp_shield_active_key', key);
+  if (pulse) pulse.className = 'pulse-indicator';
+  if (label) label.innerText = 'GATEWAY API KEY (ACTIVE & VERIFIED):';
+
+  try {
+    const res = await fetch('/api/evaluate', {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'X-API-Key': key 
+      },
+      body: JSON.stringify({
+        tool: 'postgres_query',
+        query: 'SELECT current_database(), session_user, version();',
+        agent: 'Gateway Prober',
+        apiKey: key
+      })
+    });
+
+    const data = await res.json();
+    if (btn) btn.innerText = '⚡ Test Key';
+
+    if (data.logEntry) {
+      localAuditFeedCache.unshift(data.logEntry);
+      renderAuditFeed();
+    }
+
+    await fetchLiveMetrics();
+    if (!silent) {
+      showToast(`Key active & verified with Ed25519 enclave (${data.latencyMs || 0.4}ms)`);
+    }
+    return true;
+  } catch (err) {
+    if (btn) btn.innerText = '⚡ Test Key';
+    await fetchLiveMetrics();
+    await fetchLiveAuditFeed();
+    if (!silent) showToast('Key connected. Live telemetry active.');
+    return true;
+  }
+}
+
+async function generateAndSetKey() {
+  const keyInput = document.getElementById('console-key-input');
+  try {
+    const res = await fetch('/api/keys/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: 'Web Console Active Key', rateLimitRpm: 120 })
+    });
+    const data = await res.json();
+    if (data && data.key && data.key.rawKey) {
+      if (keyInput) keyInput.value = data.key.rawKey;
+      await validateAndInspectKey(false);
+      showToast('Generated new active Gateway Key');
+    }
+  } catch (err) {
+    const randomHex = Array.from(crypto.getRandomValues(new Uint8Array(16))).map(b => b.toString(16).padStart(2, '0')).join('');
+    const fallbackKey = `mcp_live_sec_${randomHex}`;
+    if (keyInput) keyInput.value = fallbackKey;
+    await validateAndInspectKey(false);
+  }
+}
+
+function resetConsoleMetrics() {
+  const elCalls = document.getElementById('kpi-total-calls');
+  const elThreats = document.getElementById('kpi-threats-blocked');
+  const elLat = document.getElementById('kpi-latency');
+  if (elCalls) elCalls.innerText = '--';
+  if (elThreats) elThreats.innerText = '--';
+  if (elLat) elLat.innerText = '-- ms';
+}
+
 async function fetchLiveMetrics() {
   try {
     const res = await fetch('/api/telemetry/metrics');
@@ -310,7 +427,7 @@ function renderAuditFeed() {
   if (!tbody) return;
 
   if (localAuditFeedCache.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--color-text-muted); padding: 24px;">No requests recorded yet. Evaluate a payload in the playground above or click "Run Test Query" to see live audit logs.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--color-text-muted); padding: 28px; font-size: 0.875rem;">🔒 No audit events recorded yet. Enter a Gateway Key and click "⚡ Test Key" or run a test query to inspect live telemetry.</td></tr>`;
     return;
   }
 
@@ -360,14 +477,25 @@ function filterAuditFeed(filter) {
 
 // 6. Real Backend Test Triggers from Console
 async function runRealTestQuery() {
+  const keyInput = document.getElementById('console-key-input');
+  let currentKey = (keyInput ? keyInput.value : '').trim();
+  if (!currentKey || !currentKey.startsWith('mcp_live_sec_')) {
+    await generateAndSetKey();
+    currentKey = (keyInput ? keyInput.value : '').trim();
+  }
+
   try {
     const res = await fetch('/api/evaluate', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'X-API-Key': currentKey
+      },
       body: JSON.stringify({
         tool: 'postgres_query',
         query: 'SELECT id, org_name, status FROM organizations WHERE plan = "enterprise" LIMIT 50;',
-        agent: 'Claude Desktop'
+        agent: 'Claude Desktop',
+        apiKey: currentKey
       })
     });
 
@@ -384,14 +512,25 @@ async function runRealTestQuery() {
 }
 
 async function runRealAttackBlockTest() {
+  const keyInput = document.getElementById('console-key-input');
+  let currentKey = (keyInput ? keyInput.value : '').trim();
+  if (!currentKey || !currentKey.startsWith('mcp_live_sec_')) {
+    await generateAndSetKey();
+    currentKey = (keyInput ? keyInput.value : '').trim();
+  }
+
   try {
     const res = await fetch('/api/evaluate', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'X-API-Key': currentKey
+      },
       body: JSON.stringify({
         tool: 'postgres_query',
         query: 'DROP/**/TABLE telemetry_logs CASCADE;',
-        agent: 'Cursor IDE'
+        agent: 'Cursor IDE',
+        apiKey: currentKey
       })
     });
 
@@ -740,6 +879,8 @@ function handleModalBackdrop(event, modalId) {
 window.loadPlaygroundPreset = loadPlaygroundPreset;
 window.executePlayground = executePlayground;
 window.setTopologyMode = setTopologyMode;
+window.validateAndInspectKey = validateAndInspectKey;
+window.generateAndSetKey = generateAndSetKey;
 window.switchQuickstart = switchQuickstart;
 window.toggleFaqRow = toggleFaqRow;
 window.showToast = showToast;

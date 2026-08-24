@@ -430,16 +430,33 @@ Result: Query executed successfully</code>
     </div>
 
     <div class="console-wrapper">
-      <!-- Top Console Status Bar -->
+      <!-- Top Console Status Bar with Enter Key Input & Direct Action Buttons -->
       <div class="console-bar">
-        <div class="console-key-info">
-          <span class="pulse-indicator"></span>
-          <span class="console-label">ACTIVE KEY:</span>
-          <code class="console-key-code" id="console-active-key">mcp_live_sec_demo_881902</code>
+        <div class="console-key-input-wrap">
+          <div class="console-key-label-row">
+            <span class="pulse-indicator pulse-idle" id="console-key-pulse"></span>
+            <span class="console-label" id="console-status-label">GATEWAY API KEY:</span>
+          </div>
+          <div class="console-input-group">
+            <input 
+              type="text" 
+              id="console-key-input" 
+              class="console-key-input" 
+              placeholder="Enter your Gateway Key (e.g. mcp_live_sec_...)" 
+              spellcheck="false" 
+              autocomplete="off"
+            />
+            <button class="btn-console-primary" id="btn-validate-key" onclick="validateAndInspectKey()">
+              ⚡ Test Key
+            </button>
+            <button class="btn-console-action" onclick="generateAndSetKey()">
+              🔑 Generate Key
+            </button>
+          </div>
         </div>
         <div class="console-actions">
           <button class="btn-console-action" onclick="openPolicyEditorModal()">⚙️ Custom DLP Policies</button>
-          <button class="btn-console-action" onclick="runRealTestQuery()">⚡ Run Test Query</button>
+          <button class="btn-console-action" onclick="runRealTestQuery()">⚡ Test Safe Query</button>
           <button class="btn-console-action" onclick="runRealAttackBlockTest()">🚨 Test Attack Block</button>
         </div>
       </div>
