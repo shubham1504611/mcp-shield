@@ -60,7 +60,7 @@
       </h1>
 
       <p class="hero-subhead">
-        MCP Shield sits between autonomous AI models (Claude, Cursor, LangChain) and your internal infrastructure. It intercepts prompt overrides, blocks destructive SQL mutations, and cryptographically signs every valid request in <b>under 1.5ms</b>.
+        MCP Shield sits between autonomous AI models (Claude, Cursor, LangChain) and your internal infrastructure. It intercepts prompt overrides, blocks destructive SQL mutations, and cryptographically signs every valid request with <b>sub-1.5ms WAF evaluation overhead</b>.
       </p>
 
       <div class="hero-action-bar">
@@ -280,7 +280,7 @@
           </div>
           <div class="check-row">
             <span class="check-ico">✓</span>
-            <span><b>Crypto Enclave:</b> Signs result with Ed25519 in 1.1ms</span>
+            <span><b>Ed25519 Signing:</b> Signs verified result with Ed25519</span>
           </div>
         </div>
       </div>
@@ -459,7 +459,7 @@
         </div>
         <div class="policy-chip active">
           <span class="policy-dot"></span>
-          <span><b>Ed25519 Enclave:</b> Signs all verified tool outputs</span>
+          <span><b>Ed25519 Attestation:</b> Signs all verified tool outputs</span>
         </div>
         <div class="policy-chip active" id="chip-custom-rules">
           <span class="policy-dot"></span>
@@ -804,7 +804,7 @@ console.log('Sanitized Payload:', data.sanitizedPayload);</code></pre>
           <div class="footer-badge-chips">
             <span class="foot-chip">⚡ Open-Source MIT</span>
             <span class="foot-chip">⭐ GitHub Repo</span>
-            <span class="foot-chip">🛡️ Ed25519 Enclave</span>
+            <span class="foot-chip">🛡️ Ed25519 Signing</span>
           </div>
         </div>
 
