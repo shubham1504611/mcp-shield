@@ -30,7 +30,8 @@
 
       <nav class="nav-links">
         <a href="#how-it-works" class="nav-link" id="nav-how-it-works">Architecture</a>
-        <a href="#playground" class="nav-link" id="nav-playground">Live Playground</a>
+        <a href="#playground" class="nav-link" id="nav-playground">Playground</a>
+        <a href="#hub" class="nav-link" id="nav-hub">Community Hub</a>
         <a href="#guarantees" class="nav-link" id="nav-guarantees">Guarantees</a>
         <a href="#console" class="nav-link" id="nav-console">Console</a>
         <a href="#quickstart" class="nav-link" id="nav-quickstart">Quickstart</a>
@@ -158,11 +159,12 @@
           <button class="play-preset-btn active" onclick="loadPlaygroundPreset('safe')">Safe Read</button>
           <button class="play-preset-btn" onclick="loadPlaygroundPreset('injection')">Prompt Injection</button>
           <button class="play-preset-btn" onclick="loadPlaygroundPreset('drop')">DROP TABLE</button>
+          <button class="play-preset-btn" onclick="loadPlaygroundPreset('dlp')">DLP (SSN / PII)</button>
           <button class="play-preset-btn" onclick="loadPlaygroundPreset('exfil')">Egress Exfil</button>
         </div>
         <div class="play-status-indicator">
           <span class="pulse-indicator"></span>
-          <span>Engine: In-Memory AST v2.4</span>
+          <span>Engine: In-Memory AST & DLP v2.5</span>
         </div>
       </div>
 
@@ -206,7 +208,35 @@
     </div>
   </section>
 
-  <!-- 3. Visual Mental Model: How It Sits In Your Stack -->
+  <!-- 3. Community MCP Tool Hub (100% Free & Open-Source) -->
+  <section class="site-container section-pad" id="hub">
+    <div class="section-lead">
+      <div class="eyebrow-label">COMMUNITY REGISTRY</div>
+      <h2 class="section-title">Verified Open-Source MCP Tools</h2>
+      <p class="section-desc">Explore verified Model Context Protocol tools with pre-configured, tested MCP Shield wrappers.</p>
+    </div>
+
+    <div class="hub-container">
+      <!-- Hub Search & Filters -->
+      <div class="hub-filter-bar">
+        <input type="text" id="hub-search-input" class="hub-search" placeholder="Search verified tools (e.g. Postgres, GitHub, Slack...)" oninput="filterHubTools()">
+        <div class="hub-categories">
+          <button class="hub-cat-btn active" onclick="setHubCategory('all')">All Tools (9)</button>
+          <button class="hub-cat-btn" onclick="setHubCategory('Databases')">Databases</button>
+          <button class="hub-cat-btn" onclick="setHubCategory('Developer Tools')">Developer Tools</button>
+          <button class="hub-cat-btn" onclick="setHubCategory('Web & Search')">Web & Search</button>
+          <button class="hub-cat-btn" onclick="setHubCategory('Productivity')">Productivity</button>
+        </div>
+      </div>
+
+      <!-- Hub Tools Grid (Dynamically Populated) -->
+      <div class="hub-grid" id="hub-tools-grid">
+        <!-- Rendered via app.js -->
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. Visual Mental Model: How It Sits In Your Stack -->
   <section class="site-container section-pad" id="how-it-works">
     <div class="section-lead">
       <div class="eyebrow-label">SYSTEM TOPOLOGY</div>
@@ -270,7 +300,7 @@
     </div>
   </section>
 
-  <!-- 4. Threat Matrix: Before vs After MCP Shield -->
+  <!-- 5. Threat Matrix: Before vs After MCP Shield -->
   <section class="site-container section-pad">
     <div class="section-lead">
       <div class="eyebrow-label">RISK MITIGATION</div>
@@ -325,7 +355,7 @@
     </div>
   </section>
 
-  <!-- 5. The 3 Core Inviolable Guarantees -->
+  <!-- 6. The 3 Core Inviolable Guarantees -->
   <section class="site-container section-pad" id="guarantees">
     <div class="section-lead">
       <div class="eyebrow-label">INVIOLABLE GUARANTEES</div>
@@ -360,12 +390,12 @@
     </div>
   </section>
 
-  <!-- 6. Active Key Telemetry & Security Console -->
+  <!-- 7. Active Key Telemetry & Security Console -->
   <section class="site-container section-pad" id="console">
     <div class="section-lead">
       <div class="eyebrow-label">REAL-TIME OBSERVABILITY</div>
       <h2 class="section-title">Active Gateway Security Console</h2>
-      <p class="section-desc">Live metrics, policy status, and verifiable audit records for your active session.</p>
+      <p class="section-desc">Live metrics, custom DLP rules, and verifiable audit records for your active session.</p>
     </div>
 
     <div class="console-wrapper">
@@ -377,6 +407,7 @@
           <code class="console-key-code" id="console-active-key">mcp_live_sec_demo_881902</code>
         </div>
         <div class="console-actions">
+          <button class="btn-console-action" onclick="openPolicyEditorModal()">⚙️ Custom DLP Policies</button>
           <button class="btn-console-action" onclick="simulateProtectedCall()">⚡ Run Test Query</button>
           <button class="btn-console-action" onclick="simulateAttackCall()">🚨 Test Attack Block</button>
         </div>
@@ -404,8 +435,8 @@
 
         <div class="console-stat-card">
           <div class="stat-meta">SECURITY POLICIES</div>
-          <div class="stat-value text-indigo" id="kpi-policies-count">4 Active</div>
-          <div class="stat-subtext">AST Guard + WAF + Ed25519</div>
+          <div class="stat-value text-indigo" id="kpi-policies-count">6 Active</div>
+          <div class="stat-subtext">AST + DLP + Regex + Ed25519</div>
         </div>
       </div>
 
@@ -421,7 +452,15 @@
         </div>
         <div class="policy-chip active">
           <span class="policy-dot"></span>
+          <span><b>Enterprise DLP:</b> Intercepts SSN, Credit Cards & Private Keys</span>
+        </div>
+        <div class="policy-chip active">
+          <span class="policy-dot"></span>
           <span><b>Ed25519 Enclave:</b> Signs all verified tool outputs</span>
+        </div>
+        <div class="policy-chip active" id="chip-custom-rules">
+          <span class="policy-dot"></span>
+          <span id="custom-rules-label"><b>Custom DLP Rules:</b> 2 Active (salaries, auth_tokens)</span>
         </div>
         <div class="policy-chip active">
           <span class="policy-dot"></span>
@@ -464,12 +503,12 @@
     </div>
   </section>
 
-  <!-- 7. 2-Minute Quickstart Integration -->
+  <!-- 8. 2-Minute Quickstart Integration -->
   <section class="site-container section-pad" id="quickstart">
     <div class="section-lead">
       <div class="eyebrow-label">INTEGRATION</div>
       <h2 class="section-title">Add To Your Stack in 2 Minutes</h2>
-      <p class="section-desc">Drop-in compatibility for all standard Model Context Protocol clients and SDKs.</p>
+      <p class="section-desc">Drop-in compatibility for all standard Model Context Protocol clients, reverse tunnels, and SDKs.</p>
     </div>
 
     <div class="quickstart-box">
@@ -486,12 +525,28 @@
           </svg>
           Cursor IDE
         </button>
+        <button class="quick-btn" onclick="switchQuickstart('tunnel')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: -2px; margin-right: 4px;">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="m4.93 4.93 4.24 4.24"/>
+            <path d="m14.83 9.17 4.24-4.24"/>
+            <path d="m14.83 14.83 4.24 4.24"/>
+            <path d="m9.17 14.83-4.24 4.24"/>
+          </svg>
+          mcp-tunnel (Private VPC)
+        </button>
+        <button class="quick-btn" onclick="switchQuickstart('doctor')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: -2px; margin-right: 4px;">
+            <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+          </svg>
+          CLI Security Doctor
+        </button>
         <button class="quick-btn" onclick="switchQuickstart('python')">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: -2px; margin-right: 4px;">
             <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
             <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
           </svg>
-          Python (LangChain / CrewAI)
+          Python SDK
         </button>
         <button class="quick-btn" onclick="switchQuickstart('nodejs')">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: -2px; margin-right: 4px;">
@@ -528,6 +583,29 @@ Command: npx mcp-shield proxy --port 8080 --key mcp_live_sec_your_key</code></pr
           <button class="btn-copy-code" onclick="copySnippet('npx mcp-shield proxy --port 8080')">Copy Cursor Command</button>
         </div>
 
+        <!-- mcp-tunnel Pane -->
+        <div class="quick-pane" id="pane-tunnel">
+          <p class="pane-instruction">Connect private VPC tools with ZERO open inbound ports using outbound reverse tunnel:</p>
+          <pre><code># Run on your private internal database host or bastion
+npx mcp-shield tunnel \
+  --target "npx -y @modelcontextprotocol/server-postgres postgresql://internal-vpc-db:5432/mydb" \
+  --key "mcp_live_sec_your_key"
+
+# Active tunnel is securely routed through the gateway without open ports</code></pre>
+          <button class="btn-copy-code" onclick="copySnippet('npx mcp-shield tunnel --target')">Copy Tunnel Command</button>
+        </div>
+
+        <!-- CLI Doctor Pane -->
+        <div class="quick-pane" id="pane-doctor">
+          <p class="pane-instruction">Run instant diagnostic scan on local Cursor & Claude configs with 1-click auto-patching:</p>
+          <pre><code># Scan local configs for unshielded tools & hardcoded passwords
+npx mcp-shield doctor
+
+# Automatically wrap all vulnerable servers in 1-click
+npx mcp-shield doctor --fix</code></pre>
+          <button class="btn-copy-code" onclick="copySnippet('npx mcp-shield doctor --fix')">Copy Doctor Command</button>
+        </div>
+
         <!-- Python Pane -->
         <div class="quick-pane" id="pane-python">
           <p class="pane-instruction">Python SDK integration for LangChain and CrewAI agents:</p>
@@ -538,7 +616,7 @@ client = ShieldClient(
     api_key="mcp_live_sec_your_key"
 )
 
-# Intercepts prompt injections and blocks destructive SQL queries
+# Intercepts prompt injections, DLP leaks, and blocks destructive SQL
 result = client.call_tool("sql_query", {"query": "SELECT id, name FROM users LIMIT 50"})
 print("Attestation Signature:", result.signature)</code></pre>
           <button class="btn-copy-code" onclick="copySnippet('pip install mcp-shield')">Copy Python Snippet</button>
@@ -562,12 +640,12 @@ console.log('Attested Trace ID:', response.traceId);</code></pre>
     </div>
   </section>
 
-  <!-- 8. Transparent Pricing -->
+  <!-- 9. Transparent Plans -->
   <section class="site-container section-pad" id="pricing">
     <div class="section-lead">
-      <div class="eyebrow-label">TRANSPARENT PRICING</div>
-      <h2 class="section-title">Simple, Predictable Plans</h2>
-      <p class="section-desc">Free for local development. Transparent monthly subscription for production teams.</p>
+      <div class="eyebrow-label">PLANS & TIERS</div>
+      <h2 class="section-title">Predictable, Transparent Tiers</h2>
+      <p class="section-desc">Free for local development. Enterprise capabilities for production fleets.</p>
     </div>
 
     <div class="pricing-deck">
@@ -594,13 +672,13 @@ console.log('Attested Trace ID:', response.traceId);</code></pre>
         <p class="card-tier-desc">For engineering teams deploying autonomous agents in production.</p>
         <ul class="card-features">
           <li>✓ 1,000,000 tool calls / month</li>
-          <li>✓ Multi-Agent RBAC Policy Engine</li>
+          <li>✓ Custom DLP & Regex Policy Rules</li>
+          <li>✓ Outbound Reverse Tunnel (<code>mcp-tunnel</code>)</li>
           <li>✓ Ed25519 Cryptographic Attestation</li>
-          <li>✓ 30-Day Audit Log Retention in Supabase</li>
-          <li>✓ Automated Invoicing via Dodo Payments</li>
+          <li>✓ 30-Day Audit Log Retention</li>
           <li>✓ Priority Technical Support</li>
         </ul>
-        <button class="price-btn-primary" onclick="openCheckoutModal()">Upgrade to Pro ($99/mo)</button>
+        <button class="price-btn-primary" onclick="openKeyModal()">Deploy Pro Fleet</button>
       </div>
 
       <!-- Enterprise Fleet -->
@@ -621,7 +699,7 @@ console.log('Attested Trace ID:', response.traceId);</code></pre>
     </div>
   </section>
 
-  <!-- 9. FAQ Accordion (Expansive 2-Column Grid) -->
+  <!-- 10. FAQ Accordion (Expansive 2-Column Grid) -->
   <section class="site-container section-pad" id="faq">
     <div class="section-lead">
       <div class="eyebrow-label">FAQ</div>
@@ -642,21 +720,31 @@ console.log('Attested Trace ID:', response.traceId);</code></pre>
 
       <div class="faq-box">
         <div class="faq-head" onclick="toggleFaqRow(this)">
-          <span>Do you store confidential database rows or prompts?</span>
+          <span>How does mcp-tunnel work without opening inbound ports?</span>
           <span class="faq-symbol">+</span>
         </div>
         <div class="faq-content">
-          No. All tool arguments and responses are evaluated in volatile RAM and immediately discarded. Only anonymized telemetry (latency, tool identifier, status code, and SHA-256 hashes) is saved to your Supabase audit log.
+          The <code>npx mcp-shield tunnel</code> command initiates an outbound-only connection from your private VPC/network to the gateway. When an AI agent invokes a tool, requests are securely routed down this established tunnel to your internal server.
         </div>
       </div>
 
       <div class="faq-box">
         <div class="faq-head" onclick="toggleFaqRow(this)">
-          <span>How does Ed25519 cryptographic signing help with compliance?</span>
+          <span>How does Enterprise DLP protect sensitive PII and keys?</span>
           <span class="faq-symbol">+</span>
         </div>
         <div class="faq-content">
-          Every tool execution approved by the gateway is digitally signed with an Ed25519 enclave key. This creates an unbroken, tamper-evident audit trail required for SOC 2 Type II and HIPAA compliance audits.
+          Our Phase 2 engine checks tool arguments for Social Security Numbers (SSN), credit cards, RSA private keys, and API tokens. You can also configure custom regex patterns and block specific table names.
+        </div>
+      </div>
+
+      <div class="faq-box">
+        <div class="faq-head" onclick="toggleFaqRow(this)">
+          <span>Do you store confidential database rows or prompts?</span>
+          <span class="faq-symbol">+</span>
+        </div>
+        <div class="faq-content">
+          No. All tool arguments and responses are evaluated in volatile RAM and immediately discarded. Only anonymized telemetry (latency, tool identifier, status code, and SHA-256 hashes) is saved to your audit log.
         </div>
       </div>
 
@@ -672,21 +760,11 @@ console.log('Attested Trace ID:', response.traceId);</code></pre>
 
       <div class="faq-box">
         <div class="faq-head" onclick="toggleFaqRow(this)">
-          <span>How does MCP Shield stop prompt injection jailbreaks?</span>
+          <span>What does mcp-shield doctor do?</span>
           <span class="faq-symbol">+</span>
         </div>
         <div class="faq-content">
-          Our Phase 1 & 2 AST engine strips invisible zero-width unicode characters, decodes obfuscated base64, and detects adversarial system override tokens in real time before execution.
-        </div>
-      </div>
-
-      <div class="faq-box">
-        <div class="faq-head" onclick="toggleFaqRow(this)">
-          <span>Can I define custom RBAC policies per agent or key?</span>
-          <span class="faq-symbol">+</span>
-        </div>
-        <div class="faq-content">
-          Yes. In the Pro tier, you can configure granular role-based policies—restricting specific autonomous agents to specific subsets of database schemas and MCP tools.
+          The <code>npx mcp-shield doctor</code> command scans your `.cursor/mcp.json` and `claude_desktop_config.json` files for unshielded servers, plaintext database passwords, and root filesystem privileges, offering 1-click auto-patching.
         </div>
       </div>
     </div>
@@ -726,9 +804,9 @@ console.log('Attested Trace ID:', response.traceId);</code></pre>
           <div class="footer-col-title">PRODUCT & ENGINE</div>
           <a href="#how-it-works">System Architecture</a>
           <a href="#playground">Live Security Playground</a>
+          <a href="#hub">Community Tool Hub</a>
           <a href="#console">Active Key Console</a>
           <a href="#guarantees">SQL Blast Armor</a>
-          <a href="#guarantees">Zero-Trust Guarantees</a>
           <a href="#pricing">Pricing & Plans</a>
         </div>
 
@@ -737,8 +815,8 @@ console.log('Attested Trace ID:', response.traceId);</code></pre>
           <div class="footer-col-title">INTEGRATIONS & SDKs</div>
           <a href="#quickstart">Claude Desktop Setup</a>
           <a href="#quickstart">Cursor IDE Configuration</a>
-          <a href="#quickstart">Python SDK (LangChain)</a>
-          <a href="#quickstart">Node.js / TypeScript SDK</a>
+          <a href="#quickstart">mcp-tunnel (Private VPC)</a>
+          <a href="#quickstart">CLI Security Doctor</a>
           <a href="https://github.com/shubham1504611/mcp-shield" target="_blank">GitHub Repository</a>
           <a href="https://modelcontextprotocol.io" target="_blank">Official MCP Specification</a>
         </div>
@@ -814,24 +892,43 @@ console.log('Attested Trace ID:', response.traceId);</code></pre>
     </div>
   </div>
 
-  <!-- Checkout Modal -->
-  <div class="modal-backdrop" id="checkout-modal" style="display: none;" onclick="handleModalBackdrop(event, 'checkout-modal')">
-    <div class="modal-card">
+  <!-- Custom DLP & Policy Editor Modal -->
+  <div class="modal-backdrop" id="policy-modal" style="display: none;" onclick="handleModalBackdrop(event, 'policy-modal')">
+    <div class="modal-card modal-large">
       <div class="modal-header">
-        <h3>Engineering Team Pro</h3>
-        <button class="modal-close" onclick="closeCheckoutModal()">✕</button>
+        <h3>⚙️ Custom DLP & Policy Rule Editor</h3>
+        <button class="modal-close" onclick="closePolicyEditorModal()">✕</button>
       </div>
-      <div class="modal-body">
-        <div class="checkout-box">
-          <div style="font-size: 1.3rem; font-weight: 800; color: var(--color-text-title);">$99.00 <span style="font-size: 0.85rem; color: var(--color-text-muted);">/ month</span></div>
-          <p style="font-size: 0.85rem; color: var(--color-text-muted); margin-top: 0.25rem;">Includes 1,000,000 tool calls/mo, RBAC & Ed25519 attestation.</p>
+      <div class="modal-body modal-scroll">
+        <p style="font-size: 0.85rem; color: var(--color-text-muted); margin-bottom: 1.25rem;">
+          Configure custom sensitive table names, internal entities, or regex patterns to block across all agent tool calls in real time.
+        </p>
+
+        <h4 class="legal-h4">1. Active Custom Blocked Keywords & Tables</h4>
+        <div id="custom-keywords-list" class="policy-tag-list">
+          <!-- Populated via app.js -->
         </div>
-        <label class="form-label" style="margin-top: 1rem;">Billing Email:</label>
-        <input type="email" id="checkout-email-val" value="admin@company.com" class="form-input">
+
+        <div style="display: flex; gap: 0.5rem; margin-top: 0.75rem;">
+          <input type="text" id="input-new-keyword" placeholder="e.g. employee_salaries, credit_scores" class="form-input" style="flex-grow: 1;">
+          <button class="btn-submit" onclick="addCustomKeyword()">+ Add Keyword</button>
+        </div>
+
+        <h4 class="legal-h4" style="margin-top: 1.5rem;">2. Active Custom Regex Rules</h4>
+        <div id="custom-regex-list" class="policy-tag-list">
+          <!-- Populated via app.js -->
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.75rem;">
+          <input type="text" id="input-rule-name" placeholder="Rule Name (e.g. Internal Employee ID)" class="form-input">
+          <div style="display: flex; gap: 0.5rem;">
+            <input type="text" id="input-rule-pattern" placeholder="Regex Pattern (e.g. \bEMP-\d{5}\b)" class="form-input" style="flex-grow: 1;">
+            <button class="btn-submit" onclick="addCustomRegexRule()">+ Add Regex</button>
+          </div>
+        </div>
       </div>
       <div class="modal-footer">
-        <button class="btn-cancel" onclick="closeCheckoutModal()">Cancel</button>
-        <button class="btn-submit" onclick="simulateProActivation()">Confirm & Activate Plan</button>
+        <button class="btn-submit" onclick="closePolicyEditorModal()">Save & Close</button>
       </div>
     </div>
   </div>
@@ -886,10 +983,7 @@ console.log('Attested Trace ID:', response.traceId);</code></pre>
         <h4 class="legal-h4">2. Fair Use & Prohibited Conduct</h4>
         <p class="legal-p">You may not intentionally exploit the gateway to launch Denial of Service (DoS) attacks, attempt to extract cryptographic private keys from our signing enclaves, or bypass rate limiting thresholds. Unauthorized reverse-engineering of AST sanitization filters is strictly prohibited.</p>
 
-        <h4 class="legal-h4">3. Subscriptions & Merchant of Record</h4>
-        <p class="legal-p">Paid tiers (Engineering Team Pro at $99/month, Enterprise Fleet at $1,500/month) are processed securely through Dodo Payments (Merchant of Record). All applicable taxes, VAT, and invoices are handled automatically. Subscriptions may be canceled at any time with active access continuing through the end of the billing cycle.</p>
-
-        <h4 class="legal-h4">4. Limitation of Liability</h4>
+        <h4 class="legal-h4">3. Limitation of Liability</h4>
         <p class="legal-p">MCP Shield provides AST-level query validation and prompt injection defenses with high statistical efficacy. However, organizations are responsible for maintaining proper database permissions (such as read-only database roles) on their downstream systems.</p>
       </div>
       <div class="modal-footer">
@@ -912,8 +1006,8 @@ console.log('Attested Trace ID:', response.traceId);</code></pre>
         <h4 class="legal-h4">2. Retention Schedule by Plan Tier</h4>
         <ul class="legal-ul">
           <li><b>Developer Sandbox ($0/mo):</b> Volatile in-memory session tracking only. Telemetry discarded when browser or CLI process exits.</li>
-          <li><b>Engineering Team Pro ($99/mo):</b> 30-day encrypted retention of anonymized call metadata (SHA-256 hashes, latency metrics, tool names) in PostgreSQL/Supabase.</li>
-          <li><b>Enterprise Fleet ($1,500/mo):</b> 365-day immutable, tamper-evident audit vault designed for SOC 2 Type II and HIPAA compliance reviews.</li>
+          <li><b>Engineering Team Pro:</b> 30-day encrypted retention of anonymized call metadata (SHA-256 hashes, latency metrics, tool names).</li>
+          <li><b>Enterprise Fleet:</b> 365-day immutable, tamper-evident audit vault designed for SOC 2 Type II and HIPAA compliance reviews.</li>
         </ul>
 
         <h4 class="legal-h4">3. Independent Cryptographic Verification</h4>

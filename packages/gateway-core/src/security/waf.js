@@ -1,10 +1,11 @@
 /**
- * Highly Optimized Security WAF Engine for Model Context Protocol (MCP)
+ * Highly Optimized Security WAF & DLP Engine for Model Context Protocol (MCP)
  * 
  * Performance Optimizations:
  * 1. Zero-Allocation Pre-Compiled Static RegExp Patterns
- * 2. Short-Circuit Fast Path for ASCII strings
- * 3. Constant-Time Ed25519 Cryptographic Attestation
+ * 2. Enterprise DLP (Data Loss Prevention) Scanner for PII, Secrets & Credentials
+ * 3. Dynamic Custom Regex & Keyword Policy Management
+ * 4. Constant-Time Ed25519 Cryptographic Attestation
  */
 
 const crypto = require('crypto');
@@ -23,6 +24,14 @@ const INJECTION_PATTERNS = [
   { rule: 'OS_COMMAND_INJECTION', regex: /(rm\s+-rf\s+\/|format\s+[a-z]:|mkfs\.[a-z0-9]+|chmod\s+-R\s+777\s+\/|curl\s+.*?\|\s*(sh|bash)|wget\s+.*?\|\s*(sh|bash))/i }
 ];
 
+// Enterprise Data Loss Prevention (DLP) Patterns
+const DLP_PATTERNS = [
+  { rule: 'DLP_SSN_DETECTED', regex: /\b\d{3}-\d{2}-\d{4}\b/, desc: 'Social Security Number (SSN)' },
+  { rule: 'DLP_CREDIT_CARD_DETECTED', regex: /\b(?:4[0-9]{12}(?:[0-9]{3})?|5[1-5][0-9]{14}|3[47][0-9]{13}|6(?:011|5[0-9]{2})[0-9]{12})\b/, desc: 'Credit / Debit Card Number' },
+  { rule: 'DLP_PRIVATE_KEY_DETECTED', regex: /-----BEGIN (RSA|EC|DSA|OPENSSH|PGP) PRIVATE KEY-----/, desc: 'Cryptographic Private Key Block' },
+  { rule: 'DLP_API_SECRET_DETECTED', regex: /(sk_live_[0-9a-zA-Z]{20,}|ghp_[0-9a-zA-Z]{30,}|xox[baprs]-[0-9a-zA-Z]{10,})/, desc: 'Live API / OAuth Token' }
+];
+
 const RE_SQL_MULTI_STATEMENT = /;\s*(SELECT|INSERT|UPDATE|DELETE|DROP|TRUNCATE|ALTER|CREATE)\b/i;
 const RE_SQL_DDL = /\b(DROP\s+TABLE|DROP\s+DATABASE|TRUNCATE\s+TABLE|ALTER\s+TABLE)\b/i;
 const RE_SQL_UNCONSTRAINED_DELETE = /\bDELETE\s+FROM\s+["`\w]+(?!\s+WHERE\b)/i;
@@ -35,8 +44,41 @@ const EXPORTED_PUBLIC_KEY = publicKey.export({ type: 'spki', format: 'pem' });
 
 class SecurityWaf {
   constructor(options = {}) {
-    this.customBlockedKeywords = options.blockedKeywords || [];
+    this.customBlockedKeywords = [...(options.blockedKeywords || [])];
+    this.customRegexRules = [...(options.customRegexRules || [])]; // Array of { name, regex }
+    this.enforceDlp = options.enforceDlp !== false; // Enabled by default
     this.maxPayloadBytes = options.maxPayloadBytes || 1048576; // 1 MB
+  }
+
+  /**
+   * Add a dynamic custom DLP / security regex rule
+   */
+  addCustomRule(name, regexPattern) {
+    const regex = typeof regexPattern === 'string' ? new RegExp(regexPattern, 'i') : regexPattern;
+    this.customRegexRules.push({ name, regex });
+  }
+
+  /**
+   * Add a custom sensitive keyword or table name to block
+   */
+  addBlockedKeyword(keyword) {
+    if (keyword && !this.customBlockedKeywords.includes(keyword)) {
+      this.customBlockedKeywords.push(keyword);
+    }
+  }
+
+  /**
+   * Remove a custom rule by name
+   */
+  removeRule(name) {
+    this.customRegexRules = this.customRegexRules.filter(r => r.name !== name);
+  }
+
+  /**
+   * Remove a blocked keyword
+   */
+  removeBlockedKeyword(keyword) {
+    this.customBlockedKeywords = this.customBlockedKeywords.filter(k => k.toLowerCase() !== keyword.toLowerCase());
   }
 
   /**
@@ -46,7 +88,6 @@ class SecurityWaf {
     if (typeof input !== 'string') return input;
     if (input.length === 0) return input;
 
-    // Fast-path: If string is plain ASCII with no control chars, skip regex replace
     let normalized = input;
     if (RE_ZERO_WIDTH.test(normalized)) {
       normalized = normalized.replace(RE_ZERO_WIDTH, '');
@@ -92,6 +133,8 @@ class SecurityWaf {
   scanAdversarialOverrides(strings) {
     for (let i = 0; i < strings.length; i++) {
       const str = strings[i];
+      
+      // 1. Built-in Core Injection Patterns
       for (let j = 0; j < INJECTION_PATTERNS.length; j++) {
         const pattern = INJECTION_PATTERNS[j];
         if (pattern.regex.test(str)) {
@@ -104,6 +147,35 @@ class SecurityWaf {
         }
       }
 
+      // 2. Enterprise DLP (Data Loss Prevention) Scans
+      if (this.enforceDlp) {
+        for (let j = 0; j < DLP_PATTERNS.length; j++) {
+          const dlp = DLP_PATTERNS[j];
+          if (dlp.regex.test(str)) {
+            return {
+              isSafe: false,
+              rule: dlp.rule,
+              matchedSnippet: str.substring(0, 100),
+              reason: `Sensitive data leak prevented: ${dlp.desc}`
+            };
+          }
+        }
+      }
+
+      // 3. Dynamic Custom Regex Rules
+      for (let j = 0; j < this.customRegexRules.length; j++) {
+        const custom = this.customRegexRules[j];
+        if (custom.regex.test(str)) {
+          return {
+            isSafe: false,
+            rule: `CUSTOM_RULE_${custom.name.toUpperCase().replace(/\s+/g, '_')}`,
+            matchedSnippet: str.substring(0, 100),
+            reason: `Payload violated custom DLP policy: '${custom.name}'`
+          };
+        }
+      }
+
+      // 4. Custom Blocked Keywords & Table Names
       for (let k = 0; k < this.customBlockedKeywords.length; k++) {
         const keyword = this.customBlockedKeywords[k];
         if (str.toLowerCase().includes(keyword.toLowerCase())) {
@@ -111,7 +183,7 @@ class SecurityWaf {
             isSafe: false,
             rule: 'CUSTOM_KEYWORD_BLOCKED',
             matchedSnippet: str.substring(0, 100),
-            reason: `Payload contains blocked keyword: '${keyword}'`
+            reason: `Payload contains blocked keyword or protected entity: '${keyword}'`
           };
         }
       }

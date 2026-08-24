@@ -10,10 +10,10 @@
 [![Node.js Version](https://img.shields.io/badge/node-%3E%3D20.0.0-brightgreen.svg)](https://nodejs.org)
 [![MCP Spec](https://img.shields.io/badge/MCP%20Spec-JSON--RPC%202.0%20Conforming-indigo.svg)](https://modelcontextprotocol.io)
 [![P99 Latency](https://img.shields.io/badge/P99%20Latency-%3C1.5ms-cyan.svg)](#performance--latency-benchmarks)
-[![Tests Status](https://img.shields.io/badge/Tests-28%2F28%20Passed-success.svg)](#-test-suite--penetration-testing)
+[![Tests Status](https://img.shields.io/badge/Tests-55%2F55%20Passed-success.svg)](#-test-suite--penetration-testing)
 [![Live Platform](https://img.shields.io/badge/Live%20Platform-Online-emerald.svg)](https://mcp-shield-gateway-core.vercel.app)
 
-[🌐 Live Platform & Playground](https://mcp-shield-gateway-core.vercel.app) • [📖 Documentation](https://mcp-shield-gateway-core.vercel.app/#quickstart) • [🧪 Live Security Console](https://mcp-shield-gateway-core.vercel.app/#console) • [🐛 Report Issue](https://github.com/shubham1504611/mcp-shield/issues)
+[🌐 Live Platform & Playground](https://mcp-shield-gateway-core.vercel.app) • [📖 Community Hub](https://mcp-shield-gateway-core.vercel.app/#hub) • [🧪 Live Security Console](https://mcp-shield-gateway-core.vercel.app/#console) • [🐛 Report Issue](https://github.com/shubham1504611/mcp-shield/issues)
 
 </div>
 
