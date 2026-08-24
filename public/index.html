@@ -155,14 +155,14 @@
       <div class="playground-header">
         <div class="play-presets">
           <span class="play-label">PRESETS:</span>
-          <button class="play-preset-btn active" onclick="loadPlaygroundPreset('safe')">Safe Read</button>
-          <button class="play-preset-btn" onclick="loadPlaygroundPreset('injection')">Prompt Injection</button>
-          <button class="play-preset-btn" onclick="loadPlaygroundPreset('drop')">DROP TABLE</button>
-          <button class="play-preset-btn" onclick="loadPlaygroundPreset('union')">UNION Theft</button>
-          <button class="play-preset-btn" onclick="loadPlaygroundPreset('tautology')">OR 1=1</button>
-          <button class="play-preset-btn" onclick="loadPlaygroundPreset('traversal')">Path Traversal</button>
-          <button class="play-preset-btn" onclick="loadPlaygroundPreset('dlp')">DLP (SSN)</button>
-          <button class="play-preset-btn" onclick="loadPlaygroundPreset('exfil')">Egress Exfil</button>
+          <button class="play-preset-btn active" data-preset="safe" onclick="loadPlaygroundPreset('safe')">Safe Read</button>
+          <button class="play-preset-btn" data-preset="injection" onclick="loadPlaygroundPreset('injection')">Prompt Injection</button>
+          <button class="play-preset-btn" data-preset="drop" onclick="loadPlaygroundPreset('drop')">DROP TABLE</button>
+          <button class="play-preset-btn" data-preset="union" onclick="loadPlaygroundPreset('union')">UNION Theft</button>
+          <button class="play-preset-btn" data-preset="tautology" onclick="loadPlaygroundPreset('tautology')">OR 1=1</button>
+          <button class="play-preset-btn" data-preset="traversal" onclick="loadPlaygroundPreset('traversal')">Path Traversal</button>
+          <button class="play-preset-btn" data-preset="dlp" onclick="loadPlaygroundPreset('dlp')">DLP (SSN)</button>
+          <button class="play-preset-btn" data-preset="exfil" onclick="loadPlaygroundPreset('exfil')">Egress Exfil</button>
         </div>
         <div class="play-status-indicator">
           <span class="pulse-indicator"></span>
@@ -179,7 +179,7 @@
           </div>
           <textarea id="playground-input" class="play-textarea" spellcheck="false" placeholder="Enter query or tool arguments...">SELECT id, name, created_at FROM organizations WHERE plan = 'enterprise' LIMIT 20;</textarea>
           <div class="play-input-actions">
-            <button class="btn-play-run" onclick="executePlayground()">⚡ Evaluate Payload</button>
+            <button class="btn-play-run" id="btn-play-run" onclick="executePlayground()">⚡ Evaluate Payload</button>
             <span class="play-hint">Zero data persisted to disk</span>
           </div>
         </div>

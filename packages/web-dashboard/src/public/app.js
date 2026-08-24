@@ -49,6 +49,56 @@ let currentFeedFilter = 'all';
 let localAuditFeedCache = [];
 
 document.addEventListener('DOMContentLoaded', () => {
+  // Preset buttons click listeners
+  document.querySelectorAll('.play-preset-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      const presetKey = btn.dataset.preset || btn.getAttribute('onclick')?.match(/'([^']+)'/)?.[1];
+      if (presetKey) {
+        loadPlaygroundPreset(presetKey);
+      }
+    });
+  });
+
+  // Evaluate button click listener
+  const evalBtn = document.getElementById('btn-play-run') || document.querySelector('.btn-play-run');
+  if (evalBtn) {
+    evalBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      executePlayground();
+    });
+  }
+
+  // Quickstart tab buttons
+  document.querySelectorAll('.quick-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      const key = btn.dataset.quick || btn.getAttribute('onclick')?.match(/'([^']+)'/)?.[1];
+      if (key) {
+        switchQuickstart(key);
+      }
+    });
+  });
+
+  // Feed filter buttons
+  document.querySelectorAll('.feed-filter-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      const filter = btn.id?.replace('filter-', '') || btn.getAttribute('onclick')?.match(/'([^']+)'/)?.[1];
+      if (filter) {
+        filterAuditFeed(filter);
+      }
+    });
+  });
+
+  // FAQ accordion toggles
+  document.querySelectorAll('.faq-head').forEach(head => {
+    head.addEventListener('click', (e) => {
+      e.preventDefault();
+      toggleFaqRow(head);
+    });
+  });
+
   loadPlaygroundPreset('safe');
   renderCustomPoliciesUI();
   fetchLiveMetrics();
@@ -581,3 +631,34 @@ function handleModalBackdrop(event, modalId) {
     document.getElementById(modalId).style.display = 'none';
   }
 }
+
+// 15. Explicit Global Window Exports for Seamless Event Interop
+window.loadPlaygroundPreset = loadPlaygroundPreset;
+window.executePlayground = executePlayground;
+window.switchQuickstart = switchQuickstart;
+window.toggleFaqRow = toggleFaqRow;
+window.showToast = showToast;
+window.copySnippet = copySnippet;
+window.openKeyModal = openKeyModal;
+window.closeKeyModal = closeKeyModal;
+window.openConnectModal = openConnectModal;
+window.closeConnectModal = closeConnectModal;
+window.generateGatewayKey = generateGatewayKey;
+window.submitConnectKey = submitConnectKey;
+window.openPolicyEditorModal = openPolicyEditorModal;
+window.closePolicyEditorModal = closePolicyEditorModal;
+window.addCustomKeyword = addCustomKeyword;
+window.removeCustomKeyword = removeCustomKeyword;
+window.addCustomRegexRule = addCustomRegexRule;
+window.removeCustomRegexRule = removeCustomRegexRule;
+window.filterAuditFeed = filterAuditFeed;
+window.runRealTestQuery = runRealTestQuery;
+window.runRealAttackBlockTest = runRealAttackBlockTest;
+window.openPrivacyModal = openPrivacyModal;
+window.closePrivacyModal = closePrivacyModal;
+window.openTermsModal = openTermsModal;
+window.closeTermsModal = closeTermsModal;
+window.openRetentionModal = openRetentionModal;
+window.closeRetentionModal = closeRetentionModal;
+window.handleModalBackdrop = handleModalBackdrop;
+
