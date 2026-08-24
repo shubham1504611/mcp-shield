@@ -6,7 +6,7 @@
 const { performance } = require('perf_hooks');
 const { SecurityWaf, PUBLIC_KEY } = require('../packages/gateway-core/src/security/waf');
 
-// Global in-memory audit ring buffer (survives across warm serverless invocations)
+// Global in-memory audit ring buffer & persistent metrics accumulator
 global.__MCP_AUDIT_LOGS__ = global.__MCP_AUDIT_LOGS__ || [];
 global.__MCP_METRICS__ = global.__MCP_METRICS__ || {
   totalCalls: 0,
@@ -17,7 +17,10 @@ global.__MCP_METRICS__ = global.__MCP_METRICS__ || {
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-Key');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
@@ -96,11 +99,12 @@ module.exports = async (req, res) => {
         id: body.id || `req_${Date.now()}`,
         result: {
           status: 'SUCCESS',
-          payloadReceived: payload,
+          sanitizedPayload: result.sanitizedPayload,
           _shield: {
             traceId: result.traceId,
             attestation: result.signature,
             publicKey: PUBLIC_KEY,
+            canonicalFormat: `${toolName}:${JSON.stringify(result.sanitizedPayload)}`,
             algorithm: 'Ed25519',
             sanitized: true,
             riskScore: 0.00,
@@ -130,6 +134,7 @@ module.exports = async (req, res) => {
 
     res.setHeader('X-MCP-Signature', result.isSafe ? result.signature : 'EXECUTION_BLOCKED');
     res.setHeader('X-MCP-Trace-ID', result.traceId || 'BLOCKED');
+    res.setHeader('X-MCP-Canonical-Format', `${toolName}:${JSON.stringify(result.sanitizedPayload || {})}`);
     res.setHeader('X-Execution-Latency-Ms', durationMs.toString());
 
     return res.status(200).json({
@@ -137,8 +142,10 @@ module.exports = async (req, res) => {
       rule: result.rule || null,
       reason: result.reason || null,
       signature: result.signature || 'EXECUTION_BLOCKED',
-      publicKey: result.publicKey || null,
+      publicKey: PUBLIC_KEY,
+      canonicalFormat: `${toolName}:${JSON.stringify(result.sanitizedPayload || {})}`,
       traceId: result.traceId || null,
+      sanitizedPayload: result.sanitizedPayload || null,
       latencyMs: durationMs,
       riskScore: result.isSafe ? '0.00' : '0.98',
       response: responsePayload,

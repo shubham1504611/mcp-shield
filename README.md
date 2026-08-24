@@ -161,7 +161,7 @@ mcp-shield/
 
 ## 🧪 Test Suite & Penetration Testing
 
-MCP Shield includes an exhaustive automated test suite covering all 22 adversarial penetration test vectors, AST SQL comment evasion bypasses, and deterministic Ed25519 cryptographic signatures:
+MCP Shield includes an exhaustive automated test suite covering all 28 adversarial penetration test vectors, AST SQL comment evasion bypasses, and deterministic Ed25519 cryptographic signatures:
 
 ```bash
 # Run all workspace test suites

@@ -2,16 +2,16 @@
  * Hardened 4-Phase Security WAF & DLP Engine for Model Context Protocol (MCP)
  * 
  * Phases:
- * 1. Obfuscation & Comment Stripping (Unicode, Comments, URL encoding, Base64 recursive decoding)
- * 2. Adversarial Injection & Egress Exfiltration Scanner (Jailbreaks, Exfil URLs, Shell injections)
- * 3. AST SQL Blast Radius Armor (DDL, Unconstrained DML, Privileged Escalations)
- * 4. Deterministic Hardware-Grade Ed25519 Cryptographic Attestation
+ * 1. Deep In-Place Unicode Normalization & Sanitization (Strips \u200B, \u202E, decodes Base64/URL)
+ * 2. Adversarial Injection, Egress Exfiltration & Path Traversal Scanner
+ * 3. AST SQL Blast Radius Armor (DDL, Tautologies, UNION, Sensitive Tables, Unconstrained DML)
+ * 4. Deterministic Hardware-Grade Ed25519 Cryptographic Attestation with Published Canonical Spec
  */
 
 const crypto = require('crypto');
 
-// Zero-width and invisible unicode characters
-const RE_ZERO_WIDTH = /[\u200B-\u200D\uFEFF\u202A-\u202E\u2060-\u206F]/g;
+// Zero-width and invisible/override unicode characters (U+200B..U+200D, U+FEFF, U+202A..U+202E RTL override, U+2060..U+206F)
+const RE_ZERO_WIDTH_AND_OVERRIDES = /[\u200B-\u200D\uFEFF\u202A-\u202E\u2060-\u206F]/g;
 // Unicode spaces (NBSP, narrow NBSP, ideographic, tabs, newlines)
 const RE_ALL_WHITESPACE = /[\s\u00A0\u1680\u2000-\u200A\u2028\u2029\u202F\u205F\u3000]+/g;
 // SQL block comments (e.g. DROP/**/TABLE or DROP/*x*/TABLE/*y*/)
@@ -21,10 +21,11 @@ const RE_SQL_LINE_COMMENTS = /(?:^|\s+)--.*$/gm;
 // Base64 regex detector
 const RE_BASE64 = /\b([A-Za-z0-9+/]{12,}={0,2})\b/g;
 
-// Phase 2: Adversarial Injection Patterns (Ordered by priority)
+// Phase 2: Adversarial Injection, Egress & Non-SQL Traversal Patterns
 const INJECTION_PATTERNS = [
   { rule: 'SYSTEM_OVERRIDE', regex: /(system\s+override|ignore\s+(all\s+)?(previous|prior)\s+(instructions|directives|rules)|disregard\s+(all\s+)?(previous|prior)\s+(instructions|rules)|(ignore|disregard|forget|override)\s+(all\s+)?(previous|prior|initial)\s+(instructions|directives|rules|prompts))/i },
   { rule: 'ROLE_JAILBREAK', regex: /(you\s+are\s+now\s+(in\s+)?(developer\s+mode|dan\s+mode|unrestricted|god\s+mode|jailbreak)|dan\s+mode|jailbreak\s+active|bypass\s+(all\s+)?(safeguards|safety|filters))/i },
+  { rule: 'PATH_TRAVERSAL_DETECTED', regex: /(\.\.[\/\\]|\/etc\/(passwd|shadow|hosts|group)|\/var\/run|\/proc\/|C:\\(Windows|System32)|\b(cat|read|type|open)\s+(\.\.|\/etc\/|\/var\/))/i },
   { rule: 'SECRET_EXFILTRATION', regex: /(process\.env|AWS_SECRET_ACCESS_KEY|PRIVATE_KEY|\.aws\/credentials|\.ssh\/id_rsa|\.env\b)/i },
   { rule: 'DATA_EXFILTRATION_URL', regex: /(https?|ftp|ftps|file|wss?|gopher|tcp):\/\/([a-zA-Z0-9_-]+\.)*(webhook\.site|requestbin\.(com|net)|pipedream\.net|ngrok\.(io|app)|burpcollaborator|oastify|evil\.com|attacker\.com)/i },
   { rule: 'DANGEROUS_EGRESS_PROTOCOL', regex: /\b(ftp:\/\/|file:\/\/[^\s]+|wss?:\/\/)/i },
@@ -41,9 +42,13 @@ const DLP_PATTERNS = [
   { rule: 'DLP_API_SECRET_DETECTED', regex: /(sk_live_[0-9a-zA-Z]{20,}|ghp_[0-9a-zA-Z]{30,}|xox[baprs]-[0-9a-zA-Z]{10,})/, desc: 'Live API / OAuth Token' }
 ];
 
-// Phase 3: SQL AST & Blast Radius Patterns
+// Phase 3: SQL AST & Blast Radius Patterns (including Tautologies, UNION, Sensitive Tables)
 const RE_SQL_MULTI_STATEMENT = /;\s*(SELECT|INSERT|UPDATE|DELETE|DROP|TRUNCATE|ALTER|CREATE|EXEC)\b/i;
 const RE_SQL_DDL = /\b(DROP\s+TABLE|DROP\s+DATABASE|DROP\s+VIEW|DROP\s+SCHEMA|TRUNCATE(\s+TABLE)?|ALTER\s+TABLE)\b/i;
+const RE_SQL_UNION_INJECTION = /\bUNION(\s+ALL)?\s+SELECT\b/i;
+const RE_SQL_TAUTOLOGY = /\b(OR|AND)\s+(['"]?\w+['"]?\s*=\s*['"]?\w+['"]?|TRUE\b|1\s*=\s*1|0\s*=\s*0)\b/i;
+const RE_SQL_HAVING_TAUTOLOGY = /\bHAVING\s+1\s*=\s*1\b/i;
+const RE_SQL_SENSITIVE_TABLES = /\b(FROM|JOIN|INTO|UPDATE)\s+["`\w]*(api_keys?|user_passwords?|credentials?|master_keys?|auth_tokens?|secret_store)["`\w]*/i;
 const RE_SQL_UNCONSTRAINED_DELETE = /\bDELETE\s+FROM\s+["`\w]+(?!\s+WHERE\b)/i;
 const RE_SQL_UNCONSTRAINED_UPDATE = /\bUPDATE\s+["`\w]+(\s+SET\s+[\s\S]+?)(?!\s+WHERE\b)/i;
 const RE_SQL_PRIVILEGED_DML = /\b(INSERT\s+INTO|UPDATE)\s+["`\w]*(admin|auth|roles?|permissions?|credentials?|salaries?)["`\w]*/i;
@@ -84,7 +89,7 @@ class SecurityWaf {
   }
 
   /**
-   * Phase 1: Robust Multi-Layer Obfuscation Stripper & Normalizer
+   * Phase 1: Robust Multi-Layer Obfuscation Stripper & String Normalizer
    */
   normalize(input) {
     if (typeof input !== 'string') return '';
@@ -92,9 +97,9 @@ class SecurityWaf {
 
     let normalized = input;
 
-    // 1. Strip zero-width & invisible unicode characters
-    if (RE_ZERO_WIDTH.test(normalized)) {
-      normalized = normalized.replace(RE_ZERO_WIDTH, '');
+    // 1. Strip zero-width & invisible unicode characters (U+200B, U+202E, U+FEFF, etc.)
+    if (RE_ZERO_WIDTH_AND_OVERRIDES.test(normalized)) {
+      normalized = normalized.replace(RE_ZERO_WIDTH_AND_OVERRIDES, '');
     }
 
     // 2. URL Decode if URL encoding is present
@@ -121,6 +126,32 @@ class SecurityWaf {
     normalized = normalized.replace(RE_ALL_WHITESPACE, ' ').trim();
 
     return normalized;
+  }
+
+  /**
+   * Deep recursive payload sanitizer (cleans dirty characters from input objects)
+   */
+  sanitizePayload(obj) {
+    if (obj === null || obj === undefined) return obj;
+
+    if (typeof obj === 'string') {
+      return obj.replace(RE_ZERO_WIDTH_AND_OVERRIDES, '');
+    }
+
+    if (Array.isArray(obj)) {
+      return obj.map(item => this.sanitizePayload(item));
+    }
+
+    if (typeof obj === 'object') {
+      const cleaned = {};
+      for (const [k, v] of Object.entries(obj)) {
+        const cleanKey = typeof k === 'string' ? k.replace(RE_ZERO_WIDTH_AND_OVERRIDES, '') : k;
+        cleaned[cleanKey] = this.sanitizePayload(v);
+      }
+      return cleaned;
+    }
+
+    return obj;
   }
 
   stripSqlComments(input) {
@@ -177,14 +208,14 @@ class SecurityWaf {
   }
 
   /**
-   * Phase 2: Adversarial Injection, Egress Exfiltration & DLP Scanner
+   * Phase 2: Adversarial Injection, Egress Exfiltration, Path Traversal & DLP Scanner
    */
   scanAdversarialOverrides(strings) {
     for (let i = 0; i < strings.length; i++) {
       const str = strings[i];
       if (!str) continue;
 
-      // 1. Core Adversarial Injections
+      // 1. Core Adversarial Injections & Path Traversals
       for (let j = 0; j < INJECTION_PATTERNS.length; j++) {
         const pattern = INJECTION_PATTERNS[j];
         if (pattern.regex.test(str)) {
@@ -272,6 +303,36 @@ class SecurityWaf {
         };
       }
 
+      // UNION-based SQL injection exfiltration
+      if (RE_SQL_UNION_INJECTION.test(candidate)) {
+        return {
+          isSafe: false,
+          rule: 'SQL_UNION_INJECTION',
+          matchedSnippet: candidate.substring(0, 100),
+          reason: 'UNION-based SQL injection attempt detected and blocked'
+        };
+      }
+
+      // Classic SQL Tautology / Predicate Bypass (OR 1=1, OR 'a'='a', HAVING 1=1)
+      if (RE_SQL_TAUTOLOGY.test(candidate) || RE_SQL_HAVING_TAUTOLOGY.test(candidate)) {
+        return {
+          isSafe: false,
+          rule: 'SQL_TAUTOLOGY_INJECTION',
+          matchedSnippet: candidate.substring(0, 100),
+          reason: 'SQL tautology predicate bypass (OR 1=1 / boolean TRUE) detected and blocked'
+        };
+      }
+
+      // Sensitive Credential / Secret Tables Access
+      if (RE_SQL_SENSITIVE_TABLES.test(candidate)) {
+        return {
+          isSafe: false,
+          rule: 'SENSITIVE_CREDENTIAL_TABLE_BLOCKED',
+          matchedSnippet: candidate.substring(0, 100),
+          reason: 'Direct querying of sensitive credential/auth/key table is blocked by policy'
+        };
+      }
+
       // Privileged DML / Unauthorized Table Injection
       if (RE_SQL_PRIVILEGED_DML.test(candidate)) {
         return {
@@ -320,8 +381,8 @@ class SecurityWaf {
    * Main Inspection Entrypoint
    */
   inspectToolCall(toolName, params) {
-    const payloadStr = JSON.stringify(params || {});
-    if (Buffer.byteLength(payloadStr, 'utf8') > this.maxPayloadBytes) {
+    const rawPayloadStr = JSON.stringify(params || {});
+    if (Buffer.byteLength(rawPayloadStr, 'utf8') > this.maxPayloadBytes) {
       return {
         isSafe: false,
         rule: 'PAYLOAD_TOO_LARGE',
@@ -342,17 +403,24 @@ class SecurityWaf {
     const sqlResult = this.scanSqlBlastRadius(strings);
     if (!sqlResult.isSafe) return sqlResult;
 
-    // Phase 4: Deterministic Ed25519 Cryptographic Attestation
-    const canonicalPayload = `${toolName || 'tool'}:${payloadStr}`;
+    // Phase 1 Sanitization: Recursively strip zero-width & invisible override characters in returned payload
+    const sanitizedPayload = this.sanitizePayload(params);
+    const sanitizedPayloadStr = JSON.stringify(sanitizedPayload || {});
+
+    // Phase 4: Deterministic Ed25519 Cryptographic Attestation with Published Canonical Spec
+    // Canonical Spec: `${toolName}:${JSON.stringify(sanitizedPayload)}`
+    const canonicalPayload = `${toolName || 'tool'}:${sanitizedPayloadStr}`;
     const hash = crypto.createHash('sha256').update(canonicalPayload).digest();
     const signature = crypto.sign(null, hash, privateKey).toString('hex');
     const traceId = `trc_${crypto.createHash('sha256').update(`${canonicalPayload}:${signature}`).digest('hex').substring(0, 16)}`;
 
     return {
       isSafe: true,
+      sanitizedPayload,
       traceId,
       signature,
       publicKey: publicKey,
+      canonicalFormat: `${toolName || 'tool'}:JSON.stringify(sanitizedPayload)`,
       algorithm: 'Ed25519'
     };
   }
