@@ -532,6 +532,72 @@ function loadPlaygroundPreset(key) {
   if (sigEl) sigEl.innerText = 'Awaiting evaluation...';
 }
 
+// 9.5 Interactive System Topology Simulator
+function setTopologyMode(mode) {
+  const btnSafe = document.getElementById('btn-top-safe');
+  const btnThreat = document.getElementById('btn-top-threat');
+  const agentCode = document.getElementById('top-agent-code');
+  const shieldStatus = document.getElementById('top-shield-status');
+  const shieldCode = document.getElementById('top-shield-code');
+  const connBadge2 = document.getElementById('top-conn-badge-2');
+  const connLine2 = document.getElementById('top-conn-line-2');
+  const targetCode = document.getElementById('top-target-code');
+
+  if (mode === 'threat') {
+    if (btnSafe) btnSafe.classList.remove('active');
+    if (btnThreat) btnThreat.classList.add('active');
+
+    if (agentCode) {
+      agentCode.innerHTML = `<span class="top-code-label">ADVERSARIAL ATTACK PAYLOAD</span><code>tools/call: postgres_query\n{ "query": "DROP TABLE users; --" }</code>`;
+    }
+    if (shieldStatus) {
+      shieldStatus.className = 'top-node-sub';
+      shieldStatus.style.color = '#ef4444';
+      shieldStatus.innerText = '✕ THREAT INTERCEPTED & QUARANTINED';
+    }
+    if (shieldCode) {
+      shieldCode.className = 'top-code-box top-code-threat';
+      shieldCode.innerHTML = `<span class="top-code-label">AST ENCLAVE BLOCKED (0.18ms)</span><code>AST Scan: RE_SQL_DML_DDL (VIOLATION)\nVerdict: BLOCKED (HTTP 403)\nRisk Score: 0.98 (Quarantined)</code>`;
+    }
+    if (connBadge2) {
+      connBadge2.className = 'top-pipe-badge badge-threat';
+      connBadge2.innerText = '❌ Zero Packets Forwarded';
+    }
+    if (connLine2) {
+      connLine2.className = 'top-pipe-line line-threat';
+    }
+    if (targetCode) {
+      targetCode.innerHTML = `<span class="top-code-label">TARGET INFRASTRUCTURE STATUS</span><code>Status: FULLY SHIELDED\nDatabase: 0 Mutations Executed\nSecurity: Dropped at Gateway Edge</code>`;
+    }
+  } else {
+    if (btnThreat) btnThreat.classList.remove('active');
+    if (btnSafe) btnSafe.classList.add('active');
+
+    if (agentCode) {
+      agentCode.innerHTML = `<span class="top-code-label">DISPATCHED TOOL CALL</span><code>tools/call: postgres_query\n{ "query": "SELECT id, email FROM users LIMIT 10;" }</code>`;
+    }
+    if (shieldStatus) {
+      shieldStatus.className = 'top-node-sub top-sub-green';
+      shieldStatus.style.color = '';
+      shieldStatus.innerText = '● Real-time AST & DLP WAF';
+    }
+    if (shieldCode) {
+      shieldCode.className = 'top-code-box top-code-shield';
+      shieldCode.innerHTML = `<span class="top-code-label">IN-MEMORY INSPECTION (< 1.5ms)</span><code>AST Scan: APPROVED (Safe Read)\nDLP Scrubber: CLEAN (0 PII Leaks)\nAttestation: Signed (Ed25519 Nonce)</code>`;
+    }
+    if (connBadge2) {
+      connBadge2.className = 'top-pipe-badge';
+      connBadge2.innerText = 'Safe & Attested';
+    }
+    if (connLine2) {
+      connLine2.className = 'top-pipe-line';
+    }
+    if (targetCode) {
+      targetCode.innerHTML = `<span class="top-code-label">RESOURCE EXECUTION</span><code>Status: 200 OK\nPayload: Verified & Clean\nResult: Query executed successfully</code>`;
+    }
+  }
+}
+
 // 10. Quickstart Code Switcher
 function switchQuickstart(key) {
   document.querySelectorAll('.quick-btn').forEach(b => b.classList.remove('active'));
@@ -671,6 +737,7 @@ function handleModalBackdrop(event, modalId) {
 // 15. Explicit Global Window Exports for Seamless Event Interop
 window.loadPlaygroundPreset = loadPlaygroundPreset;
 window.executePlayground = executePlayground;
+window.setTopologyMode = setTopologyMode;
 window.switchQuickstart = switchQuickstart;
 window.toggleFaqRow = toggleFaqRow;
 window.showToast = showToast;

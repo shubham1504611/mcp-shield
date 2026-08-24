@@ -218,29 +218,115 @@
       <p class="section-desc">Zero code rewrites. MCP Shield acts as a high-performance, in-memory proxy between your agent orchestration layer and your tools.</p>
     </div>
 
-    <div class="topology-grid">
-      <div class="topology-card">
-        <div class="topology-num">01</div>
-        <h3 class="topology-heading">Autonomous AI Agents</h3>
-        <p class="topology-body">
-          Claude Desktop, Cursor IDE, LangGraph, or custom agent frameworks dispatch tool execution requests using the standard Model Context Protocol via JSON-RPC 2.0.
-        </p>
+    <!-- Interactive Topology Pipeline Canvas -->
+    <div class="topology-canvas">
+      <!-- Pipeline Mode Controls -->
+      <div class="topology-ctrl-bar">
+        <div class="topology-ctrl-title">
+          <span class="pulse-indicator"></span>
+          <span>LIVE ARCHITECTURE PIPELINE</span>
+        </div>
+        <div class="topology-modes">
+          <button class="top-mode-btn active" id="btn-top-safe" onclick="setTopologyMode('safe')">
+            <span class="top-mode-dot dot-safe"></span> Safe Query Flow
+          </button>
+          <button class="top-mode-btn" id="btn-top-threat" onclick="setTopologyMode('threat')">
+            <span class="top-mode-dot dot-threat"></span> Threat Intercept Flow
+          </button>
+        </div>
       </div>
 
-      <div class="topology-card">
-        <div class="topology-num">02</div>
-        <h3 class="topology-heading">MCP Shield Gateway</h3>
-        <p class="topology-body">
-          Our high-performance in-memory proxy analyzes AST trees, scrubs DLP secrets, neutralizes prompt overrides, and signs valid requests in &lt;1.5ms RAM without disk persistence.
-        </p>
-      </div>
+      <!-- 3-Node Connected Visual Pipeline -->
+      <div class="topology-nodes-grid">
+        <!-- Node 1: AI Agent -->
+        <div class="top-node-card">
+          <div class="top-node-head">
+            <span class="top-step-badge">STEP 01</span>
+            <span class="top-layer-tag">AGENT LAYER</span>
+          </div>
+          <div class="top-node-title-row">
+            <div class="top-node-icon">🤖</div>
+            <div>
+              <h4 class="top-node-name">Autonomous AI Agent</h4>
+              <span class="top-node-sub">Claude • Cursor • LangGraph</span>
+            </div>
+          </div>
+          <div class="top-code-box" id="top-agent-code">
+            <span class="top-code-label">DISPATCHED TOOL CALL</span>
+            <code>tools/call: postgres_query
+{ "query": "SELECT id, email FROM users LIMIT 10;" }</code>
+          </div>
+          <div class="top-node-footer">
+            <span class="top-pill">Standard MCP</span>
+            <span class="top-pill">stdio / SSE</span>
+          </div>
+        </div>
 
-      <div class="topology-card">
-        <div class="topology-num">03</div>
-        <h3 class="topology-heading">Protected Infrastructure</h3>
-        <p class="topology-body">
-          PostgreSQL, internal databases, cloud APIs, and local file systems receive only authenticated, sanitized, and cryptographically attested tool executions.
-        </p>
+        <!-- Pipeline Connector 1 -->
+        <div class="top-pipe-connector">
+          <div class="top-pipe-badge">JSON-RPC 2.0</div>
+          <div class="top-pipe-line">
+            <div class="top-pipe-pulse"></div>
+          </div>
+        </div>
+
+        <!-- Node 2: MCP Shield Gateway (Core Enclave) -->
+        <div class="top-node-card top-node-shield" id="top-shield-node">
+          <div class="top-node-head">
+            <span class="top-step-badge top-step-primary">STEP 02</span>
+            <span class="top-layer-tag top-tag-primary">IN-MEMORY GATEWAY</span>
+          </div>
+          <div class="top-node-title-row">
+            <div class="top-node-icon top-icon-shield">🛡️</div>
+            <div>
+              <h4 class="top-node-name">MCP Shield Core</h4>
+              <span class="top-node-sub top-sub-green" id="top-shield-status">● Real-time AST & DLP WAF</span>
+            </div>
+          </div>
+          <div class="top-code-box top-code-shield" id="top-shield-code">
+            <span class="top-code-label">IN-MEMORY INSPECTION (&lt; 1.5ms)</span>
+            <code>AST Scan: APPROVED (Safe Read)
+DLP Scrubber: CLEAN (0 PII Leaks)
+Attestation: Signed (Ed25519 Nonce)</code>
+          </div>
+          <div class="top-node-footer">
+            <span class="top-pill top-pill-accent">⚡ Sub-1.5ms RAM</span>
+            <span class="top-pill top-pill-accent">🔒 Zero-Disk</span>
+          </div>
+        </div>
+
+        <!-- Pipeline Connector 2 -->
+        <div class="top-pipe-connector">
+          <div class="top-pipe-badge" id="top-conn-badge-2">Safe & Attested</div>
+          <div class="top-pipe-line" id="top-conn-line-2">
+            <div class="top-pipe-pulse" id="top-conn-pulse-2"></div>
+          </div>
+        </div>
+
+        <!-- Node 3: Target Resource -->
+        <div class="top-node-card" id="top-target-node">
+          <div class="top-node-head">
+            <span class="top-step-badge">STEP 03</span>
+            <span class="top-layer-tag">TARGET TOOLS</span>
+          </div>
+          <div class="top-node-title-row">
+            <div class="top-node-icon">🗄️</div>
+            <div>
+              <h4 class="top-node-name">Protected Infrastructure</h4>
+              <span class="top-node-sub">PostgreSQL • APIs • Files</span>
+            </div>
+          </div>
+          <div class="top-code-box" id="top-target-code">
+            <span class="top-code-label">RESOURCE EXECUTION</span>
+            <code>Status: 200 OK
+Payload: Verified & Clean
+Result: Query executed successfully</code>
+          </div>
+          <div class="top-node-footer">
+            <span class="top-pill">Database Safe</span>
+            <span class="top-pill">Strict Egress</span>
+          </div>
+        </div>
       </div>
     </div>
   </section>
