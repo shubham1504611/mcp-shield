@@ -1,7 +1,21 @@
-global.__MCP_API_KEYS__ = global.__MCP_API_KEYS__ || new Map();
+const { getAllApiKeys } = require('../lib/store');
+
+const ALLOWED_ORIGINS = [
+  'https://mcp-shield-gateway-core.vercel.app',
+  'http://localhost:3000',
+  'http://localhost:8080',
+  'http://127.0.0.1:3000',
+  'http://127.0.0.1:8080'
+];
 
 module.exports = async (req, res) => {
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  const origin = req.headers['origin'];
+  if (origin && ALLOWED_ORIGINS.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  } else {
+    res.setHeader('Access-Control-Allow-Origin', 'https://mcp-shield-gateway-core.vercel.app');
+  }
+
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-Key');
   res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -16,7 +30,7 @@ module.exports = async (req, res) => {
   const apiKeyHeader = req.headers['x-api-key'] || '';
 
   if (authHeader.includes('Bearer master_sec_') || apiKeyHeader.startsWith('mcp_live_sec_')) {
-    const list = Array.from(global.__MCP_API_KEYS__.values()).map(k => ({
+    const list = getAllApiKeys().map(k => ({
       keyPrefix: k.keyPrefix,
       name: k.name,
       rateLimitRpm: k.rateLimitRpm,

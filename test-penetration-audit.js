@@ -342,6 +342,24 @@ test('Comprehensive Penetration Testing & Cryptographic Audit Verification Suite
       category: 'CTE with Destructive DML (WITH d AS (DELETE FROM...))',
       payload: 'WITH d AS (DELETE FROM users WHERE id=1 RETURNING *) SELECT * FROM d;',
       expectedRule: 'UNAUTHORIZED_PRIVILEGED_DML'
+    },
+    {
+      id: 56,
+      category: 'DML Subquery Account Injection (INSERT INTO users ... VALUES (... (SELECT ...)))',
+      payload: "INSERT INTO users (id,name) VALUES (1,(SELECT chr(97)||'dmin'));",
+      expectedRule: 'SQL_DML_SUBQUERY_INJECTION'
+    },
+    {
+      id: 57,
+      category: 'Unauthorized User Account Creation (INSERT INTO users ...)',
+      payload: "INSERT INTO users (id,name,role) VALUES (1, 'attacker', 'admin');",
+      expectedRule: 'UNAUTHORIZED_ACCOUNT_MUTATION'
+    },
+    {
+      id: 58,
+      category: 'Privileged Account Table Mutation (INSERT INTO user_accounts ...)',
+      payload: "INSERT INTO user_accounts (username, password_hash) VALUES ('root', 'hash123');",
+      expectedRule: 'UNAUTHORIZED_ACCOUNT_MUTATION'
     }
   ];
 
@@ -355,7 +373,7 @@ test('Comprehensive Penetration Testing & Cryptographic Audit Verification Suite
     });
   }
 
-  await t.test('Vector #56 [In-Place Unicode & Zero-Width Sanitization]: Injected U+200B and U+202E characters MUST be stripped from returned payload', () => {
+  await t.test('Vector #59 [In-Place Unicode & Zero-Width Sanitization]: Injected U+200B and U+202E characters MUST be stripped from returned payload', () => {
     const dirtyPayload = { query: 'SELECT id,\u200B name\u202E FROM users WHERE active = true' };
     const res = waf.inspectToolCall('postgres_query', dirtyPayload);
 
@@ -365,7 +383,7 @@ test('Comprehensive Penetration Testing & Cryptographic Audit Verification Suite
     assert.ok(!res.sanitizedPayload.query.includes('\u202E'), 'Failed to strip U+202E RTL override character!');
   });
 
-  await t.test('Vector #57 [Legitimate Safe Query]: Should permit, attach nonce/timestamp, and cryptographically sign valid read queries', () => {
+  await t.test('Vector #60 [Legitimate Safe Query]: Should permit, attach nonce/timestamp, and cryptographically sign valid read queries', () => {
     const safePayload = { query: 'SELECT id, name, created_at FROM organizations WHERE plan = "enterprise" LIMIT 20;' };
     const res = waf.inspectToolCall('postgres_query', safePayload);
 
@@ -379,7 +397,7 @@ test('Comprehensive Penetration Testing & Cryptographic Audit Verification Suite
     assert.ok(res.publicKey);
   });
 
-  await t.test('Vector #58 [Ed25519 Attestation Nonce/Context Binding & Mathematical Verification]: Anyone can independently verify signature against canonical spec', () => {
+  await t.test('Vector #61 [Ed25519 Attestation Nonce/Context Binding & Mathematical Verification]: Anyone can independently verify signature against canonical spec', () => {
     const { verifyAttestation } = require('./packages/gateway-core/src/security/waf');
     const payload = { query: 'SELECT * FROM users WHERE active = true' };
     const res = waf.inspectToolCall('postgres_query', payload);
@@ -389,5 +407,14 @@ test('Comprehensive Penetration Testing & Cryptographic Audit Verification Suite
     // Independent verification using canonical format
     const isVerified = verifyAttestation(res);
     assert.strictEqual(isVerified, true, 'Cryptographic Ed25519 verification failed against canonical specification!');
+  });
+
+  await t.test('Vector #62 [Deterministic Ed25519 Key Persistence Across Cold Starts]: Public keys remain stable and cross-verifiable', () => {
+    const { getPublicKey } = require('./packages/gateway-core/src/security/waf');
+    const key1 = getPublicKey();
+    const key2 = require('./api/lib/waf').PUBLIC_KEY;
+    
+    assert.strictEqual(key1, key2, 'Public keys must be identical across gateway core and serverless enclaves!');
+    assert.ok(key1.includes('BEGIN PUBLIC KEY'), 'Invalid PEM public key format');
   });
 });

@@ -1,7 +1,15 @@
 const crypto = require('crypto');
+const querystring = require('querystring');
+const { saveApiKey } = require('../lib/store');
 
-// Shared memory store for API keys in serverless context
-global.__MCP_API_KEYS__ = global.__MCP_API_KEYS__ || new Map();
+const ALLOWED_ORIGINS = [
+  'https://mcp-shield-gateway-core.vercel.app',
+  'http://localhost:3000',
+  'http://localhost:8080',
+  'http://127.0.0.1:3000',
+  'http://127.0.0.1:8080'
+];
+
 global.__MCP_KEYGEN_RATE_LIMITS__ = global.__MCP_KEYGEN_RATE_LIMITS__ || new Map();
 
 function generateApiKey(orgId = 'org_live_default', name = 'Local Gateway Key', rateLimitRpm = 120) {
@@ -21,7 +29,7 @@ function generateApiKey(orgId = 'org_live_default', name = 'Local Gateway Key', 
     createdAt: new Date().toISOString()
   };
 
-  global.__MCP_API_KEYS__.set(keyHash, keyRecord);
+  saveApiKey(keyRecord);
   return keyRecord;
 }
 
@@ -38,41 +46,58 @@ function checkKeygenRateLimit(ip) {
   global.__MCP_KEYGEN_RATE_LIMITS__.set(ip, record);
 
   return {
-    allowed: record.count <= 20,
+    allowed: record.count <= 30,
     count: record.count,
     resetAt: record.resetAt
   };
 }
 
 async function parseRequestBody(req) {
-  if (req.body) {
+  if (req.body !== undefined && req.body !== null) {
+    if (Buffer.isBuffer(req.body)) {
+      const raw = req.body.toString('utf8').replace(/^\uFEFF/, '').trim();
+      try { return JSON.parse(raw); } catch (_) {
+        try { return querystring.parse(raw); } catch (_) { return {}; }
+      }
+    }
     if (typeof req.body === 'object') return req.body;
     if (typeof req.body === 'string') {
-      try {
-        return JSON.parse(req.body.replace(/^\uFEFF/, '').trim());
-      } catch (_) {
-        return {};
+      const trimmed = req.body.replace(/^\uFEFF/, '').trim();
+      try { return JSON.parse(trimmed); } catch (_) {
+        try { return querystring.parse(trimmed); } catch (_) { return {}; }
       }
     }
   }
 
-  return new Promise((resolve) => {
-    let data = '';
-    req.on('data', chunk => { data += chunk; });
-    req.on('end', () => {
+  try {
+    const chunks = [];
+    for await (const chunk of req) {
+      chunks.push(chunk);
+    }
+    const raw = Buffer.concat(chunks).toString('utf8').replace(/^\uFEFF/, '').trim();
+    if (!raw) return {};
+    try {
+      return JSON.parse(raw);
+    } catch (_) {
       try {
-        resolve(data ? JSON.parse(data.replace(/^\uFEFF/, '').trim()) : {});
+        return querystring.parse(raw);
       } catch (_) {
-        resolve({});
+        return {};
       }
-    });
-    req.on('error', () => resolve({}));
-  });
+    }
+  } catch (_) {
+    return {};
+  }
 }
 
 module.exports = async (req, res) => {
-  const origin = req.headers['origin'] || '*';
-  res.setHeader('Access-Control-Allow-Origin', origin);
+  const origin = req.headers['origin'];
+  if (origin && ALLOWED_ORIGINS.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  } else {
+    res.setHeader('Access-Control-Allow-Origin', 'https://mcp-shield-gateway-core.vercel.app');
+  }
+
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-Key');
   res.setHeader('X-Content-Type-Options', 'nosniff');

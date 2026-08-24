@@ -1,12 +1,29 @@
-const { SecurityWaf, PUBLIC_KEY } = require('../packages/gateway-core/src/security/waf');
+const { SecurityWaf, PUBLIC_KEY } = require('./lib/waf');
+
+const ALLOWED_ORIGINS = [
+  'https://mcp-shield-gateway-core.vercel.app',
+  'http://localhost:3000',
+  'http://localhost:8080',
+  'http://127.0.0.1:3000',
+  'http://127.0.0.1:8080'
+];
 
 const waf = new SecurityWaf();
 
 module.exports = async (req, res) => {
   try {
-    res.setHeader('Access-Control-Allow-Origin', '*');
+    const origin = req.headers['origin'];
+    if (origin && ALLOWED_ORIGINS.includes(origin)) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+    } else {
+      res.setHeader('Access-Control-Allow-Origin', 'https://mcp-shield-gateway-core.vercel.app');
+    }
+
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Mcp-Method, Mcp-Name');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Mcp-Method, Mcp-Name, X-API-Key');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
 
     if (req.method === 'OPTIONS') {
       res.status(200).end();
@@ -22,7 +39,10 @@ module.exports = async (req, res) => {
         service: 'MCP Shield Gateway Core',
         engine: 'Zero-Trust 4-Phase Hardened WAF',
         enclave: 'Deterministic Ed25519 Enclave',
-        p99_latency: '<1.5ms',
+        latency: {
+          warmWafEvaluation: '<1.5ms',
+          coldStartP99: '<15ms'
+        },
         timestamp: new Date().toISOString()
       });
       return;

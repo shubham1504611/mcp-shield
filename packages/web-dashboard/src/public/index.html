@@ -955,12 +955,13 @@ console.log('Sanitized Payload:', data.sanitizedPayload);</code></pre>
         <h4 class="legal-h4">1. Zero-Persistence Philosophy</h4>
         <p class="legal-p">MCP Shield operates under a strict in-memory stateless architecture. When autonomous AI agents invoke tools through our proxy, raw prompt text, parameter values, and downstream database payloads are evaluated exclusively in volatile RAM and immediately freed. No customer tool inputs or query results are ever written to non-volatile disks, shared with third parties, or used for model training.</p>
 
-        <h4 class="legal-h4">2. Telemetry Metadata Collected</h4>
-        <p class="legal-p">To provide security monitoring, rate limiting, and compliance auditing, our gateway logs only anonymized metadata:</p>
+        <h4 class="legal-h4">2. Telemetry Metadata & IP Rate Limiting</h4>
+        <p class="legal-p">To provide security monitoring, DoS prevention, rate limiting, and compliance auditing, our gateway processes the following metadata:</p>
         <ul class="legal-ul">
           <li>SHA-256 one-way cryptographic hashes of tool arguments (for audit verification).</li>
-          <li>Execution latency (P99 in milliseconds) and HTTP/JSON-RPC status codes.</li>
+          <li>Execution latency (in milliseconds) and HTTP/JSON-RPC status codes.</li>
           <li>Tool method identifier (e.g. <code>postgres_read</code>, <code>filesystem_list</code>).</li>
+          <li>Client IP address: Evaluated in memory strictly to calculate sliding-window rate limits (RPM) and returned in blocked threat response diagnostics for caller debugging; never persisted permanently to non-volatile disk.</li>
           <li>API key prefix and timestamp for quota tracking.</li>
         </ul>
 

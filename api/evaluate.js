@@ -3,17 +3,9 @@
  */
 
 const { performance } = require('perf_hooks');
+const querystring = require('querystring');
 const { SecurityWaf, PUBLIC_KEY } = require('./lib/waf');
-
-// Global in-memory audit ring buffer & persistent metrics accumulator
-global.__MCP_AUDIT_LOGS__ = global.__MCP_AUDIT_LOGS__ || [];
-global.__MCP_METRICS__ = global.__MCP_METRICS__ || {
-  totalCalls: 0,
-  blockedThreats: 0,
-  latencies: []
-};
-global.__MCP_RATE_LIMITS__ = global.__MCP_RATE_LIMITS__ || new Map();
-global.__MCP_API_KEYS__ = global.__MCP_API_KEYS__ || new Map();
+const { recordEvaluation } = require('./lib/store');
 
 const ALLOWED_ORIGINS = [
   'https://mcp-shield-gateway-core.vercel.app',
@@ -23,8 +15,10 @@ const ALLOWED_ORIGINS = [
   'http://127.0.0.1:8080'
 ];
 
+global.__MCP_RATE_LIMITS__ = global.__MCP_RATE_LIMITS__ || new Map();
+
 function checkRateLimit(ip, isKeyHolder = false) {
-  const maxRpm = isKeyHolder ? 120 : 30;
+  const maxRpm = isKeyHolder ? 120 : 60;
   const now = Date.now();
   const windowMs = 60000;
   const record = global.__MCP_RATE_LIMITS__.get(ip) || { count: 0, resetAt: now + windowMs };
@@ -45,29 +39,52 @@ function checkRateLimit(ip, isKeyHolder = false) {
 }
 
 async function parseRequestBody(req) {
-  if (req.body) {
+  if (req.body !== undefined && req.body !== null) {
+    if (Buffer.isBuffer(req.body)) {
+      const raw = req.body.toString('utf8').replace(/^\uFEFF/, '').trim();
+      try { return JSON.parse(raw); } catch (_) {
+        try { return querystring.parse(raw); } catch (_) { return { query: raw }; }
+      }
+    }
     if (typeof req.body === 'object') return req.body;
     if (typeof req.body === 'string') {
-      try {
-        return JSON.parse(req.body.replace(/^\uFEFF/, '').trim());
-      } catch (_) {
-        return {};
+      const trimmed = req.body.replace(/^\uFEFF/, '').trim();
+      try { return JSON.parse(trimmed); } catch (_) {
+        try { return querystring.parse(trimmed); } catch (_) { return { query: trimmed }; }
       }
     }
   }
 
-  return new Promise((resolve) => {
-    let data = '';
-    req.on('data', chunk => { data += chunk; });
-    req.on('end', () => {
+  try {
+    const chunks = [];
+    for await (const chunk of req) {
+      chunks.push(chunk);
+    }
+    const raw = Buffer.concat(chunks).toString('utf8').replace(/^\uFEFF/, '').trim();
+    if (!raw) return {};
+    try {
+      return JSON.parse(raw);
+    } catch (_) {
       try {
-        resolve(data ? JSON.parse(data.replace(/^\uFEFF/, '').trim()) : {});
+        return querystring.parse(raw);
       } catch (_) {
-        resolve({});
+        return { query: raw };
       }
-    });
-    req.on('error', () => resolve({}));
-  });
+    }
+  } catch (_) {
+    return {};
+  }
+}
+
+// Redact sensitive payload tokens before saving to audit stream
+function redactSensitiveData(str) {
+  if (!str || typeof str !== 'string') return '';
+  return str
+    .replace(/\b(?:github_pat_|gh[pousr]_)[0-9a-zA-Z_]{10,}/gi, '[REDACTED_GITHUB_TOKEN]')
+    .replace(/\bsk-(?:proj-|svcacct-|admin-)?[0-9a-zA-Z_-]{10,}/gi, '[REDACTED_API_KEY]')
+    .replace(/\b\d{3}-\d{2}-\d{4}\b/g, '[REDACTED_SSN]')
+    .replace(/\b(?:\d{4}[-\s]?){3}\d{4}\b/g, '[REDACTED_CREDIT_CARD]')
+    .replace(/-----BEGIN[ A-Z0-9_-]*PRIVATE KEY-----[\s\S]*?-----END[ A-Z0-9_-]*PRIVATE KEY-----/gi, '[REDACTED_PRIVATE_KEY]');
 }
 
 module.exports = async (req, res) => {
@@ -101,7 +118,7 @@ module.exports = async (req, res) => {
   const isKeyHolder = authHeader.startsWith('Bearer mcp_live_sec_') || apiKeyHeader.startsWith('mcp_live_sec_');
 
   const rl = checkRateLimit(clientIp, isKeyHolder);
-  res.setHeader('X-RateLimit-Limit', isKeyHolder ? '120' : '30');
+  res.setHeader('X-RateLimit-Limit', isKeyHolder ? '120' : '60');
   res.setHeader('X-RateLimit-Remaining', String(rl.remaining));
   res.setHeader('X-RateLimit-Reset', String(rl.resetInSec));
 
@@ -117,16 +134,18 @@ module.exports = async (req, res) => {
     const startTime = performance.now();
     const rawBody = await parseRequestBody(req);
 
-    // Dynamic parameter mapping
+    // Dynamic parameter mapping supporting JSON-RPC, REST, and direct text queries
     const toolName = rawBody.tool || rawBody.method || rawBody.toolName || 'postgres_query';
     let params = rawBody.params || rawBody.arguments || rawBody.args;
     if (!params) {
-      if (rawBody.query) params = { query: rawBody.query };
-      else if (rawBody.path) params = { path: rawBody.path };
-      else if (rawBody.url) params = { url: rawBody.url };
+      if (rawBody.query !== undefined) params = { query: rawBody.query };
+      else if (rawBody.path !== undefined) params = { path: rawBody.path };
+      else if (rawBody.url !== undefined) params = { url: rawBody.url };
+      else if (rawBody.text !== undefined) params = { text: rawBody.text };
       else params = { payload: rawBody };
     }
 
+    const agent = rawBody.agent || 'Live Playground';
     const customKeywords = Array.isArray(rawBody.customKeywords) ? rawBody.customKeywords : [];
     const customRegexRules = Array.isArray(rawBody.customRegexRules) ? rawBody.customRegexRules : [];
 
@@ -140,28 +159,7 @@ module.exports = async (req, res) => {
     const endTime = performance.now();
     const latencyMs = parseFloat((endTime - startTime).toFixed(2));
 
-    // Update real metrics
-    global.__MCP_METRICS__.totalCalls = (global.__MCP_METRICS__.totalCalls || 0) + 1;
-    if (!result.isSafe) {
-      global.__MCP_METRICS__.blockedThreats = (global.__MCP_METRICS__.blockedThreats || 0) + 1;
-    }
-    if (global.__MCP_METRICS__.latencies.length > 500) {
-      global.__MCP_METRICS__.latencies.shift();
-    }
-    global.__MCP_METRICS__.latencies.push(latencyMs);
-
-    // Redact sensitive payload tokens before saving to audit stream
-    function redactSensitiveData(str) {
-      if (!str || typeof str !== 'string') return '';
-      return str
-        .replace(/\b(?:github_pat_|gh[pousr]_)[0-9a-zA-Z_]{10,}/gi, '[REDACTED_GITHUB_TOKEN]')
-        .replace(/\bsk-(?:proj-)?[0-9a-zA-Z_-]{10,}/gi, '[REDACTED_API_KEY]')
-        .replace(/\b\d{3}-\d{2}-\d{4}\b/g, '[REDACTED_SSN]')
-        .replace(/\b(?:\d{4}[-\s]?){3}\d{4}\b/g, '[REDACTED_CREDIT_CARD]')
-        .replace(/-----BEGIN[ A-Z0-9_-]*PRIVATE KEY-----[\s\S]*?-----END[ A-Z0-9_-]*PRIVATE KEY-----/gi, '[REDACTED_PRIVATE_KEY]');
-    }
-
-    // Record in genuine live audit log stream
+    // Prepare live audit log entry
     const auditEntry = {
       id: `log_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
       time: 'Just now',
@@ -176,10 +174,13 @@ module.exports = async (req, res) => {
       latency: `${latencyMs} ms`
     };
 
-    global.__MCP_AUDIT_LOGS__.unshift(auditEntry);
-    if (global.__MCP_AUDIT_LOGS__.length > 100) {
-      global.__MCP_AUDIT_LOGS__.pop();
-    }
+    // Store durably
+    await recordEvaluation({
+      isSafe: result.isSafe,
+      rule: result.rule,
+      latencyMs,
+      auditEntry
+    });
 
     if (!result.isSafe) {
       return res.status(200).json({
@@ -205,6 +206,9 @@ module.exports = async (req, res) => {
       status: 'APPROVED',
       traceId: result.traceId,
       signature: result.signature,
+      nonce: result.nonce,
+      timestamp: result.timestamp,
+      policyVersion: result.policyVersion,
       publicKey: result.publicKey,
       canonicalFormat: result.canonicalFormat,
       algorithm: result.algorithm,
@@ -224,7 +228,8 @@ module.exports = async (req, res) => {
     console.error('WAF Evaluation Error:', err);
     return res.status(400).json({
       error: 'Bad Request',
-      message: 'Invalid payload structure or evaluation request rejected'
+      message: 'Invalid payload structure or evaluation request rejected',
+      details: err.message
     });
   }
 };

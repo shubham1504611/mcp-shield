@@ -1,8 +1,21 @@
-global.__MCP_AUDIT_LOGS__ = global.__MCP_AUDIT_LOGS__ || [];
+const { getAuditLogs } = require('../lib/store');
+
+const ALLOWED_ORIGINS = [
+  'https://mcp-shield-gateway-core.vercel.app',
+  'http://localhost:3000',
+  'http://localhost:8080',
+  'http://127.0.0.1:3000',
+  'http://127.0.0.1:8080'
+];
 
 module.exports = async (req, res) => {
-  const origin = req.headers['origin'] || '*';
-  res.setHeader('Access-Control-Allow-Origin', origin);
+  const origin = req.headers['origin'];
+  if (origin && ALLOWED_ORIGINS.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  } else {
+    res.setHeader('Access-Control-Allow-Origin', 'https://mcp-shield-gateway-core.vercel.app');
+  }
+
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-Key');
   res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -13,7 +26,6 @@ module.exports = async (req, res) => {
     return res.status(200).end();
   }
 
-  return res.status(200).json({
-    logs: global.__MCP_AUDIT_LOGS__.slice(0, 50)
-  });
+  const logs = await getAuditLogs(50);
+  return res.status(200).json({ logs });
 };

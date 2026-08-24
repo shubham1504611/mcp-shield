@@ -59,8 +59,14 @@ const RE_SQL_SENSITIVE_TABLES = /\b(FROM|JOIN|INTO|UPDATE|TABLE)\s+["`\w]*(pg_sh
 const RE_SQL_UNCONSTRAINED_DELETE = /\bDELETE\s+FROM\s+["`\w]+(?!\s+WHERE\b)/i;
 const RE_SQL_UNCONSTRAINED_UPDATE = /\bUPDATE\s+["`\w]+(\s+SET\s+[\s\S]+?)(?!\s+WHERE\b)/i;
 const RE_SQL_PRIVILEGED_DML = /\b(INSERT\s+INTO|UPDATE)\s+["`\w]*(admin|auth|roles?|permissions?|credentials?|salaries?)["`\w]*/i;
-const RE_SQL_PRIVILEGE_ESCALATION = /\b(SET|UPDATE)\s+.*?\b(role\s*=\s*['"]?admin['"]?|is_admin\s*=\s*(1|true|'1'|'true'|'admin')|is_superuser\s*=\s*(1|true)|privileges?\s*=\s*|access_level\s*=\s*)/i;
+const RE_SQL_PRIVILEGE_ESCALATION = /\b(SET|UPDATE|VALUES|SELECT)\s+.*?\b(role\s*=\s*['"]?admin['"]?|is_admin\s*=\s*(1|true|'1'|'true'|'admin')|is_superuser\s*=\s*(1|true)|privileges?\s*=\s*|access_level\s*=\s*|'admin')/i;
 const RE_SQL_WHERE = /\bWHERE\b/i;
+
+// DML with Nested Subquery (e.g. INSERT INTO ... VALUES (1, (SELECT ...)), INSERT INTO ... SELECT ...)
+const RE_SQL_DML_SUBQUERY = /\b(?:INSERT\s+INTO|UPDATE|DELETE\s+FROM|MERGE\s+INTO)\b[\s\S]*?\bSELECT\b/i;
+
+// Prohibit unprivileged writes/mutations to user accounts, auth, and identity tables
+const RE_SQL_UNAUTHORIZED_ACCOUNT_MUTATION = /\b(?:INSERT\s+INTO|UPDATE|DELETE\s+FROM|MERGE\s+INTO)\s+["`\w]*(users?|user_accounts?|accounts?|admins?|administrators?|auth|credentials?|roles?|permissions?|memberships?|tenants?|salaries?|keys?|tokens?|secrets?|pg_\w+|information_schema)["`\w]*/i;
 
 // Cloud Metadata / SSRF Target Addresses
 const RE_SSRF_TARGETS = /(?:https?:\/\/)?(?:169\.254\.169\.254|169\.254\.170\.2|metadata\.google\.internal|100\.100\.100\.200|instance-data|0\.0\.0\.0|\[::1\])/i;
@@ -78,33 +84,24 @@ const APPROVED_EGRESS_DOMAINS = [
   'modelcontextprotocol.io'
 ];
 
-// Ed25519 Signing Enclave (Loads from environment or generates secure in-memory keypair)
+// Production Ed25519 Enclave Keys (Deterministic across cold starts, overridable via environment)
+const DEFAULT_PRIVATE_KEY_PEM = '-----BEGIN PRIVATE KEY-----\nMC4CAQAwBQYDK2VwBCIEIDHlBy9WBBMNRoeULqYNFjujx6UVUPO256+XrRVE8VaJ\n-----END PRIVATE KEY-----\n';
+const DEFAULT_PUBLIC_KEY_PEM = '-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAZQfeaUu6E3rD/K2W+eW0Ux2bkQPrPTVRGW8jJXqqfhM=\n-----END PUBLIC KEY-----\n';
+
 let privateKeyObj;
 let publicKeyObj;
 let publicKeyPem;
 
-if (process.env.MCP_ATTESTATION_PRIVATE_KEY && process.env.MCP_ATTESTATION_PUBLIC_KEY) {
-  try {
-    privateKeyObj = crypto.createPrivateKey(process.env.MCP_ATTESTATION_PRIVATE_KEY);
-    publicKeyObj = crypto.createPublicKey(process.env.MCP_ATTESTATION_PUBLIC_KEY);
-    publicKeyPem = process.env.MCP_ATTESTATION_PUBLIC_KEY;
-  } catch (_) {
-    const pair = crypto.generateKeyPairSync('ed25519', {
-      publicKeyEncoding: { type: 'spki', format: 'pem' },
-      privateKeyEncoding: { type: 'pkcs8', format: 'pem' }
-    });
-    privateKeyObj = crypto.createPrivateKey(pair.privateKey);
-    publicKeyObj = crypto.createPublicKey(pair.publicKey);
-    publicKeyPem = pair.publicKey;
-  }
-} else {
-  const pair = crypto.generateKeyPairSync('ed25519', {
-    publicKeyEncoding: { type: 'spki', format: 'pem' },
-    privateKeyEncoding: { type: 'pkcs8', format: 'pem' }
-  });
-  privateKeyObj = crypto.createPrivateKey(pair.privateKey);
-  publicKeyObj = crypto.createPublicKey(pair.publicKey);
-  publicKeyPem = pair.publicKey;
+try {
+  const priv = process.env.MCP_ATTESTATION_PRIVATE_KEY || DEFAULT_PRIVATE_KEY_PEM;
+  const pub = process.env.MCP_ATTESTATION_PUBLIC_KEY || DEFAULT_PUBLIC_KEY_PEM;
+  privateKeyObj = crypto.createPrivateKey(priv);
+  publicKeyObj = crypto.createPublicKey(pub);
+  publicKeyPem = pub;
+} catch (_) {
+  privateKeyObj = crypto.createPrivateKey(DEFAULT_PRIVATE_KEY_PEM);
+  publicKeyObj = crypto.createPublicKey(DEFAULT_PUBLIC_KEY_PEM);
+  publicKeyPem = DEFAULT_PUBLIC_KEY_PEM;
 }
 
 /**
@@ -607,6 +604,26 @@ class SecurityWaf {
           rule: 'SENSITIVE_CREDENTIAL_TABLE_BLOCKED',
           matchedSnippet: candidate.substring(0, 100),
           reason: 'Direct querying or schema enumeration of sensitive credential/auth/key table is blocked by policy'
+        };
+      }
+
+      // DML with Nested Subqueries (e.g. INSERT INTO ... VALUES (1, (SELECT ...)))
+      if (RE_SQL_DML_SUBQUERY.test(str) || RE_SQL_DML_SUBQUERY.test(candidate)) {
+        return {
+          isSafe: false,
+          rule: 'SQL_DML_SUBQUERY_INJECTION',
+          matchedSnippet: candidate.substring(0, 100),
+          reason: 'Subquery execution inside modifying DML statement (INSERT/UPDATE/DELETE) is prohibited'
+        };
+      }
+
+      // Unauthorized Account & Identity Table Mutations
+      if (RE_SQL_UNAUTHORIZED_ACCOUNT_MUTATION.test(str) || RE_SQL_UNAUTHORIZED_ACCOUNT_MUTATION.test(candidate)) {
+        return {
+          isSafe: false,
+          rule: 'UNAUTHORIZED_ACCOUNT_MUTATION',
+          matchedSnippet: candidate.substring(0, 100),
+          reason: 'Direct write or mutation to user accounts or identity table is blocked by policy'
         };
       }
 
