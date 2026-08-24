@@ -224,27 +224,27 @@
       <div class="arch-box">
         <div class="arch-box-header">
           <span class="arch-step-pill">STEP 01</span>
-          <span class="arch-category-tag">CLIENT LAYER</span>
+          <span class="arch-category-tag">ORCHESTRATION</span>
         </div>
         <div class="arch-title-row">
           <div class="arch-ico-wrap">🤖</div>
           <h4 class="arch-box-title">Autonomous AI Agent</h4>
         </div>
         <p class="arch-box-desc">
-          AI agents generate tool call invocations via standard Model Context Protocol JSON-RPC 2.0 payloads.
+          Claude, Cursor, LangChain, or custom agents dispatching tool requests over standard MCP.
         </p>
         <div class="arch-feature-list">
           <div class="arch-feature-item">
-            <span class="feat-bullet">⚡</span>
+            <span class="feat-check">✓</span>
             <span><b>Native Protocol:</b> Stdio & SSE JSON-RPC 2.0</span>
           </div>
           <div class="arch-feature-item">
-            <span class="feat-bullet">🧩</span>
+            <span class="feat-check">✓</span>
             <span><b>Universal Support:</b> Claude, Cursor, LangChain</span>
           </div>
           <div class="arch-feature-item">
-            <span class="feat-bullet">🔒</span>
-            <span><b>Zero Changes:</b> Standard client integration</span>
+            <span class="feat-check">✓</span>
+            <span><b>Zero Rewrites:</b> Standard client integration</span>
           </div>
         </div>
         <div class="arch-footer-tags">
@@ -264,47 +264,47 @@
         </div>
       </div>
 
-      <!-- Step 2: MCP Shield Gateway (Featured Primary Enclave) -->
-      <div class="arch-box arch-box-primary">
+      <!-- Step 2: MCP Shield Gateway -->
+      <div class="arch-box">
         <div class="arch-box-header">
-          <span class="arch-step-pill pill-primary">STEP 02</span>
-          <span class="arch-category-tag tag-primary">ZERO-TRUST WAF</span>
+          <span class="arch-step-pill">STEP 02</span>
+          <span class="arch-category-tag">SECURITY GATEWAY</span>
         </div>
         <div class="arch-title-row">
-          <div class="arch-ico-wrap ico-primary">🛡️</div>
-          <h4 class="arch-box-title">MCP Shield Gateway Core</h4>
+          <div class="arch-ico-wrap">🛡️</div>
+          <h4 class="arch-box-title">MCP Shield Gateway</h4>
         </div>
         <p class="arch-box-desc">
-          In-memory AST engine inspects, sanitizes, and signs tool requests in &lt;1.5ms RAM with zero disk persistence.
+          In-memory AST engine inspects and signs tool requests in &lt;1.5ms RAM without disk persistence.
         </p>
         <div class="arch-feature-list">
           <div class="arch-feature-item">
-            <span class="feat-bullet feat-bullet-primary">✓</span>
+            <span class="feat-check">✓</span>
             <span><b>AST Blast Armor:</b> Blocks DROP, TRUNCATE & mass DML</span>
           </div>
           <div class="arch-feature-item">
-            <span class="feat-bullet feat-bullet-primary">✓</span>
-            <span><b>DLP & Injection Scrubber:</b> Strips SSN, keys & overrides</span>
+            <span class="feat-check">✓</span>
+            <span><b>DLP Scrubber:</b> Strips SSN, keys & prompt overrides</span>
           </div>
           <div class="arch-feature-item">
-            <span class="feat-bullet feat-bullet-primary">✓</span>
-            <span><b>Ed25519 Cryptographic Proof:</b> Attested signature</span>
+            <span class="feat-check">✓</span>
+            <span><b>Ed25519 Signing:</b> Cryptographic proof & attestation</span>
           </div>
         </div>
         <div class="arch-footer-tags">
-          <span class="arch-tag tag-accent">⚡ &lt;1.5ms RAM</span>
-          <span class="arch-tag tag-accent">🔒 Zero-Disk</span>
-          <span class="arch-tag tag-accent">🛡️ Ed25519</span>
+          <span class="arch-tag">In-Memory</span>
+          <span class="arch-tag">&lt;1.5ms RAM</span>
+          <span class="arch-tag">Ed25519</span>
         </div>
       </div>
 
       <!-- Flow Connector 2 -->
       <div class="arch-arrow">
-        <div class="arrow-pill pill-attested">
+        <div class="arrow-pill">
           <span>Safe & Attested</span>
         </div>
         <div class="arrow-visual">
-          <div class="arrow-head head-attested">➔</div>
+          <div class="arrow-head">➔</div>
         </div>
       </div>
 
@@ -312,31 +312,31 @@
       <div class="arch-box">
         <div class="arch-box-header">
           <span class="arch-step-pill">STEP 03</span>
-          <span class="arch-category-tag">INTERNAL ASSETS</span>
+          <span class="arch-category-tag">PROTECTED ASSETS</span>
         </div>
         <div class="arch-title-row">
           <div class="arch-ico-wrap">🗄️</div>
-          <h4 class="arch-box-title">Target Tools & Databases</h4>
+          <h4 class="arch-box-title">Databases & APIs</h4>
         </div>
         <p class="arch-box-desc">
-          Internal databases and upstream APIs receive only authenticated, sanitized, and cryptographically signed queries.
+          Databases, cloud APIs, and local files receiving only authenticated, clean, and signed payloads.
         </p>
         <div class="arch-feature-list">
           <div class="arch-feature-item">
-            <span class="feat-bullet">🛡️</span>
-            <span><b>Database Safety:</b> PostgreSQL, MySQL, Supabase</span>
+            <span class="feat-check">✓</span>
+            <span><b>Database Armor:</b> PostgreSQL, MySQL, Supabase</span>
           </div>
           <div class="arch-feature-item">
-            <span class="feat-bullet">🌐</span>
+            <span class="feat-check">✓</span>
             <span><b>Egress Whitelist:</b> GitHub, Slack, Private VPC</span>
           </div>
           <div class="arch-feature-item">
-            <span class="feat-bullet">📁</span>
+            <span class="feat-check">✓</span>
             <span><b>Filesystem Guard:</b> Neutralizes path traversal</span>
           </div>
         </div>
         <div class="arch-footer-tags">
-          <span class="arch-tag">PostgreSQL</span>
+          <span class="arch-tag">Postgres</span>
           <span class="arch-tag">Cloud APIs</span>
           <span class="arch-tag">Local FS</span>
         </div>
