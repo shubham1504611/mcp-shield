@@ -10,7 +10,7 @@ const COMMUNITY_TOOLS = [
     author: 'Anthropic / MCP Core',
     desc: 'Direct SQL execution and table inspection with AST-level mutation protection.',
     package: '@modelcontextprotocol/server-postgres',
-    shieldCommand: 'node bin/mcp-shield.js wrap --target "npx -y @modelcontextprotocol/server-postgres postgresql://localhost/db"',
+    shieldCommand: 'node packages/cli-shield/bin/mcp-shield.js wrap --target "npx -y @modelcontextprotocol/server-postgres postgresql://localhost/db"',
     rules: ['DROP TABLE Blocked', 'Mass UPDATE Blocked', 'Ed25519 Signed']
   },
   {
@@ -20,7 +20,7 @@ const COMMUNITY_TOOLS = [
     author: 'Anthropic / MCP Core',
     desc: 'HTTP request execution with SSRF protection and strict egress domain firewall.',
     package: '@modelcontextprotocol/server-fetch',
-    shieldCommand: 'node bin/mcp-shield.js wrap --target "npx -y @modelcontextprotocol/server-fetch"',
+    shieldCommand: 'node packages/cli-shield/bin/mcp-shield.js wrap --target "npx -y @modelcontextprotocol/server-fetch"',
     rules: ['Egress Whitelist Enforced', 'SSRF Blocked', 'Ed25519 Signed']
   },
   {
@@ -30,7 +30,7 @@ const COMMUNITY_TOOLS = [
     author: 'Brave Software / MCP Community',
     desc: 'Live web index search with automatic prompt injection filtering.',
     package: '@modelcontextprotocol/server-brave-search',
-    shieldCommand: 'node bin/mcp-shield.js wrap --target "npx -y @modelcontextprotocol/server-brave-search"',
+    shieldCommand: 'node packages/cli-shield/bin/mcp-shield.js wrap --target "npx -y @modelcontextprotocol/server-brave-search"',
     rules: ['Indirect Injection Sanitized', 'Zero-Width Stripped', 'Ed25519 Signed']
   },
   {
@@ -40,7 +40,7 @@ const COMMUNITY_TOOLS = [
     author: 'Anthropic / MCP Core',
     desc: 'Headless browser automation with credential exfiltration protection.',
     package: '@modelcontextprotocol/server-puppeteer',
-    shieldCommand: 'node bin/mcp-shield.js wrap --target "npx -y @modelcontextprotocol/server-puppeteer"',
+    shieldCommand: 'node packages/cli-shield/bin/mcp-shield.js wrap --target "npx -y @modelcontextprotocol/server-puppeteer"',
     rules: ['Cookie Exfiltration Blocked', 'Sandbox Enforced', 'Ed25519 Signed']
   },
   {
@@ -50,7 +50,7 @@ const COMMUNITY_TOOLS = [
     author: 'GitHub / Anthropic',
     desc: 'Repo management, PR reviews and commit operations with secret leak prevention.',
     package: '@modelcontextprotocol/server-github',
-    shieldCommand: 'node bin/mcp-shield.js wrap --target "npx -y @modelcontextprotocol/server-github"',
+    shieldCommand: 'node packages/cli-shield/bin/mcp-shield.js wrap --target "npx -y @modelcontextprotocol/server-github"',
     rules: ['PAT Leaks Blocked', 'Destructive Push Blocked', 'Ed25519 Signed']
   },
   {
@@ -60,7 +60,7 @@ const COMMUNITY_TOOLS = [
     author: 'Anthropic / MCP Core',
     desc: 'Safe file reading and directory inspection with directory traversal armor.',
     package: '@modelcontextprotocol/server-filesystem',
-    shieldCommand: 'node bin/mcp-shield.js wrap --target "npx -y @modelcontextprotocol/server-filesystem /allowed/path"',
+    shieldCommand: 'node packages/cli-shield/bin/mcp-shield.js wrap --target "npx -y @modelcontextprotocol/server-filesystem /allowed/path"',
     rules: ['Path Traversal Blocked', 'System Files Protected', 'Ed25519 Signed']
   },
   {
@@ -70,7 +70,7 @@ const COMMUNITY_TOOLS = [
     author: 'GitLab / MCP Community',
     desc: 'GitLab API integration for pipelines and merge requests with token protection.',
     package: '@modelcontextprotocol/server-gitlab',
-    shieldCommand: 'node bin/mcp-shield.js wrap --target "npx -y @modelcontextprotocol/server-gitlab"',
+    shieldCommand: 'node packages/cli-shield/bin/mcp-shield.js wrap --target "npx -y @modelcontextprotocol/server-gitlab"',
     rules: ['Pipeline Injection Guard', 'PAT Leaks Blocked', 'Ed25519 Signed']
   },
   {
@@ -80,7 +80,7 @@ const COMMUNITY_TOOLS = [
     author: 'Anthropic / MCP Core',
     desc: 'Channel communication and direct messages with DLP PII masking.',
     package: '@modelcontextprotocol/server-slack',
-    shieldCommand: 'node bin/mcp-shield.js wrap --target "npx -y @modelcontextprotocol/server-slack"',
+    shieldCommand: 'node packages/cli-shield/bin/mcp-shield.js wrap --target "npx -y @modelcontextprotocol/server-slack"',
     rules: ['SSN & Card Masking', 'Channel Egress Blocked', 'Ed25519 Signed']
   },
   {
@@ -90,7 +90,7 @@ const COMMUNITY_TOOLS = [
     author: 'Anthropic / MCP Core',
     desc: 'In-memory graph for agent state and context retention with poisoning armor.',
     package: '@modelcontextprotocol/server-memory',
-    shieldCommand: 'node bin/mcp-shield.js wrap --target "npx -y @modelcontextprotocol/server-memory"',
+    shieldCommand: 'node packages/cli-shield/bin/mcp-shield.js wrap --target "npx -y @modelcontextprotocol/server-memory"',
     rules: ['Adversarial Poisoning Guard', 'Ed25519 Signed']
   }
 ];

@@ -127,9 +127,12 @@ module.exports = async (req, res) => {
       else params = { payload: rawBody };
     }
 
-    const agent = rawBody.agent || 'Live Playground';
+    const customKeywords = Array.isArray(rawBody.customKeywords) ? rawBody.customKeywords : [];
+    const customRegexRules = Array.isArray(rawBody.customRegexRules) ? rawBody.customRegexRules : [];
 
     const waf = new SecurityWaf({
+      blockedKeywords: customKeywords,
+      customRegexRules: customRegexRules,
       enforceDlp: true
     });
 
@@ -186,7 +189,14 @@ module.exports = async (req, res) => {
         reason: result.reason,
         matchedSnippet: result.matchedSnippet,
         latencyMs,
-        clientIp: clientIp.replace(/:\d+$/, '')
+        clientIp: clientIp.replace(/:\d+$/, ''),
+        logEntry: auditEntry,
+        response: {
+          status: 'BLOCKED',
+          rule: result.rule,
+          reason: result.reason,
+          matchedSnippet: result.matchedSnippet
+        }
       });
     }
 
@@ -199,7 +209,16 @@ module.exports = async (req, res) => {
       canonicalFormat: result.canonicalFormat,
       algorithm: result.algorithm,
       sanitizedPayload: result.sanitizedPayload,
-      latencyMs
+      latencyMs,
+      logEntry: auditEntry,
+      response: {
+        status: 'APPROVED',
+        tool: toolName,
+        sanitizedPayload: result.sanitizedPayload,
+        traceId: result.traceId,
+        signature: result.signature,
+        algorithm: result.algorithm
+      }
     });
   } catch (err) {
     console.error('WAF Evaluation Error:', err);
