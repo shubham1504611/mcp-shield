@@ -222,53 +222,122 @@
     <div class="architecture-canvas">
       <!-- Step 1: Agent Caller -->
       <div class="arch-box">
-        <div class="arch-box-badge">1. AGENT ORCHESTRATION</div>
-        <h4 class="arch-box-title">Autonomous AI Agent</h4>
-        <p class="arch-box-desc">Claude Desktop, Cursor IDE, LangGraph, or CrewAI dispatches a tool execution request via JSON-RPC 2.0.</p>
-        <div class="arch-tool-tags">
-          <span>Claude</span> • <span>Cursor</span> • <span>LangChain</span>
+        <div class="arch-box-header">
+          <span class="arch-step-pill">STEP 01</span>
+          <span class="arch-category-tag">CLIENT LAYER</span>
+        </div>
+        <div class="arch-title-row">
+          <div class="arch-ico-wrap">🤖</div>
+          <h4 class="arch-box-title">Autonomous AI Agent</h4>
+        </div>
+        <p class="arch-box-desc">
+          AI agents generate tool call invocations via standard Model Context Protocol JSON-RPC 2.0 payloads.
+        </p>
+        <div class="arch-feature-list">
+          <div class="arch-feature-item">
+            <span class="feat-bullet">⚡</span>
+            <span><b>Native Protocol:</b> Stdio & SSE JSON-RPC 2.0</span>
+          </div>
+          <div class="arch-feature-item">
+            <span class="feat-bullet">🧩</span>
+            <span><b>Universal Support:</b> Claude, Cursor, LangChain</span>
+          </div>
+          <div class="arch-feature-item">
+            <span class="feat-bullet">🔒</span>
+            <span><b>Zero Changes:</b> Standard client integration</span>
+          </div>
+        </div>
+        <div class="arch-footer-tags">
+          <span class="arch-tag">Claude</span>
+          <span class="arch-tag">Cursor</span>
+          <span class="arch-tag">LangGraph</span>
         </div>
       </div>
 
-      <!-- Step Connection Arrow -->
+      <!-- Flow Connector 1 -->
       <div class="arch-arrow">
-        <span class="arrow-label">JSON-RPC 2.0</span>
-        <div class="arrow-line">➔</div>
+        <div class="arrow-pill">
+          <span>JSON-RPC 2.0</span>
+        </div>
+        <div class="arrow-visual">
+          <div class="arrow-head">➔</div>
+        </div>
       </div>
 
-      <!-- Step 2: MCP Shield Gateway (Core Engine) -->
+      <!-- Step 2: MCP Shield Gateway (Featured Primary Enclave) -->
       <div class="arch-box arch-box-primary">
-        <div class="arch-box-badge badge-primary">2. ZERO-TRUST GATEWAY</div>
-        <h4 class="arch-box-title">MCP Shield In-Memory Engine</h4>
-        <div class="shield-checklist">
-          <div class="check-row">
-            <span class="check-ico">✓</span>
-            <span><b>Prompt Sanitizer:</b> Strips hidden unicode injections</span>
+        <div class="arch-box-header">
+          <span class="arch-step-pill pill-primary">STEP 02</span>
+          <span class="arch-category-tag tag-primary">ZERO-TRUST WAF</span>
+        </div>
+        <div class="arch-title-row">
+          <div class="arch-ico-wrap ico-primary">🛡️</div>
+          <h4 class="arch-box-title">MCP Shield Gateway Core</h4>
+        </div>
+        <p class="arch-box-desc">
+          In-memory AST engine inspects, sanitizes, and signs tool requests in &lt;1.5ms RAM with zero disk persistence.
+        </p>
+        <div class="arch-feature-list">
+          <div class="arch-feature-item">
+            <span class="feat-bullet feat-bullet-primary">✓</span>
+            <span><b>AST Blast Armor:</b> Blocks DROP, TRUNCATE & mass DML</span>
           </div>
-          <div class="check-row">
-            <span class="check-ico">✓</span>
-            <span><b>SQL Blast Armor:</b> Rejects <code>DROP TABLE</code> & bulk deletes</span>
+          <div class="arch-feature-item">
+            <span class="feat-bullet feat-bullet-primary">✓</span>
+            <span><b>DLP & Injection Scrubber:</b> Strips SSN, keys & overrides</span>
           </div>
-          <div class="check-row">
-            <span class="check-ico">✓</span>
-            <span><b>Ed25519 Signing:</b> Signs verified result with Ed25519</span>
+          <div class="arch-feature-item">
+            <span class="feat-bullet feat-bullet-primary">✓</span>
+            <span><b>Ed25519 Cryptographic Proof:</b> Attested signature</span>
           </div>
+        </div>
+        <div class="arch-footer-tags">
+          <span class="arch-tag tag-accent">⚡ &lt;1.5ms AST RAM</span>
+          <span class="arch-tag tag-accent">🔒 Zero-Persistence</span>
         </div>
       </div>
 
-      <!-- Step Connection Arrow -->
+      <!-- Flow Connector 2 -->
       <div class="arch-arrow">
-        <span class="arrow-label">Safe & Attested</span>
-        <div class="arrow-line">➔</div>
+        <div class="arrow-pill pill-attested">
+          <span>Safe & Attested</span>
+        </div>
+        <div class="arrow-visual">
+          <div class="arrow-head head-attested">➔</div>
+        </div>
       </div>
 
-      <!-- Step 3: Target Resource -->
+      <!-- Step 3: Target Protected Resource -->
       <div class="arch-box">
-        <div class="arch-box-badge">3. PROTECTED RESOURCE</div>
-        <h4 class="arch-box-title">Internal Infrastructure</h4>
-        <p class="arch-box-desc">PostgreSQL, cloud APIs, GitHub repos, or local file systems receive strictly authorized, clean payloads.</p>
-        <div class="arch-tool-tags">
-          <span>PostgreSQL</span> • <span>Cloud APIs</span> • <span>Files</span>
+        <div class="arch-box-header">
+          <span class="arch-step-pill">STEP 03</span>
+          <span class="arch-category-tag">INTERNAL ASSETS</span>
+        </div>
+        <div class="arch-title-row">
+          <div class="arch-ico-wrap">🗄️</div>
+          <h4 class="arch-box-title">Target Tools & Databases</h4>
+        </div>
+        <p class="arch-box-desc">
+          Internal databases and upstream APIs receive only authenticated, sanitized, and cryptographically signed queries.
+        </p>
+        <div class="arch-feature-list">
+          <div class="arch-feature-item">
+            <span class="feat-bullet">🛡️</span>
+            <span><b>Database Safety:</b> PostgreSQL, MySQL, Supabase</span>
+          </div>
+          <div class="arch-feature-item">
+            <span class="feat-bullet">🌐</span>
+            <span><b>Egress Whitelist:</b> GitHub, Slack, Private VPC</span>
+          </div>
+          <div class="arch-feature-item">
+            <span class="feat-bullet">📁</span>
+            <span><b>Filesystem Guard:</b> Neutralizes path traversal</span>
+          </div>
+        </div>
+        <div class="arch-footer-tags">
+          <span class="arch-tag">PostgreSQL</span>
+          <span class="arch-tag">Cloud APIs</span>
+          <span class="arch-tag">Local FS</span>
         </div>
       </div>
     </div>
