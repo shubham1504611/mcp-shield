@@ -177,7 +177,7 @@
             <span>INCOMING TOOL CALL (JSON-RPC)</span>
             <span class="play-method">postgres_query</span>
           </div>
-          <textarea id="playground-input" class="play-textarea" spellcheck="false" placeholder="Enter query or tool arguments..."></textarea>
+          <textarea id="playground-input" class="play-textarea" spellcheck="false" placeholder="Enter query or tool arguments...">SELECT id, name, created_at FROM organizations WHERE plan = 'enterprise' LIMIT 20;</textarea>
           <div class="play-input-actions">
             <button class="btn-play-run" onclick="executePlayground()">⚡ Evaluate Payload</button>
             <span class="play-hint">Zero data persisted to disk</span>
@@ -190,19 +190,29 @@
             <span>GATEWAY VERDICT & AUDIT</span>
             <span class="code-badge badge-green" id="playground-badge">PASS: Ed25519 Signed</span>
           </div>
-          <pre class="play-pre"><code id="playground-output"></code></pre>
+          <pre class="play-pre"><code id="playground-output">{
+  "isSafe": true,
+  "verdict": "APPROVED",
+  "sanitizedPayload": {
+    "tool": "postgres_query",
+    "query": "SELECT id, name, created_at FROM organizations WHERE plan = 'enterprise' LIMIT 20;"
+  },
+  "signature": "3045022100e4b8...",
+  "nonce": "c479e0a2",
+  "policyVersion": "v2.5"
+}</code></pre>
           <div class="play-metrics-footer">
             <div>
               <span class="play-foot-tag">LATENCY</span>
-              <span class="play-foot-val" id="play-lat">-- ms</span>
+              <span class="play-foot-val" id="play-lat">0.24 ms</span>
             </div>
             <div>
               <span class="play-foot-tag">RISK SCORE</span>
-              <span class="play-foot-val" id="play-risk">--</span>
+              <span class="play-foot-val" id="play-risk">0.00</span>
             </div>
             <div>
               <span class="play-foot-tag">SIGNATURE</span>
-              <span class="play-foot-val mono" id="play-sig">Awaiting evaluation...</span>
+              <span class="play-foot-val mono" id="play-sig">3045022100e4b8...</span>
             </div>
           </div>
         </div>
