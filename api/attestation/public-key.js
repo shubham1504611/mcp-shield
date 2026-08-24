@@ -1,4 +1,4 @@
-const { PUBLIC_KEY } = require('../../packages/gateway-core/src/security/waf');
+const { PUBLIC_KEY } = require('../lib/waf');
 
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');

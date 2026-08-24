@@ -281,12 +281,22 @@ async function fetchLiveMetrics() {
   } catch (_) {}
 }
 
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 async function fetchLiveAuditFeed() {
   try {
     const res = await fetch('/api/audit/logs');
     if (res.ok) {
       const data = await res.json();
-      if (data.logs && Array.isArray(data.logs) && data.logs.length > 0) {
+      if (data.logs && Array.isArray(data.logs)) {
         localAuditFeedCache = data.logs;
         renderAuditFeed();
         return;
@@ -294,33 +304,6 @@ async function fetchLiveAuditFeed() {
     }
   } catch (_) {}
 
-  // Fallback initial visual entries if serverless cold started
-  if (localAuditFeedCache.length === 0) {
-    localAuditFeedCache = [
-      {
-        id: 1,
-        time: 'Just now',
-        agent: 'Claude Desktop',
-        agentIcon: '🟠',
-        tool: 'postgres_query',
-        payload: 'SELECT id, org_name, status FROM organizations LIMIT 50;',
-        verdict: 'PASS: Ed25519 Signed',
-        type: 'passed',
-        latency: '1.1 ms'
-      },
-      {
-        id: 2,
-        time: '2m ago',
-        agent: 'Cursor IDE',
-        agentIcon: '⬛',
-        tool: 'postgres_query',
-        payload: 'DROP/**/TABLE accounts CASCADE;',
-        verdict: 'BLOCKED: DESTRUCTIVE_SQL_DDL',
-        type: 'blocked',
-        latency: '0.8 ms'
-      }
-    ];
-  }
   renderAuditFeed();
 }
 
@@ -328,26 +311,45 @@ function renderAuditFeed() {
   const tbody = document.getElementById('console-audit-tbody');
   if (!tbody) return;
 
+  if (localAuditFeedCache.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 24px;">No requests recorded yet. Evaluate a payload in the playground above or connect an MCP agent to see live audit logs.</td></tr>`;
+    return;
+  }
+
   const filtered = localAuditFeedCache.filter(item => {
     if (currentFeedFilter === 'blocked') return item.type === 'blocked';
     if (currentFeedFilter === 'passed') return item.type === 'passed';
     return true;
   });
 
-  tbody.innerHTML = filtered.map(log => `
-    <tr>
-      <td class="feed-time">${log.time || 'Just now'}</td>
-      <td class="feed-agent"><span>${log.agentIcon || '🤖'}</span> ${log.agent || 'Client'}</td>
-      <td class="feed-method"><code>${log.tool || 'postgres_query'}</code></td>
-      <td class="feed-payload" title="${log.payload}">${log.payload}</td>
-      <td>
-        <span class="verdict-tag ${log.type === 'blocked' ? 'verdict-blocked' : 'verdict-passed'}">
-          ${log.type === 'blocked' ? '🔴' : '🟢'} ${log.verdict}
-        </span>
-      </td>
-      <td class="feed-latency">${log.latency || '1.0 ms'}</td>
-    </tr>
-  `).join('');
+  if (filtered.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 20px;">No events matching the '${escapeHtml(currentFeedFilter)}' filter.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(log => {
+    const safePayload = escapeHtml(log.payload || '');
+    const safeTool = escapeHtml(log.tool || 'postgres_query');
+    const safeAgent = escapeHtml(log.agent || 'Client');
+    const safeVerdict = escapeHtml(log.verdict || '');
+    const safeLatency = escapeHtml(log.latency || '0 ms');
+    const safeTime = escapeHtml(log.time || 'Just now');
+
+    return `
+      <tr>
+        <td class="feed-time">${safeTime}</td>
+        <td class="feed-agent"><span>${log.agentIcon || '🤖'}</span> ${safeAgent}</td>
+        <td class="feed-method"><code>${safeTool}</code></td>
+        <td class="feed-payload" title="${safePayload}">${safePayload}</td>
+        <td>
+          <span class="verdict-tag ${log.type === 'blocked' ? 'verdict-blocked' : 'verdict-passed'}">
+            ${log.type === 'blocked' ? '🔴' : '🟢'} ${safeVerdict}
+          </span>
+        </td>
+        <td class="feed-latency">${safeLatency}</td>
+      </tr>
+    `;
+  }).join('');
 }
 
 function filterAuditFeed(filter) {

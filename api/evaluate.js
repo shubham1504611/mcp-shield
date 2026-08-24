@@ -4,7 +4,7 @@
  */
 
 const { performance } = require('perf_hooks');
-const { SecurityWaf, PUBLIC_KEY } = require('../packages/gateway-core/src/security/waf');
+const { SecurityWaf, PUBLIC_KEY } = require('./lib/waf');
 
 // Global in-memory audit ring buffer & persistent metrics accumulator
 global.__MCP_AUDIT_LOGS__ = global.__MCP_AUDIT_LOGS__ || [];

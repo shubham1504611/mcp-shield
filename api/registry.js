@@ -1,4 +1,4 @@
-const { getAllTools } = require('../packages/gateway-core/src/registry/tools');
+const { getAllTools } = require('./lib/tools');
 
 module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
