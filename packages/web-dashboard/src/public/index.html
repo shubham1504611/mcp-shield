@@ -218,128 +218,29 @@
       <p class="section-desc">Zero code rewrites. MCP Shield acts as a high-performance, in-memory proxy between your agent orchestration layer and your tools.</p>
     </div>
 
-    <!-- 3-Node Architecture Flow -->
-    <div class="architecture-canvas">
-      <!-- Step 1: Agent Caller -->
-      <div class="arch-box">
-        <div class="arch-box-header">
-          <span class="arch-step-pill">STEP 01</span>
-          <span class="arch-category-tag">ORCHESTRATION</span>
-        </div>
-        <div class="arch-title-row">
-          <div class="arch-ico-wrap">🤖</div>
-          <h4 class="arch-box-title">Autonomous AI Agent</h4>
-        </div>
-        <p class="arch-box-desc">
-          Claude, Cursor, LangChain, or custom agents dispatching tool requests over standard MCP.
+    <div class="topology-grid">
+      <div class="topology-card">
+        <div class="topology-num">01</div>
+        <h3 class="topology-heading">Autonomous AI Agents</h3>
+        <p class="topology-body">
+          Claude Desktop, Cursor IDE, LangGraph, or custom agent frameworks dispatch tool execution requests using the standard Model Context Protocol via JSON-RPC 2.0.
         </p>
-        <div class="arch-feature-list">
-          <div class="arch-feature-item">
-            <span class="feat-check">✓</span>
-            <span><b>Native Protocol:</b> Stdio & SSE JSON-RPC 2.0</span>
-          </div>
-          <div class="arch-feature-item">
-            <span class="feat-check">✓</span>
-            <span><b>Universal Support:</b> Claude, Cursor, LangChain</span>
-          </div>
-          <div class="arch-feature-item">
-            <span class="feat-check">✓</span>
-            <span><b>Zero Rewrites:</b> Standard client integration</span>
-          </div>
-        </div>
-        <div class="arch-footer-tags">
-          <span class="arch-tag">Claude</span>
-          <span class="arch-tag">Cursor</span>
-          <span class="arch-tag">LangGraph</span>
-        </div>
       </div>
 
-      <!-- Flow Connector 1 -->
-      <div class="arch-arrow">
-        <div class="arrow-pill">
-          <span>JSON-RPC 2.0</span>
-        </div>
-        <div class="arrow-visual">
-          <div class="arrow-head">➔</div>
-        </div>
-      </div>
-
-      <!-- Step 2: MCP Shield Gateway -->
-      <div class="arch-box">
-        <div class="arch-box-header">
-          <span class="arch-step-pill">STEP 02</span>
-          <span class="arch-category-tag">SECURITY GATEWAY</span>
-        </div>
-        <div class="arch-title-row">
-          <div class="arch-ico-wrap">🛡️</div>
-          <h4 class="arch-box-title">MCP Shield Gateway</h4>
-        </div>
-        <p class="arch-box-desc">
-          In-memory AST engine inspects and signs tool requests in &lt;1.5ms RAM without disk persistence.
+      <div class="topology-card">
+        <div class="topology-num">02</div>
+        <h3 class="topology-heading">MCP Shield Gateway</h3>
+        <p class="topology-body">
+          Our high-performance in-memory proxy analyzes AST trees, scrubs DLP secrets, neutralizes prompt overrides, and signs valid requests in &lt;1.5ms RAM without disk persistence.
         </p>
-        <div class="arch-feature-list">
-          <div class="arch-feature-item">
-            <span class="feat-check">✓</span>
-            <span><b>AST Blast Armor:</b> Blocks DROP, TRUNCATE & mass DML</span>
-          </div>
-          <div class="arch-feature-item">
-            <span class="feat-check">✓</span>
-            <span><b>DLP Scrubber:</b> Strips SSN, keys & prompt overrides</span>
-          </div>
-          <div class="arch-feature-item">
-            <span class="feat-check">✓</span>
-            <span><b>Ed25519 Signing:</b> Cryptographic proof & attestation</span>
-          </div>
-        </div>
-        <div class="arch-footer-tags">
-          <span class="arch-tag">In-Memory</span>
-          <span class="arch-tag">&lt;1.5ms RAM</span>
-          <span class="arch-tag">Ed25519</span>
-        </div>
       </div>
 
-      <!-- Flow Connector 2 -->
-      <div class="arch-arrow">
-        <div class="arrow-pill">
-          <span>Safe & Attested</span>
-        </div>
-        <div class="arrow-visual">
-          <div class="arrow-head">➔</div>
-        </div>
-      </div>
-
-      <!-- Step 3: Target Protected Resource -->
-      <div class="arch-box">
-        <div class="arch-box-header">
-          <span class="arch-step-pill">STEP 03</span>
-          <span class="arch-category-tag">PROTECTED ASSETS</span>
-        </div>
-        <div class="arch-title-row">
-          <div class="arch-ico-wrap">🗄️</div>
-          <h4 class="arch-box-title">Databases & APIs</h4>
-        </div>
-        <p class="arch-box-desc">
-          Databases, cloud APIs, and local files receiving only authenticated, clean, and signed payloads.
+      <div class="topology-card">
+        <div class="topology-num">03</div>
+        <h3 class="topology-heading">Protected Infrastructure</h3>
+        <p class="topology-body">
+          PostgreSQL, internal databases, cloud APIs, and local file systems receive only authenticated, sanitized, and cryptographically attested tool executions.
         </p>
-        <div class="arch-feature-list">
-          <div class="arch-feature-item">
-            <span class="feat-check">✓</span>
-            <span><b>Database Armor:</b> PostgreSQL, MySQL, Supabase</span>
-          </div>
-          <div class="arch-feature-item">
-            <span class="feat-check">✓</span>
-            <span><b>Egress Whitelist:</b> GitHub, Slack, Private VPC</span>
-          </div>
-          <div class="arch-feature-item">
-            <span class="feat-check">✓</span>
-            <span><b>Filesystem Guard:</b> Neutralizes path traversal</span>
-          </div>
-        </div>
-        <div class="arch-footer-tags">
-          <span class="arch-tag">Postgres</span>
-          <span class="arch-tag">Cloud APIs</span>
-          <span class="arch-tag">Local FS</span>
-        </div>
       </div>
     </div>
   </section>
