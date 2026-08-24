@@ -75,8 +75,8 @@
       <!-- Clean 1-Line CLI Quickstart -->
       <div class="hero-terminal-pill">
         <span class="term-prompt">$</span>
-        <span class="term-code">npx mcp-shield wrap --target "npx @modelcontextprotocol/server-postgres postgresql://..."</span>
-        <button class="term-copy" onclick="copySnippet('npx mcp-shield wrap')">Copy</button>
+        <span class="term-code">npx @mcp-shield/cli wrap --target "npx @modelcontextprotocol/server-postgres postgresql://..."</span>
+        <button class="term-copy" onclick="copySnippet('npx @mcp-shield/cli wrap')">Copy</button>
       </div>
 
       <!-- Ecosystem Compatibility Chips with Rich Branded SVG Icons -->
@@ -408,8 +408,8 @@
         </div>
         <div class="console-actions">
           <button class="btn-console-action" onclick="openPolicyEditorModal()">⚙️ Custom DLP Policies</button>
-          <button class="btn-console-action" onclick="simulateProtectedCall()">⚡ Run Test Query</button>
-          <button class="btn-console-action" onclick="simulateAttackCall()">🚨 Test Attack Block</button>
+          <button class="btn-console-action" onclick="runRealTestQuery()">⚡ Run Test Query</button>
+          <button class="btn-console-action" onclick="runRealAttackBlockTest()">🚨 Test Attack Block</button>
         </div>
       </div>
 
@@ -565,13 +565,13 @@
     "shielded-postgres": {
       "command": "npx",
       "args": [
-        "-y", "mcp-shield", "wrap",
+        "-y", "@mcp-shield/cli", "wrap",
         "--target", "npx -y @modelcontextprotocol/server-postgres postgresql://user:pass@localhost:5432/db"
       ]
     }
   }
 }</code></pre>
-          <button class="btn-copy-code" onclick="copySnippet('npx -y mcp-shield wrap --target')">Copy Configuration</button>
+          <button class="btn-copy-code" onclick="copySnippet('npx -y @mcp-shield/cli wrap --target')">Copy Configuration</button>
         </div>
 
         <!-- Cursor Pane -->
@@ -579,31 +579,31 @@
           <p class="pane-instruction">In Cursor Settings ➔ Features ➔ MCP Servers, enter:</p>
           <pre><code>Name: MCP-Shield-Gateway
 Type: command
-Command: npx mcp-shield proxy --port 8080 --key mcp_live_sec_your_key</code></pre>
-          <button class="btn-copy-code" onclick="copySnippet('npx mcp-shield proxy --port 8080')">Copy Cursor Command</button>
+Command: npx @mcp-shield/cli proxy --port 8080 --key mcp_live_sec_your_key</code></pre>
+          <button class="btn-copy-code" onclick="copySnippet('npx @mcp-shield/cli proxy --port 8080')">Copy Cursor Command</button>
         </div>
 
         <!-- mcp-tunnel Pane -->
         <div class="quick-pane" id="pane-tunnel">
           <p class="pane-instruction">Connect private VPC tools with ZERO open inbound ports using outbound reverse tunnel:</p>
           <pre><code># Run on your private internal database host or bastion
-npx mcp-shield tunnel \
+npx @mcp-shield/cli tunnel \
   --target "npx -y @modelcontextprotocol/server-postgres postgresql://internal-vpc-db:5432/mydb" \
   --key "mcp_live_sec_your_key"
 
 # Active tunnel is securely routed through the gateway without open ports</code></pre>
-          <button class="btn-copy-code" onclick="copySnippet('npx mcp-shield tunnel --target')">Copy Tunnel Command</button>
+          <button class="btn-copy-code" onclick="copySnippet('npx @mcp-shield/cli tunnel --target')">Copy Tunnel Command</button>
         </div>
 
         <!-- CLI Doctor Pane -->
         <div class="quick-pane" id="pane-doctor">
           <p class="pane-instruction">Run instant diagnostic scan on local Cursor & Claude configs with 1-click auto-patching:</p>
           <pre><code># Scan local configs for unshielded tools & hardcoded passwords
-npx mcp-shield doctor
+npx @mcp-shield/cli doctor
 
 # Automatically wrap all vulnerable servers in 1-click
-npx mcp-shield doctor --fix</code></pre>
-          <button class="btn-copy-code" onclick="copySnippet('npx mcp-shield doctor --fix')">Copy Doctor Command</button>
+npx @mcp-shield/cli doctor --fix</code></pre>
+          <button class="btn-copy-code" onclick="copySnippet('npx @mcp-shield/cli doctor --fix')">Copy Doctor Command</button>
         </div>
 
         <!-- Python Pane -->

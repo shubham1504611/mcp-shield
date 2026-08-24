@@ -1,9 +1,15 @@
 {
   "version": 2,
   "rewrites": [
+    { "source": "/api/evaluate", "destination": "/api/evaluate" },
+    { "source": "/api/keys/:match*", "destination": "/api/index" },
+    { "source": "/api/keys", "destination": "/api/index" },
+    { "source": "/api/audit/:match*", "destination": "/api/index" },
+    { "source": "/api/telemetry/:match*", "destination": "/api/index" },
     { "source": "/v1/mcp", "destination": "/api/mcp" },
+    { "source": "/v1/audit/logs", "destination": "/api/index" },
     { "source": "/healthz", "destination": "/api/index" },
     { "source": "/readyz", "destination": "/api/index" },
-    { "source": "/api/(.*)", "destination": "/api/index" }
+    { "source": "/api/:match*", "destination": "/api/index" }
   ]
 }

@@ -72,38 +72,50 @@ However, connecting models directly to tools without a security layer exposes yo
 
 ## 🚀 2-Minute Quickstart
 
-### 1. Local CLI Proxy (Instant Zero-Config)
-Wrap any local MCP server process in 1 line:
-
-```bash
-# Wrap a local PostgreSQL MCP server with MCP Shield
-npx mcp-shield wrap --target "npx -y @modelcontextprotocol/server-postgres postgresql://user:pass@localhost:5432/mydb"
-```
-
-### 2. Claude Desktop Integration
-Add the wrapper to your `claude_desktop_config.json`:
+### 1. Claude Desktop Integration
+Add the proxy wrapper to your `claude_desktop_config.json`:
 
 ```json
 {
   "mcpServers": {
-    "shielded-database": {
+    "shielded-postgres": {
       "command": "npx",
       "args": [
-        "-y", "mcp-shield", "wrap",
-        "--target", "npx -y @modelcontextprotocol/server-postgres postgresql://user:pass@localhost:5432/mydb"
+        "-y", "@mcp-shield/cli", "wrap",
+        "--target", "npx -y @modelcontextprotocol/server-postgres postgresql://user:pass@localhost:5432/db"
       ]
     }
   }
 }
 ```
 
-### 3. Cursor IDE Integration
-In **Cursor Settings** ➔ **Features** ➔ **MCP Servers** ➔ **Add New MCP Server**:
+### 2. Cursor IDE Integration
+In **Cursor Settings ➔ Features ➔ MCP Servers**:
 * **Name**: `MCP-Shield-Gateway`
 * **Type**: `command`
-* **Command**: `npx mcp-shield proxy --port 8080 --key mcp_live_sec_your_key`
+* **Command**: `npx @mcp-shield/cli proxy --port 8080 --key mcp_live_sec_your_key`
 
-### 4. Python SDK (LangChain & CrewAI)
+### 3. Outbound Reverse Tunnel (`mcp-tunnel` for Private VPCs)
+Connect private internal VPC databases with **zero open inbound ports**:
+
+```bash
+npx @mcp-shield/cli tunnel \
+  --target "npx -y @modelcontextprotocol/server-postgres postgresql://internal-vpc-db:5432/mydb" \
+  --key "mcp_live_sec_your_key"
+```
+
+### 4. CLI Security Diagnostics (`mcp-shield doctor`)
+Audit local configs for unshielded servers and plaintext database passwords:
+
+```bash
+# Scan local IDE configurations
+npx @mcp-shield/cli doctor
+
+# Automatically wrap all vulnerable servers in 1-click
+npx @mcp-shield/cli doctor --fix
+```
+
+### 5. Python SDK Integration
 ```python
 from mcp_shield import ShieldClient
 
@@ -112,24 +124,9 @@ client = ShieldClient(
     api_key="mcp_live_sec_your_key"
 )
 
-# Intercepts prompt injections and blocks destructive SQL
-result = client.call_tool("postgres_query", {"query": "SELECT id, name FROM users LIMIT 50"})
-print("Cryptographic Signature:", result.signature)
-```
-
-### 5. TypeScript / Node.js SDK
-```typescript
-import { McpShieldClient } from '@mcp-shield/sdk';
-
-const shield = new McpShieldClient({
-  gatewayUrl: 'https://mcp-shield-gateway-core.vercel.app/v1/mcp',
-  apiKey: process.env.MCP_SHIELD_KEY
-});
-
-const response = await shield.executeTool('postgres_read', { 
-  query: 'SELECT * FROM organizations WHERE active = true' 
-});
-console.log('Attested Signature:', response.signature);
+# Intercepts prompt injections, DLP leaks, and blocks destructive SQL
+result = client.call_tool("sql_query", {"query": "SELECT id, name FROM users LIMIT 50"})
+print("Attestation Signature:", result.signature)
 ```
 
 ---
@@ -137,8 +134,8 @@ console.log('Attested Signature:', response.signature);
 ## 🧪 Real-Time Security Playground & Live Console
 
 Try out attack payloads live in your browser:
-* **Interactive Live Playground**: Test SQL injections, prompt overrides, and webhook exfiltration in real time.
-* **Active Key Console**: Monitor real-time request counts, blocked threat vectors, and live audit feeds.
+* **Interactive Live Playground**: Real serverless evaluation of SQL injections, prompt overrides, and webhook exfiltration.
+* **Active Key Console**: Real-time request counts, blocked threat vectors, and live audit feeds.
 
 👉 **Visit the Live Console**: [https://mcp-shield-gateway-core.vercel.app/#console](https://mcp-shield-gateway-core.vercel.app/#console)
 
@@ -150,9 +147,10 @@ Try out attack payloads live in your browser:
 mcp-shield/
 ├── packages/
 │   ├── gateway-core/     # Stateless reverse proxy & 4-phase AST security WAF
-│   ├── cli-shield/       # Developer CLI runner (`npx mcp-shield wrap`)
+│   ├── cli-shield/       # Developer CLI runner (`@mcp-shield/cli`)
 │   ├── database/         # PostgreSQL / Supabase schema, RLS & audit views
 │   └── web-dashboard/    # Production control plane, Live Playground & Console UI
+├── api/                  # Vercel Serverless Gateway & Real-Time Evaluation Endpoints
 ├── docs/                 # Production deployment & threat model guides
 ├── Dockerfile            # Multi-stage production container
 ├── docker-compose.yml    # Unified container stack
@@ -163,20 +161,24 @@ mcp-shield/
 
 ## 🧪 Test Suite & Penetration Testing
 
-MCP Shield includes an exhaustive automated test suite covering prompt injection jailbreaks, SQL AST bypass attempts, and concurrency stress tests:
+MCP Shield includes an exhaustive automated test suite covering all 22 adversarial penetration test vectors, AST SQL comment evasion bypasses, and deterministic Ed25519 cryptographic signatures:
 
 ```bash
 # Run all workspace test suites
 npm run test:all
+
+# Run 24-vector adversarial penetration audit
+node --test test-penetration-audit.js
 ```
 
 ```
 ✓ @mcp-shield/database       ──► 7 Tables, Views & RLS Policies (PASSED)
-✓ @mcp-shield/gateway-core   ──► 21 WAF Penetration & Proxy Tests (PASSED)
-✓ mcp-shield (CLI)           ──► 3 IDE Auto-Discovery & Proxy Tests (PASSED)
-✓ @mcp-shield/web-dashboard  ──► 4 Key Gen, Webhooks & Telemetry Tests (PASSED)
+✓ @mcp-shield/gateway-core   ──► 37 Tests (Proxy, WAF, Tunnel, Registry, DLP) (PASSED)
+✓ @mcp-shield/cli            ──► 7 Tests (Scanner, Local Runner, Doctor) (PASSED)
+✓ @mcp-shield/web-dashboard  ──► 4 Tests (Key Gen, ROI Telemetry, Webhooks) (PASSED)
+✓ Penetration Audit Suite    ──► 25 Tests (22 Attack Vectors + Crypto Verification) (PASSED)
 ─────────────────────────────────────────────────────────────────────────────
-TOTAL PASSED: 28 / 28 Tests (100% Passed)
+TOTAL PASSED: 80 / 80 Tests (100% Passed)
 ```
 
 ---

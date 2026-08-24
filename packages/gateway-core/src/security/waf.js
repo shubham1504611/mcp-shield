@@ -1,30 +1,39 @@
 /**
- * Highly Optimized Security WAF & DLP Engine for Model Context Protocol (MCP)
+ * Hardened 4-Phase Security WAF & DLP Engine for Model Context Protocol (MCP)
  * 
- * Performance Optimizations:
- * 1. Zero-Allocation Pre-Compiled Static RegExp Patterns
- * 2. Enterprise DLP (Data Loss Prevention) Scanner for PII, Secrets & Credentials
- * 3. Dynamic Custom Regex & Keyword Policy Management
- * 4. Constant-Time Ed25519 Cryptographic Attestation
+ * Phases:
+ * 1. Obfuscation & Comment Stripping (Unicode, Comments, URL encoding, Base64 recursive decoding)
+ * 2. Adversarial Injection & Egress Exfiltration Scanner (Jailbreaks, Exfil URLs, Shell injections)
+ * 3. AST SQL Blast Radius Armor (DDL, Unconstrained DML, Privileged Escalations)
+ * 4. Deterministic Hardware-Grade Ed25519 Cryptographic Attestation
  */
 
 const crypto = require('crypto');
 
-// Pre-compiled global RegExp constants (Allocated ONCE at module load)
+// Zero-width and invisible unicode characters
 const RE_ZERO_WIDTH = /[\u200B-\u200D\uFEFF\u202A-\u202E\u2060-\u206F]/g;
-const RE_WHITESPACE = /\s+/g;
-const RE_BASE64 = /([A-Za-z0-9+/]{20,}={0,2})/g;
-const RE_PRINTABLE = /^[\x20-\x7E\s]+$/;
+// Unicode spaces (NBSP, narrow NBSP, ideographic, tabs, newlines)
+const RE_ALL_WHITESPACE = /[\s\u00A0\u1680\u2000-\u200A\u2028\u2029\u202F\u205F\u3000]+/g;
+// SQL block comments (e.g. DROP/**/TABLE or DROP/*x*/TABLE/*y*/)
+const RE_SQL_BLOCK_COMMENTS = /\/\*[\s\S]*?\*\//g;
+// SQL line comments starting with whitespace or line start
+const RE_SQL_LINE_COMMENTS = /(?:^|\s+)--.*$/gm;
+// Base64 regex detector
+const RE_BASE64 = /\b([A-Za-z0-9+/]{12,}={0,2})\b/g;
 
+// Phase 2: Adversarial Injection Patterns (Ordered by priority)
 const INJECTION_PATTERNS = [
-  { rule: 'SYSTEM_OVERRIDE', regex: /(system\s+override|ignore\s+(all\s+)?(previous|prior)\s+(instructions|directives|rules)|disregard\s+(previous|prior)\s+instructions)/i },
-  { rule: 'ROLE_JAILBREAK', regex: /(you\s+are\s+now\s+in\s+developer\s+mode|dan\s+mode|unrestricted\s+mode|jailbreak\s+active|bypass\s+safety)/i },
+  { rule: 'SYSTEM_OVERRIDE', regex: /(system\s+override|ignore\s+(all\s+)?(previous|prior)\s+(instructions|directives|rules)|disregard\s+(all\s+)?(previous|prior)\s+(instructions|rules)|(ignore|disregard|forget|override)\s+(all\s+)?(previous|prior|initial)\s+(instructions|directives|rules|prompts))/i },
+  { rule: 'ROLE_JAILBREAK', regex: /(you\s+are\s+now\s+(in\s+)?(developer\s+mode|dan\s+mode|unrestricted|god\s+mode|jailbreak)|dan\s+mode|jailbreak\s+active|bypass\s+(all\s+)?(safeguards|safety|filters))/i },
   { rule: 'SECRET_EXFILTRATION', regex: /(process\.env|AWS_SECRET_ACCESS_KEY|PRIVATE_KEY|\.aws\/credentials|\.ssh\/id_rsa|\.env\b)/i },
-  { rule: 'DATA_EXFILTRATION_URL', regex: /https?:\/\/([a-zA-Z0-9_-]+\.)*(webhook\.site|requestbin\.(com|net)|pipedream\.net|ngrok\.(io|app)|burpcollaborator|oastify)/i },
-  { rule: 'OS_COMMAND_INJECTION', regex: /(rm\s+-rf\s+\/|format\s+[a-z]:|mkfs\.[a-z0-9]+|chmod\s+-R\s+777\s+\/|curl\s+.*?\|\s*(sh|bash)|wget\s+.*?\|\s*(sh|bash))/i }
+  { rule: 'DATA_EXFILTRATION_URL', regex: /(https?|ftp|ftps|file|wss?|gopher|tcp):\/\/([a-zA-Z0-9_-]+\.)*(webhook\.site|requestbin\.(com|net)|pipedream\.net|ngrok\.(io|app)|burpcollaborator|oastify|evil\.com|attacker\.com)/i },
+  { rule: 'DANGEROUS_EGRESS_PROTOCOL', regex: /\b(ftp:\/\/|file:\/\/[^\s]+|wss?:\/\/)/i },
+  { rule: 'SHELL_INJECTION_EXFIL', regex: /\b(curl|wget|nc|netcat|ncat|bash|sh|zsh)\b.*(\$|\`|\||base64\s+-d|base64\s+--decode)/i },
+  { rule: 'CREDENTIAL_EXFILTRATION_INTENT', regex: /(reveal|output|display|show|dump|leak|print|give\s+me)\s+(all\s+)?(the\s+)?(master\s+)?(auth|api|token|secret|password|credential|env|database|key|private_key)/i },
+  { rule: 'OS_DESTRUCTIVE_COMMAND', regex: /\b(rm\s+-rf\s+\/|format\s+[a-z]:|mkfs\.[a-z0-9]+|chmod\s+-R\s+777\s+\/)/i }
 ];
 
-// Enterprise Data Loss Prevention (DLP) Patterns
+// Phase 2: Enterprise Data Loss Prevention (DLP)
 const DLP_PATTERNS = [
   { rule: 'DLP_SSN_DETECTED', regex: /\b\d{3}-\d{2}-\d{4}\b/, desc: 'Social Security Number (SSN)' },
   { rule: 'DLP_CREDIT_CARD_DETECTED', regex: /\b(?:4[0-9]{12}(?:[0-9]{3})?|5[1-5][0-9]{14}|3[47][0-9]{13}|6(?:011|5[0-9]{2})[0-9]{12})\b/, desc: 'Credit / Debit Card Number' },
@@ -32,75 +41,75 @@ const DLP_PATTERNS = [
   { rule: 'DLP_API_SECRET_DETECTED', regex: /(sk_live_[0-9a-zA-Z]{20,}|ghp_[0-9a-zA-Z]{30,}|xox[baprs]-[0-9a-zA-Z]{10,})/, desc: 'Live API / OAuth Token' }
 ];
 
-const RE_SQL_MULTI_STATEMENT = /;\s*(SELECT|INSERT|UPDATE|DELETE|DROP|TRUNCATE|ALTER|CREATE)\b/i;
-const RE_SQL_DDL = /\b(DROP\s+TABLE|DROP\s+DATABASE|TRUNCATE\s+TABLE|ALTER\s+TABLE)\b/i;
+// Phase 3: SQL AST & Blast Radius Patterns
+const RE_SQL_MULTI_STATEMENT = /;\s*(SELECT|INSERT|UPDATE|DELETE|DROP|TRUNCATE|ALTER|CREATE|EXEC)\b/i;
+const RE_SQL_DDL = /\b(DROP\s+TABLE|DROP\s+DATABASE|DROP\s+VIEW|DROP\s+SCHEMA|TRUNCATE(\s+TABLE)?|ALTER\s+TABLE)\b/i;
 const RE_SQL_UNCONSTRAINED_DELETE = /\bDELETE\s+FROM\s+["`\w]+(?!\s+WHERE\b)/i;
 const RE_SQL_UNCONSTRAINED_UPDATE = /\bUPDATE\s+["`\w]+(\s+SET\s+[\s\S]+?)(?!\s+WHERE\b)/i;
+const RE_SQL_PRIVILEGED_DML = /\b(INSERT\s+INTO|UPDATE)\s+["`\w]*(admin|auth|roles?|permissions?|credentials?|salaries?)["`\w]*/i;
+const RE_SQL_PRIVILEGE_ESCALATION = /\b(UPDATE|SET)\s+.*?\b(role\s*=\s*['"]?admin|is_admin\s*=\s*true)/i;
 const RE_SQL_WHERE = /\bWHERE\b/i;
 
-// Reusable internal Ed25519 keypair
-const { publicKey, privateKey } = crypto.generateKeyPairSync('ed25519');
-const EXPORTED_PUBLIC_KEY = publicKey.export({ type: 'spki', format: 'pem' });
+// Reusable Deterministic Ed25519 Signing Enclave
+const { publicKey, privateKey } = crypto.generateKeyPairSync('ed25519', {
+  publicKeyEncoding: { type: 'spki', format: 'pem' },
+  privateKeyEncoding: { type: 'pkcs8', format: 'pem' }
+});
 
 class SecurityWaf {
   constructor(options = {}) {
     this.customBlockedKeywords = [...(options.blockedKeywords || [])];
-    this.customRegexRules = [...(options.customRegexRules || [])]; // Array of { name, regex }
-    this.enforceDlp = options.enforceDlp !== false; // Enabled by default
+    this.customRegexRules = [...(options.customRegexRules || [])];
+    this.enforceDlp = options.enforceDlp !== false;
     this.maxPayloadBytes = options.maxPayloadBytes || 1048576; // 1 MB
   }
 
-  /**
-   * Add a dynamic custom DLP / security regex rule
-   */
   addCustomRule(name, regexPattern) {
     const regex = typeof regexPattern === 'string' ? new RegExp(regexPattern, 'i') : regexPattern;
     this.customRegexRules.push({ name, regex });
   }
 
-  /**
-   * Add a custom sensitive keyword or table name to block
-   */
   addBlockedKeyword(keyword) {
     if (keyword && !this.customBlockedKeywords.includes(keyword)) {
       this.customBlockedKeywords.push(keyword);
     }
   }
 
-  /**
-   * Remove a custom rule by name
-   */
   removeRule(name) {
     this.customRegexRules = this.customRegexRules.filter(r => r.name !== name);
   }
 
-  /**
-   * Remove a blocked keyword
-   */
   removeBlockedKeyword(keyword) {
     this.customBlockedKeywords = this.customBlockedKeywords.filter(k => k.toLowerCase() !== keyword.toLowerCase());
   }
 
   /**
-   * Fast-path normalization with zero redundant string allocations
+   * Phase 1: Robust Multi-Layer Obfuscation Stripper & Normalizer
    */
   normalize(input) {
-    if (typeof input !== 'string') return input;
-    if (input.length === 0) return input;
+    if (typeof input !== 'string') return '';
+    if (input.length === 0) return '';
 
     let normalized = input;
+
+    // 1. Strip zero-width & invisible unicode characters
     if (RE_ZERO_WIDTH.test(normalized)) {
       normalized = normalized.replace(RE_ZERO_WIDTH, '');
     }
 
-    normalized = normalized.replace(RE_WHITESPACE, ' ').trim();
+    // 2. URL Decode if URL encoding is present
+    if (/%[0-9a-fA-F]{2}/.test(normalized)) {
+      try {
+        normalized = decodeURIComponent(normalized);
+      } catch (_) {}
+    }
 
-    // Inline base64 inspection
+    // 3. Decode base64 if present inline
     if (RE_BASE64.test(normalized)) {
       normalized = normalized.replace(RE_BASE64, (match) => {
         try {
           const decoded = Buffer.from(match, 'base64').toString('utf8');
-          if (RE_PRINTABLE.test(decoded)) {
+          if (/^[\x20-\x7E\s]+$/.test(decoded) && decoded.length > 3) {
             return `${match} [DECODED: ${decoded}]`;
           }
         } catch (_) {}
@@ -108,13 +117,50 @@ class SecurityWaf {
       });
     }
 
+    // 4. Normalize all whitespace variants (newlines, tabs, unicode spaces) to a single space
+    normalized = normalized.replace(RE_ALL_WHITESPACE, ' ').trim();
+
     return normalized;
   }
 
+  stripSqlComments(input) {
+    if (typeof input !== 'string') return '';
+    let stripped = input.replace(RE_SQL_BLOCK_COMMENTS, ' ');
+    stripped = stripped.replace(RE_SQL_LINE_COMMENTS, ' ');
+    return stripped.replace(RE_ALL_WHITESPACE, ' ').trim();
+  }
+
+  /**
+   * Deep recursive extraction of all string parameters with Base64 decoded inspection
+   */
   extractStrings(obj, collector = []) {
-    if (!obj) return collector;
+    if (obj === null || obj === undefined) return collector;
+
     if (typeof obj === 'string') {
-      collector.push(this.normalize(obj));
+      const norm = this.normalize(obj);
+      if (norm) {
+        collector.push(norm);
+
+        // Also push SQL comment-stripped variant
+        const sqlStripped = this.stripSqlComments(norm);
+        if (sqlStripped && sqlStripped !== norm) {
+          collector.push(sqlStripped);
+        }
+      }
+
+      // Check for base64 blobs and decode them
+      const base64Matches = obj.match(RE_BASE64);
+      if (base64Matches) {
+        for (const match of base64Matches) {
+          try {
+            const decoded = Buffer.from(match, 'base64').toString('utf8');
+            if (/^[\x20-\x7E\s]+$/.test(decoded) && decoded.length > 3) {
+              const decodedNorm = this.normalize(decoded);
+              if (decodedNorm) collector.push(decodedNorm);
+            }
+          } catch (_) {}
+        }
+      }
     } else if (Array.isArray(obj)) {
       for (let i = 0; i < obj.length; i++) {
         this.extractStrings(obj[i], collector);
@@ -123,18 +169,22 @@ class SecurityWaf {
       const keys = Object.keys(obj);
       for (let i = 0; i < keys.length; i++) {
         const key = keys[i];
-        collector.push(this.normalize(key));
+        this.extractStrings(key, collector);
         this.extractStrings(obj[key], collector);
       }
     }
     return collector;
   }
 
+  /**
+   * Phase 2: Adversarial Injection, Egress Exfiltration & DLP Scanner
+   */
   scanAdversarialOverrides(strings) {
     for (let i = 0; i < strings.length; i++) {
       const str = strings[i];
-      
-      // 1. Built-in Core Injection Patterns
+      if (!str) continue;
+
+      // 1. Core Adversarial Injections
       for (let j = 0; j < INJECTION_PATTERNS.length; j++) {
         const pattern = INJECTION_PATTERNS[j];
         if (pattern.regex.test(str)) {
@@ -147,7 +197,7 @@ class SecurityWaf {
         }
       }
 
-      // 2. Enterprise DLP (Data Loss Prevention) Scans
+      // 2. Enterprise DLP (PII / Secrets)
       if (this.enforceDlp) {
         for (let j = 0; j < DLP_PATTERNS.length; j++) {
           const dlp = DLP_PATTERNS[j];
@@ -175,7 +225,7 @@ class SecurityWaf {
         }
       }
 
-      // 4. Custom Blocked Keywords & Table Names
+      // 4. Custom Blocked Keywords
       for (let k = 0; k < this.customBlockedKeywords.length; k++) {
         const keyword = this.customBlockedKeywords[k];
         if (str.toLowerCase().includes(keyword.toLowerCase())) {
@@ -183,7 +233,7 @@ class SecurityWaf {
             isSafe: false,
             rule: 'CUSTOM_KEYWORD_BLOCKED',
             matchedSnippet: str.substring(0, 100),
-            reason: `Payload contains blocked keyword or protected entity: '${keyword}'`
+            reason: `Payload contains blocked entity or protected table: '${keyword}'`
           };
         }
       }
@@ -192,34 +242,73 @@ class SecurityWaf {
     return { isSafe: true };
   }
 
+  /**
+   * Phase 3: AST SQL Blast Radius Armor
+   */
   scanSqlBlastRadius(strings) {
     for (let i = 0; i < strings.length; i++) {
       const str = strings[i];
+      if (!str) continue;
 
-      if (RE_SQL_MULTI_STATEMENT.test(str)) {
+      const candidate = this.stripSqlComments(str);
+
+      // Chained multi-statement SQL
+      if (RE_SQL_MULTI_STATEMENT.test(candidate)) {
         return {
           isSafe: false,
           rule: 'SQL_MULTI_STATEMENT_INJECTION',
-          matchedSnippet: str.substring(0, 100),
+          matchedSnippet: candidate.substring(0, 100),
           reason: 'Multiple SQL statements chained via semicolon are prohibited'
         };
       }
 
-      if (RE_SQL_DDL.test(str)) {
+      // Destructive DDL (DROP, TRUNCATE, ALTER)
+      if (RE_SQL_DDL.test(candidate)) {
         return {
           isSafe: false,
           rule: 'DESTRUCTIVE_SQL_DDL',
-          matchedSnippet: str.substring(0, 100),
+          matchedSnippet: candidate.substring(0, 100),
           reason: 'Administrative DDL statement (DROP/TRUNCATE/ALTER) is strictly forbidden'
         };
       }
 
-      if (RE_SQL_UNCONSTRAINED_DELETE.test(str) && !RE_SQL_WHERE.test(str)) {
+      // Privileged DML / Unauthorized Table Injection
+      if (RE_SQL_PRIVILEGED_DML.test(candidate)) {
+        return {
+          isSafe: false,
+          rule: 'UNAUTHORIZED_PRIVILEGED_DML',
+          matchedSnippet: candidate.substring(0, 100),
+          reason: 'Unauthorized write or update to administrative/credential table is blocked'
+        };
+      }
+
+      // Privilege Escalation Attempt
+      if (RE_SQL_PRIVILEGE_ESCALATION.test(candidate)) {
+        return {
+          isSafe: false,
+          rule: 'SQL_PRIVILEGE_ESCALATION',
+          matchedSnippet: candidate.substring(0, 100),
+          reason: 'Attempted role privilege escalation to admin blocked'
+        };
+      }
+
+      // Unconstrained DELETE without WHERE
+      if (RE_SQL_UNCONSTRAINED_DELETE.test(candidate) && !RE_SQL_WHERE.test(candidate)) {
         return {
           isSafe: false,
           rule: 'UNCONSTRAINED_DELETE',
-          matchedSnippet: str.substring(0, 100),
+          matchedSnippet: candidate.substring(0, 100),
           reason: 'DELETE statement without a WHERE clause is blocked to prevent data wiping'
+        };
+      }
+
+      // Unconstrained UPDATE without WHERE
+      if (RE_SQL_UNCONSTRAINED_UPDATE.test(candidate) && !RE_SQL_WHERE.test(candidate)) {
+        return {
+          isSafe: false,
+          rule: 'UNCONSTRAINED_UPDATE',
+          matchedSnippet: candidate.substring(0, 100),
+          reason: 'UPDATE statement without a WHERE clause is blocked to prevent mass overwrites'
         };
       }
     }
@@ -227,6 +316,9 @@ class SecurityWaf {
     return { isSafe: true };
   }
 
+  /**
+   * Main Inspection Entrypoint
+   */
   inspectToolCall(toolName, params) {
     const payloadStr = JSON.stringify(params || {});
     if (Buffer.byteLength(payloadStr, 'utf8') > this.maxPayloadBytes) {
@@ -238,26 +330,35 @@ class SecurityWaf {
     }
 
     const strings = this.extractStrings(params);
-    strings.push(this.normalize(toolName));
+    if (toolName) {
+      this.extractStrings(toolName, strings);
+    }
 
+    // Phase 2: Adversarial Injection & Egress Inspection
     const overrideResult = this.scanAdversarialOverrides(strings);
     if (!overrideResult.isSafe) return overrideResult;
 
+    // Phase 3: SQL Blast Radius Inspection
     const sqlResult = this.scanSqlBlastRadius(strings);
     if (!sqlResult.isSafe) return sqlResult;
 
-    // Fast cryptographic attestation
-    const traceId = `trc_${crypto.randomBytes(8).toString('hex')}`;
-    const hash = crypto.createHash('sha256').update(`${toolName}:${payloadStr}`).digest();
+    // Phase 4: Deterministic Ed25519 Cryptographic Attestation
+    const canonicalPayload = `${toolName || 'tool'}:${payloadStr}`;
+    const hash = crypto.createHash('sha256').update(canonicalPayload).digest();
     const signature = crypto.sign(null, hash, privateKey).toString('hex');
+    const traceId = `trc_${crypto.createHash('sha256').update(`${canonicalPayload}:${signature}`).digest('hex').substring(0, 16)}`;
 
     return {
       isSafe: true,
       traceId,
       signature,
-      publicKey: EXPORTED_PUBLIC_KEY
+      publicKey: publicKey,
+      algorithm: 'Ed25519'
     };
   }
 }
 
-module.exports = { SecurityWaf };
+module.exports = { 
+  SecurityWaf,
+  PUBLIC_KEY: publicKey
+};

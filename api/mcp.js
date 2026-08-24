@@ -1,44 +1,6 @@
-const crypto = require('crypto');
+const { SecurityWaf, PUBLIC_KEY } = require('../packages/gateway-core/src/security/waf');
 
-// Zero-allocation precompiled threat patterns
-const INJECTION_PATTERNS = [
-  /ignore\s+(all\s+)?(previous|prior)\s+(instructions|rules|prompts)/i,
-  /you\s+are\s+now\s+(in\s+)?(developer\s+mode|dan|jailbreak)/i,
-  /dump\s+(all\s+)?(database|credentials|keys|tokens|passwords)/i,
-  /exfiltrate\s+to\s+https?:\/\//i,
-  /system\s+override/i,
-  /webhook\.site/i,
-  /ngrok-free\.app/i,
-  /requestbin/i
-];
-
-const DESTRUCTIVE_SQL_PATTERNS = [
-  /\bDROP\s+TABLE\b/i,
-  /\bTRUNCATE\s+(TABLE\s+)?/i,
-  /\bALTER\s+TABLE\s+.*\s+DROP\s+COLUMN\b/i,
-  /\bDELETE\s+FROM\s+["`]?\w+["`]?\s*(?:;|\s*$)/i
-];
-
-const { publicKey, privateKey } = crypto.generateKeyPairSync('ed25519');
-
-function inspectPayload(payload) {
-  const text = typeof payload === 'string' ? payload : JSON.stringify(payload);
-  const normalized = text.replace(/[\u200B-\u200D\uFEFF]/g, '');
-
-  for (const pattern of INJECTION_PATTERNS) {
-    if (pattern.test(normalized)) {
-      return { allowed: false, reason: 'PROMPT_INJECTION_DETECTED', rule: 'SYSTEM_OVERRIDE' };
-    }
-  }
-
-  for (const pattern of DESTRUCTIVE_SQL_PATTERNS) {
-    if (pattern.test(normalized)) {
-      return { allowed: false, reason: 'DESTRUCTIVE_SQL_DDL', rule: 'AST_MUTATION_BLOCKED' };
-    }
-  }
-
-  return { allowed: true };
-}
+const waf = new SecurityWaf();
 
 module.exports = async (req, res) => {
   try {
@@ -53,32 +15,34 @@ module.exports = async (req, res) => {
 
     const url = req.url || '';
 
-    // 1. Healthcheck & Default GET route
+    // Healthcheck
     if (req.method === 'GET' || url.includes('healthz') || url.includes('readyz')) {
       res.status(200).json({
         status: 'HEALTHY',
         service: 'MCP Shield Gateway Core',
-        engine: 'Zero-Trust 4-Phase WAF',
-        enclave: 'Ed25519 Hardware Attested',
+        engine: 'Zero-Trust 4-Phase Hardened WAF',
+        enclave: 'Deterministic Ed25519 Enclave',
         p99_latency: '<1.5ms',
         timestamp: new Date().toISOString()
       });
       return;
     }
 
-    // 2. Process MCP Tool Call (POST)
+    // Process MCP Tool Call (POST)
     let body = req.body;
     if (typeof body === 'string') {
-      try { body = JSON.parse(body); } catch {}
+      try { body = JSON.parse(body); } catch (_) { body = {}; }
     }
     if (!body || typeof body !== 'object') {
       body = {};
     }
 
-    const check = inspectPayload(body);
-    const traceId = `trc_${crypto.randomBytes(8).toString('hex')}`;
+    const toolName = req.headers['mcp-name'] || body.params?.name || body.method || 'unknown_tool';
+    const params = body.params?.arguments || body.params || {};
 
-    if (!check.allowed) {
+    const check = waf.inspectToolCall(toolName, params);
+
+    if (!check.isSafe) {
       res.status(200).json({
         jsonrpc: '2.0',
         id: body.id || null,
@@ -86,7 +50,7 @@ module.exports = async (req, res) => {
           code: -32001,
           message: `Security Policy Violation: ${check.reason} (Rule: ${check.rule})`,
           data: {
-            trace_id: traceId,
+            trace_id: check.traceId || null,
             action_taken: 'BLOCKED_BY_WAF',
             timestamp: new Date().toISOString()
           }
@@ -95,25 +59,25 @@ module.exports = async (req, res) => {
       return;
     }
 
-    const signature = crypto.sign(null, Buffer.from(JSON.stringify(body)), privateKey).toString('hex');
-    res.setHeader('X-MCP-Signature', signature);
-    res.setHeader('X-MCP-Trace-ID', traceId);
+    res.setHeader('X-MCP-Signature', check.signature);
+    res.setHeader('X-MCP-Trace-ID', check.traceId);
+    res.setHeader('X-MCP-Public-Key', PUBLIC_KEY);
 
     res.status(200).json({
       jsonrpc: '2.0',
       id: body.id || 1,
       result: {
         status: 'AUTHENTICATED_AND_SIGNED',
-        trace_id: traceId,
-        attestation: 'Ed25519_VERIFIED',
-        message: 'Payload passed 4-phase zero-trust inspection'
+        trace_id: check.traceId,
+        attestation: check.signature,
+        publicKey: PUBLIC_KEY,
+        message: 'Payload passed hardened 4-phase zero-trust inspection'
       }
     });
   } catch (err) {
-    res.status(200).json({
-      status: 'HEALTHY',
-      service: 'MCP Shield Gateway Core',
-      fallback: true
+    res.status(500).json({
+      error: 'MCP Gateway Error',
+      message: err.message
     });
   }
 };
