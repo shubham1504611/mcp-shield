@@ -74,8 +74,8 @@
       <!-- Clean 1-Line CLI Quickstart -->
       <div class="hero-terminal-pill">
         <span class="term-prompt">$</span>
-        <span class="term-code">node packages/cli-shield/bin/mcp-shield.js wrap --target "npx @modelcontextprotocol/server-postgres postgresql://..."</span>
-        <button class="term-copy" onclick="copySnippet('node packages/cli-shield/bin/mcp-shield.js wrap --target &quot;npx @modelcontextprotocol/server-postgres postgresql://...&quot;')">Copy</button>
+        <span class="term-code">mcp-shield wrap --target "npx -y @modelcontextprotocol/server-postgres postgresql://localhost/db"</span>
+        <button class="term-copy" onclick="copySnippet('mcp-shield wrap --target &quot;npx -y @modelcontextprotocol/server-postgres postgresql://localhost/db&quot;')">Copy</button>
       </div>
 
       <!-- Ecosystem Compatibility Chips with Rich Branded SVG Icons -->
@@ -537,15 +537,15 @@
           <pre><code>{
   "mcpServers": {
     "shielded-postgres": {
-      "command": "node",
+      "command": "mcp-shield",
       "args": [
-        "/path/to/mcp-shield/packages/cli-shield/bin/mcp-shield.js", "wrap",
+        "wrap",
         "--target", "npx -y @modelcontextprotocol/server-postgres postgresql://user:pass@localhost:5432/db"
       ]
     }
   }
 }</code></pre>
-          <button class="btn-copy-code" onclick="copySnippet('node /path/to/mcp-shield/packages/cli-shield/bin/mcp-shield.js wrap')">Copy Configuration</button>
+          <button class="btn-copy-code" onclick="copySnippet('{ &quot;mcpServers&quot;: { &quot;shielded-postgres&quot;: { &quot;command&quot;: &quot;mcp-shield&quot;, &quot;args&quot;: [&quot;wrap&quot;, &quot;--target&quot;, &quot;npx -y @modelcontextprotocol/server-postgres postgresql://user:pass@localhost:5432/db&quot;] } } }')">Copy Configuration</button>
         </div>
 
         <!-- Cursor Pane -->
@@ -553,30 +553,30 @@
           <p class="pane-instruction">In Cursor Settings ➔ Features ➔ MCP Servers, enter:</p>
           <pre><code>Name: MCP-Shield-Gateway
 Type: command
-Command: node /path/to/mcp-shield/packages/cli-shield/bin/mcp-shield.js proxy --port 8080</code></pre>
-          <button class="btn-copy-code" onclick="copySnippet('node /path/to/mcp-shield/packages/cli-shield/bin/mcp-shield.js proxy --port 8080')">Copy Cursor Command</button>
+Command: mcp-shield proxy --port 8080</code></pre>
+          <button class="btn-copy-code" onclick="copySnippet('mcp-shield proxy --port 8080')">Copy Cursor Command</button>
         </div>
 
         <!-- mcp-tunnel Pane -->
         <div class="quick-pane" id="pane-tunnel">
           <p class="pane-instruction">Connect private VPC tools with ZERO open inbound ports using outbound reverse tunnel:</p>
-          <pre><code># Run locally on your database host or bastion
-node packages/cli-shield/bin/mcp-shield.js tunnel \
+          <pre><code># Run on your database host or bastion
+mcp-shield tunnel \
   --target "npx -y @modelcontextprotocol/server-postgres postgresql://internal-vpc-db:5432/mydb"
 
 # Active tunnel is securely attested without opening inbound firewall ports</code></pre>
-          <button class="btn-copy-code" onclick="copySnippet('node packages/cli-shield/bin/mcp-shield.js tunnel')">Copy Tunnel Command</button>
+          <button class="btn-copy-code" onclick="copySnippet('mcp-shield tunnel --target &quot;npx -y @modelcontextprotocol/server-postgres postgresql://internal-vpc-db:5432/mydb&quot;')">Copy Tunnel Command</button>
         </div>
 
         <!-- CLI Doctor Pane -->
         <div class="quick-pane" id="pane-doctor">
           <p class="pane-instruction">Run instant diagnostic scan on local Cursor & Claude configs with 1-click auto-patching:</p>
           <pre><code># Scan local configs for unshielded tools & hardcoded passwords
-node packages/cli-shield/bin/mcp-shield.js doctor
+mcp-shield doctor
 
 # Automatically wrap all vulnerable servers in 1-click
-node packages/cli-shield/bin/mcp-shield.js doctor --fix</code></pre>
-          <button class="btn-copy-code" onclick="copySnippet('node packages/cli-shield/bin/mcp-shield.js doctor --fix')">Copy Doctor Command</button>
+mcp-shield doctor --fix</code></pre>
+          <button class="btn-copy-code" onclick="copySnippet('mcp-shield doctor --fix')">Copy Doctor Command</button>
         </div>
 
         <!-- Python Pane -->
@@ -621,70 +621,76 @@ console.log('Sanitized Payload:', data.sanitizedPayload);</code></pre>
     </div>
   </section>
 
-  <!-- 9. Transparent Plans -->
+  <!-- 9. Flexible Deployment & Plans -->
   <section class="site-container section-pad" id="pricing">
     <div class="section-lead">
-      <div class="eyebrow-label">PLANS & TIERS</div>
-      <h2 class="section-title">Predictable, Transparent Tiers</h2>
-      <p class="section-desc">Free for local development. Enterprise capabilities for production fleets.</p>
+      <div class="eyebrow-label">TIERS & DEPLOYMENTS</div>
+      <h2 class="section-title">Transparent Open-Source & Managed Plans</h2>
+      <p class="section-desc">100% free and open-source for local developers. Scalable attestation gateway for teams.</p>
     </div>
 
     <div class="pricing-deck">
-      <!-- Community Open Source -->
+      <!-- Tier 1: Local Open-Source -->
       <div class="price-card">
-        <div class="card-tier-name">Open-Source Developer</div>
-        <div class="card-tier-price">$0 <span class="price-period">/ Free Forever (MIT)</span></div>
-        <p class="card-tier-desc">Direct local stdio proxy and security filters for individual AI developers.</p>
+        <div class="card-tier-name">Developer CLI</div>
+        <div class="card-tier-price">$0 <span class="price-period">/ forever</span></div>
+        <p class="card-tier-desc">Local in-process security proxy for Cursor, Claude Desktop, and CLI scripts.</p>
+        
         <ul class="card-features">
-          <li>✓ Unlimited local tool calls & queries</li>
-          <li>✓ Local Developer CLI & Stdio Proxy</li>
-          <li>✓ 4-Phase In-Memory AST Security WAF</li>
-          <li>✓ Standard JSON-RPC 2.0 conformance</li>
-          <li>✓ 100% MIT Licensed Open Source</li>
-        </ul>
-        <a href="#quickstart" class="price-btn-outline" style="text-align:center; display:block; text-decoration:none;">View Quickstart</a>
-      </div>
-
-      <!-- Self-Hosted Team -->
-      <div class="price-card card-featured">
-        <div class="popular-pill">RECOMMENDED</div>
-        <div class="card-tier-name">Self-Hosted Docker Fleet</div>
-        <div class="card-tier-price">$0 <span class="price-period">/ Free & Self-Hosted</span></div>
-        <p class="card-tier-desc">Deploy in your private cloud or VPC via Docker Compose or Kubernetes.</p>
-        <ul class="card-features">
-          <li>✓ High-throughput local gateway proxy</li>
-          <li>✓ Custom DLP & Regex Policy Rules</li>
-          <li>✓ Outbound Reverse Tunnel (<code>mcp-tunnel</code>)</li>
-          <li>✓ Ed25519 Cryptographic Attestation</li>
-          <li>✓ Zero external telemetry transmission</li>
-          <li>✓ Complete source code auditability</li>
-        </ul>
-        <a href="#quickstart" class="price-btn-primary" style="text-align:center; display:block; text-decoration:none;">Deploy with Docker</a>
-      </div>
-
-      <!-- Community Cloud Sandbox -->
-      <div class="price-card">
-        <div class="card-tier-name">Cloud Gateway Sandbox</div>
-        <div class="card-tier-price">$0 <span class="price-period">/ Free Sandbox</span></div>
-        <p class="card-tier-desc">Test tools and queries live in the serverless security playground.</p>
-        <ul class="card-features">
-          <li>✓ Live Interactive Security Playground</li>
-          <li>✓ Real-Time AST & DLP Evaluation API</li>
-          <li>✓ Instant API Key Generation</li>
-          <li>✓ Real-Time Performance & WAF Metrics</li>
+          <li>✓ Unlimited Local Tool Invocations</li>
+          <li>✓ In-Memory AST SQL Blast Shield</li>
+          <li>✓ Prompt Injection Scrubber</li>
+          <li>✓ Single-Developer Stdio Proxy</li>
           <li>✓ Community GitHub Support</li>
         </ul>
+
+        <a href="#quickstart" class="price-btn-outline" style="text-align:center; text-decoration:none;">View Quickstart</a>
+      </div>
+
+      <!-- Tier 2: Team Gateway (Featured) -->
+      <div class="price-card card-featured">
+        <div class="popular-pill">MOST POPULAR</div>
+        <div class="card-tier-name">Team Gateway Core</div>
+        <div class="card-tier-price">$0 <span class="price-period">/ open source</span></div>
+        <p class="card-tier-desc">Dockerized gateway container with private VPC reverse-tunneling and DLP.</p>
+        
+        <ul class="card-features">
+          <li>✓ <b>Everything in Developer CLI</b></li>
+          <li>✓ Non-Bypassable mcp-tunnel</li>
+          <li>✓ Enterprise DLP & Regex Masking</li>
+          <li>✓ Ed25519 Attestation Signatures</li>
+          <li>✓ Prometheus Telemetry Exporter</li>
+          <li>✓ Self-Hosted PostgreSQL Adapter</li>
+        </ul>
+
+        <a href="#quickstart" class="price-btn-primary" style="text-align:center; text-decoration:none;">Deploy with Docker</a>
+      </div>
+
+      <!-- Tier 3: Cloud Managed -->
+      <div class="price-card">
+        <div class="card-tier-name">Cloud Serverless</div>
+        <div class="card-tier-price">$0 <span class="price-period">/ free tier</span></div>
+        <p class="card-tier-desc">Zero-maintenance managed gateway with global edge routing and hosted console.</p>
+        
+        <ul class="card-features">
+          <li>✓ <b>Everything in Team Gateway</b></li>
+          <li>✓ 10,000 Free Evaluated Calls/mo</li>
+          <li>✓ Instant API Key Provisioning</li>
+          <li>✓ Zero Cold-Start Edge Execution</li>
+          <li>✓ Webhooks & SIEM Log Streaming</li>
+        </ul>
+
         <button class="price-btn-outline" onclick="openKeyModal()">Mint Sandbox Key</button>
       </div>
     </div>
   </section>
 
-  <!-- 10. FAQ Accordion (Expansive 2-Column Grid) -->
+  <!-- 10. Frequently Asked Questions (FAQ) -->
   <section class="site-container section-pad" id="faq">
     <div class="section-lead">
       <div class="eyebrow-label">FAQ</div>
       <h2 class="section-title">Frequently Asked Questions</h2>
-      <p class="section-desc">Everything you need to know about latency, security guarantees, and compliance.</p>
+      <p class="section-desc">Clear answers on architecture, privacy guarantees, zero-persistence RAM, and agent compatibility.</p>
     </div>
 
     <div class="faq-deck">
@@ -704,7 +710,7 @@ console.log('Sanitized Payload:', data.sanitizedPayload);</code></pre>
           <span class="faq-symbol">+</span>
         </div>
         <div class="faq-content">
-          The <code>node packages/cli-shield/bin/mcp-shield.js tunnel</code> command initiates an outbound-only connection from your private VPC/network to the gateway. When an AI agent invokes a tool, requests are securely routed down this established tunnel to your internal server.
+          The <code>mcp-shield tunnel</code> command initiates an outbound-only connection from your private VPC/network to the gateway. When an AI agent invokes a tool, requests are securely routed down this established tunnel to your internal server.
         </div>
       </div>
 
@@ -734,7 +740,7 @@ console.log('Sanitized Payload:', data.sanitizedPayload);</code></pre>
           <span class="faq-symbol">+</span>
         </div>
         <div class="faq-content">
-          Yes. The <code>node packages/cli-shield/bin/mcp-shield.js wrap</code> command runs directly on your local machine, intercepting stdio tool calls without transmitting any database passwords to the cloud.
+          Yes. The <code>mcp-shield wrap</code> command runs directly on your local machine, intercepting stdio tool calls without transmitting any database passwords to the cloud.
         </div>
       </div>
 
@@ -744,7 +750,7 @@ console.log('Sanitized Payload:', data.sanitizedPayload);</code></pre>
           <span class="faq-symbol">+</span>
         </div>
         <div class="faq-content">
-          The <code>node packages/cli-shield/bin/mcp-shield.js doctor</code> command scans your `.cursor/mcp.json` and `claude_desktop_config.json` files for unshielded servers, plaintext database passwords, and root filesystem privileges, offering 1-click auto-patching.
+          The <code>mcp-shield doctor</code> command scans your `.cursor/mcp.json` and `claude_desktop_config.json` files for unshielded servers, plaintext database passwords, and root filesystem privileges, offering 1-click auto-patching.
         </div>
       </div>
     </div>
