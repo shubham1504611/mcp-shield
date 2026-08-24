@@ -1,6 +1,6 @@
 {
   "name": "@mcp-shield/web-dashboard",
-  "version": "1.0.0",
+  "version": "2.5.0",
   "description": "Next.js 15 Web Control Plane, Real-Time Telemetry Stream & MoR Payment Handlers",
   "main": "src/index.js",
   "scripts": {

@@ -1,6 +1,6 @@
 {
   "name": "@mcp-shield/cli",
-  "version": "1.0.0",
+  "version": "2.5.0",
   "description": "10-Second Zero-Config Local Security Shield and Proxy for AI Agent MCP Tools",
   "bin": {
     "mcp-shield": "./bin/mcp-shield.js",

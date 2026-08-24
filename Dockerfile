@@ -4,7 +4,7 @@
 # ==============================================================================
 
 # Build Stage
-FROM node:22-alpine AS builder
+FROM node:22-alpine@sha256:d894e4d6d370129a0a19e4871e988229ad1fa2c2f70b74ce6ad3c7348981f4a4 AS builder
 
 WORKDIR /app
 
@@ -22,7 +22,7 @@ RUN npm ci --omit=dev
 COPY packages/ ./packages/
 
 # Production Stage
-FROM node:22-alpine AS runner
+FROM node:22-alpine@sha256:d894e4d6d370129a0a19e4871e988229ad1fa2c2f70b74ce6ad3c7348981f4a4 AS runner
 
 WORKDIR /app
 ENV NODE_ENV=production

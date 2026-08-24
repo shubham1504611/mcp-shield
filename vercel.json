@@ -19,6 +19,8 @@
     { "source": "/api/audit/logs", "destination": "/api/audit/logs.js" },
     { "source": "/api/telemetry/metrics", "destination": "/api/telemetry/metrics.js" },
     { "source": "/api/registry", "destination": "/api/registry.js" },
+    { "source": "/api/attestation/public-key", "destination": "/api/attestation/public-key.js" },
+    { "source": "/v1/attestation/key", "destination": "/api/attestation/public-key.js" },
     { "source": "/v1/mcp", "destination": "/api/mcp.js" },
     { "source": "/v1/audit/logs", "destination": "/api/audit/logs.js" },
     { "source": "/v1/registry/tools", "destination": "/api/registry.js" }

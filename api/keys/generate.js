@@ -2,6 +2,7 @@ const crypto = require('crypto');
 
 // Shared memory store for API keys in serverless context
 global.__MCP_API_KEYS__ = global.__MCP_API_KEYS__ || new Map();
+global.__MCP_KEYGEN_RATE_LIMITS__ = global.__MCP_KEYGEN_RATE_LIMITS__ || new Map();
 
 function generateApiKey(orgId = 'org_live_default', name = 'Production Fleet Key', rateLimitRpm = 120) {
   const randomBytes = crypto.randomBytes(24).toString('hex');
@@ -24,9 +25,29 @@ function generateApiKey(orgId = 'org_live_default', name = 'Production Fleet Key
   return keyRecord;
 }
 
+function checkKeygenRateLimit(ip) {
+  const now = Date.now();
+  const record = global.__MCP_KEYGEN_RATE_LIMITS__.get(ip) || { count: 0, resetAt: now + 3600000 };
+
+  if (now > record.resetAt) {
+    record.count = 0;
+    record.resetAt = now + 3600000;
+  }
+
+  record.count++;
+  global.__MCP_KEYGEN_RATE_LIMITS__.set(ip, record);
+
+  return {
+    allowed: record.count <= 10,
+    count: record.count,
+    resetAt: record.resetAt
+  };
+}
+
 module.exports = async (req, res) => {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  const origin = req.headers['origin'] || '*';
+  res.setHeader('Access-Control-Allow-Origin', origin);
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-Key');
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
@@ -34,6 +55,23 @@ module.exports = async (req, res) => {
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
+  }
+
+  if (req.method !== 'POST') {
+    return res.status(405).json({
+      error: 'METHOD_NOT_ALLOWED',
+      message: 'API key generation requires a POST request with key configuration parameters.'
+    });
+  }
+
+  const clientIp = (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '127.0.0.1').split(',')[0].trim();
+  const rl = checkKeygenRateLimit(clientIp);
+
+  if (!rl.allowed) {
+    return res.status(429).json({
+      error: 'TOO_MANY_REQUESTS',
+      message: 'Rate limit exceeded for key provisioning (maximum 10 keys per hour per IP).'
+    });
   }
 
   try {
@@ -65,6 +103,6 @@ module.exports = async (req, res) => {
     });
   } catch (err) {
     console.error('Key Generation Error:', err);
-    return res.status(500).json({ error: 'Failed to generate key', message: err.message });
+    return res.status(500).json({ error: 'Key Provisioning Failed', message: 'Unable to provision API key at this time.' });
   }
 };

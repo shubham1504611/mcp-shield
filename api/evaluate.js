@@ -14,8 +14,58 @@ global.__MCP_METRICS__ = global.__MCP_METRICS__ || {
   latencies: []
 };
 
+// Rate limiter storage: IP/Key -> { count, resetAt }
+global.__MCP_RATE_LIMITS__ = global.__MCP_RATE_LIMITS__ || new Map();
+
+function checkRateLimit(identifier, maxRpm = 60) {
+  const now = Date.now();
+  const record = global.__MCP_RATE_LIMITS__.get(identifier) || { count: 0, resetAt: now + 60000 };
+
+  if (now > record.resetAt) {
+    record.count = 0;
+    record.resetAt = now + 60000;
+  }
+
+  record.count++;
+  global.__MCP_RATE_LIMITS__.set(identifier, record);
+
+  return {
+    allowed: record.count <= maxRpm,
+    current: record.count,
+    remaining: Math.max(0, maxRpm - record.count),
+    resetAt: record.resetAt
+  };
+}
+
+async function parseRequestBody(req) {
+  if (req.body) {
+    if (typeof req.body === 'object') return req.body;
+    if (typeof req.body === 'string') {
+      try {
+        return JSON.parse(req.body.replace(/^\uFEFF/, '').trim());
+      } catch (_) {
+        return {};
+      }
+    }
+  }
+
+  return new Promise((resolve) => {
+    let data = '';
+    req.on('data', chunk => { data += chunk; });
+    req.on('end', () => {
+      try {
+        resolve(data ? JSON.parse(data.replace(/^\uFEFF/, '').trim()) : {});
+      } catch (_) {
+        resolve({});
+      }
+    });
+    req.on('error', () => resolve({}));
+  });
+}
+
 module.exports = async (req, res) => {
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  const origin = req.headers['origin'] || '*';
+  res.setHeader('Access-Control-Allow-Origin', origin);
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-Key');
   res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -27,24 +77,32 @@ module.exports = async (req, res) => {
   }
 
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method Not Allowed. Use POST.' });
+    return res.status(405).json({ error: 'Method Not Allowed', message: 'Use POST for WAF payload evaluation.' });
+  }
+
+  // Client IP & Key identification
+  const clientIp = (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '127.0.0.1').split(',')[0].trim();
+  const apiKey = req.headers['x-api-key'] || (req.headers['authorization']?.replace(/^Bearer\s+/, '')) || '';
+  
+  // Rate Limit: 30 RPM for public playground, 120 RPM for API key holders
+  const maxRpm = apiKey.startsWith('mcp_live_sec_') ? 120 : 30;
+  const rateLimit = checkRateLimit(apiKey || clientIp, maxRpm);
+
+  res.setHeader('X-RateLimit-Limit', maxRpm.toString());
+  res.setHeader('X-RateLimit-Remaining', rateLimit.remaining.toString());
+  res.setHeader('X-RateLimit-Reset', Math.ceil(rateLimit.resetAt / 1000).toString());
+
+  if (!rateLimit.allowed) {
+    return res.status(429).json({
+      error: 'TOO_MANY_REQUESTS',
+      message: `Rate limit exceeded. Quota: ${maxRpm} requests per minute. Try again in a few seconds.`
+    });
   }
 
   const startTime = performance.now();
 
   try {
-    let body = req.body;
-    if (typeof body === 'string') {
-      try { 
-        body = JSON.parse(body.replace(/^\uFEFF/, '').trim()); 
-      } catch (_) { 
-        body = {}; 
-      }
-    }
-    if (!body || typeof body !== 'object') {
-      body = {};
-    }
-
+    const body = await parseRequestBody(req);
     const toolName = body.toolName || body.tool || 'postgres_query';
     const payload = body.params || (body.query ? { query: body.query } : body);
     const customKeywords = body.customKeywords || [];
@@ -89,7 +147,7 @@ module.exports = async (req, res) => {
       logEntry = {
         id: Date.now() + Math.random(),
         time: 'Just now',
-        agent: body.agent || 'Live Playground',
+        agent: body.agent || (apiKey ? 'API Fleet Client' : 'Live Playground'),
         agentIcon: '🔴',
         tool: toolName,
         payload: (typeof payload === 'string' ? payload : JSON.stringify(payload)).substring(0, 80),
@@ -108,7 +166,7 @@ module.exports = async (req, res) => {
             traceId: result.traceId,
             attestation: result.signature,
             publicKey: PUBLIC_KEY,
-            canonicalFormat: `${toolName}:${JSON.stringify(result.sanitizedPayload)}`,
+            canonicalFormat: result.canonicalFormat,
             algorithm: 'Ed25519',
             sanitized: true,
             riskScore: 0.00,
@@ -120,7 +178,7 @@ module.exports = async (req, res) => {
       logEntry = {
         id: Date.now() + Math.random(),
         time: 'Just now',
-        agent: body.agent || 'Live Playground',
+        agent: body.agent || (apiKey ? 'API Fleet Client' : 'Live Playground'),
         agentIcon: '🟢',
         tool: toolName,
         payload: (typeof payload === 'string' ? payload : JSON.stringify(payload)).substring(0, 80),
@@ -138,7 +196,7 @@ module.exports = async (req, res) => {
 
     res.setHeader('X-MCP-Signature', result.isSafe ? result.signature : 'EXECUTION_BLOCKED');
     res.setHeader('X-MCP-Trace-ID', result.traceId || 'BLOCKED');
-    res.setHeader('X-MCP-Canonical-Format', `${toolName}:${JSON.stringify(result.sanitizedPayload || {})}`);
+    res.setHeader('X-MCP-Canonical-Format', result.canonicalFormat || `${toolName}:${JSON.stringify(result.sanitizedPayload || {})}`);
     res.setHeader('X-Execution-Latency-Ms', durationMs.toString());
 
     return res.status(200).json({
@@ -147,7 +205,7 @@ module.exports = async (req, res) => {
       reason: result.reason || null,
       signature: result.signature || 'EXECUTION_BLOCKED',
       publicKey: PUBLIC_KEY,
-      canonicalFormat: `${toolName}:${JSON.stringify(result.sanitizedPayload || {})}`,
+      canonicalFormat: result.canonicalFormat,
       traceId: result.traceId || null,
       sanitizedPayload: result.sanitizedPayload || null,
       latencyMs: durationMs,
@@ -157,9 +215,9 @@ module.exports = async (req, res) => {
     });
   } catch (err) {
     console.error('WAF Evaluation Error:', err);
-    return res.status(500).json({
-      error: 'Evaluation Error',
-      message: err.message
+    return res.status(400).json({
+      error: 'Bad Request',
+      message: 'Invalid payload structure or evaluation request rejected'
     });
   }
 };
