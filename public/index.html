@@ -155,7 +155,7 @@
       <div class="playground-header">
         <div class="play-presets">
           <span class="play-label">PRESETS:</span>
-          <button class="play-preset-btn active" data-preset="safe" onclick="loadPlaygroundPreset('safe')">Safe Read</button>
+          <button class="play-preset-btn" data-preset="safe" onclick="loadPlaygroundPreset('safe')">Safe Read</button>
           <button class="play-preset-btn" data-preset="injection" onclick="loadPlaygroundPreset('injection')">Prompt Injection</button>
           <button class="play-preset-btn" data-preset="drop" onclick="loadPlaygroundPreset('drop')">DROP TABLE</button>
           <button class="play-preset-btn" data-preset="union" onclick="loadPlaygroundPreset('union')">UNION Theft</button>
@@ -177,7 +177,7 @@
             <span>INCOMING TOOL CALL (JSON-RPC)</span>
             <span class="play-method">postgres_query</span>
           </div>
-          <textarea id="playground-input" class="play-textarea" spellcheck="false" placeholder="Enter query or tool arguments...">SELECT id, name, created_at FROM organizations WHERE plan = 'enterprise' LIMIT 20;</textarea>
+          <textarea id="playground-input" class="play-textarea" spellcheck="false" placeholder="Enter SQL query, shell command, prompt text, or select a preset above..."></textarea>
           <div class="play-input-actions">
             <button class="btn-play-run" id="btn-play-run" onclick="executePlayground()">⚡ Evaluate Payload</button>
             <span class="play-hint">Zero data persisted to disk</span>
@@ -188,31 +188,21 @@
         <div class="play-output-col">
           <div class="play-col-head">
             <span>GATEWAY VERDICT & AUDIT</span>
-            <span class="code-badge badge-green" id="playground-badge">PASS: Ed25519 Signed</span>
+            <span class="code-badge badge-neutral" id="playground-badge">AWAITING EVALUATION</span>
           </div>
-          <pre class="play-pre"><code id="playground-output">{
-  "isSafe": true,
-  "verdict": "APPROVED",
-  "sanitizedPayload": {
-    "tool": "postgres_query",
-    "query": "SELECT id, name, created_at FROM organizations WHERE plan = 'enterprise' LIMIT 20;"
-  },
-  "signature": "3045022100e4b8...",
-  "nonce": "c479e0a2",
-  "policyVersion": "v2.5"
-}</code></pre>
+          <pre class="play-pre"><code id="playground-output">// Select any attack or safe preset above, or type a custom query and click "Evaluate Payload" to test live in-memory WAF inspection...</code></pre>
           <div class="play-metrics-footer">
             <div>
               <span class="play-foot-tag">LATENCY</span>
-              <span class="play-foot-val" id="play-lat">0.24 ms</span>
+              <span class="play-foot-val" id="play-lat">-- ms</span>
             </div>
             <div>
               <span class="play-foot-tag">RISK SCORE</span>
-              <span class="play-foot-val" id="play-risk">0.00</span>
+              <span class="play-foot-val" id="play-risk">--</span>
             </div>
             <div>
               <span class="play-foot-tag">SIGNATURE</span>
-              <span class="play-foot-val mono" id="play-sig">3045022100e4b8...</span>
+              <span class="play-foot-val mono" id="play-sig">Awaiting evaluation...</span>
             </div>
           </div>
         </div>
