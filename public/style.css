@@ -618,13 +618,13 @@ body {
 /* 2.5 Architecture Canvas & System Topology */
 .architecture-canvas {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1.15fr) auto minmax(0, 1fr);
+  grid-template-columns: 1fr auto 1fr auto 1fr;
   align-items: stretch;
-  gap: 1rem;
+  gap: 1.25rem;
   background: #ffffff;
   border: 1px solid var(--border-light);
   border-radius: var(--radius-lg);
-  padding: 2rem;
+  padding: 2.25rem 2rem;
   box-shadow: var(--shadow-card);
 }
 
@@ -633,11 +633,13 @@ body {
   flex-direction: column;
   justify-content: space-between;
   background: var(--bg-subtle);
-  border: 1px solid var(--border-card);
+  border: 2px solid var(--border-card);
   border-radius: var(--radius-md);
-  padding: 1.6rem 1.4rem;
+  padding: 1.75rem 1.5rem;
   transition: all 0.2s ease;
   min-width: 0;
+  box-sizing: border-box;
+  height: 100%;
 }
 
 .arch-box:hover {
