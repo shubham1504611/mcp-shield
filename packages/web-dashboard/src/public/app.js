@@ -540,7 +540,7 @@ function setTopologyMode(mode) {
   const shieldStatus = document.getElementById('top-shield-status');
   const shieldCode = document.getElementById('top-shield-code');
   const connBadge2 = document.getElementById('top-conn-badge-2');
-  const connLine2 = document.getElementById('top-conn-line-2');
+  const connArrow2 = document.getElementById('top-conn-arrow-2');
   const targetCode = document.getElementById('top-target-code');
 
   if (mode === 'threat') {
@@ -563,8 +563,9 @@ function setTopologyMode(mode) {
       connBadge2.className = 'top-pipe-badge badge-threat';
       connBadge2.innerText = '❌ Zero Packets Forwarded';
     }
-    if (connLine2) {
-      connLine2.className = 'top-pipe-line line-threat';
+    if (connArrow2) {
+      connArrow2.className = 'top-pipe-arrow top-arrow-threat';
+      connArrow2.innerHTML = '<span>🚫</span>';
     }
     if (targetCode) {
       targetCode.innerHTML = `<span class="top-code-label">TARGET INFRASTRUCTURE STATUS</span><code>Status: FULLY SHIELDED\nDatabase: 0 Mutations Executed\nSecurity: Dropped at Gateway Edge</code>`;
@@ -589,8 +590,9 @@ function setTopologyMode(mode) {
       connBadge2.className = 'top-pipe-badge';
       connBadge2.innerText = 'Safe & Attested';
     }
-    if (connLine2) {
-      connLine2.className = 'top-pipe-line';
+    if (connArrow2) {
+      connArrow2.className = 'top-pipe-arrow';
+      connArrow2.innerHTML = '<span>➔</span>';
     }
     if (targetCode) {
       targetCode.innerHTML = `<span class="top-code-label">RESOURCE EXECUTION</span><code>Status: 200 OK\nPayload: Verified & Clean\nResult: Query executed successfully</code>`;
