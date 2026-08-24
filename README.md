@@ -34,7 +34,7 @@ However, connecting models directly to tools without a security layer exposes yo
   🚨 Indirect prompt injection in web pages or database rows triggers malicious tool execution.
   🚨 Accidental DDL mutations (DROP TABLE, TRUNCATE) permanently wipe production schemas.
   🚨 Unrestricted HTTP webhooks silently exfiltrate API secrets and JWT tokens.
-  🚨 Zero cryptographic audit trails for SOC 2 Type II or HIPAA compliance.
+  🚨 Unconstrained mass updates and tautological deletes corrupt data integrity.
 ```
 
 ---
@@ -48,9 +48,9 @@ However, connecting models directly to tools without a security layer exposes yo
 ┌────────────────┐        JSON-RPC 2.0         ┌────────────────────────────────┐       Safe & Attested       ┌─────────────────────────┐
 │ Autonomous AI  │ ──────────────────────────► │  MCP SHIELD GATEWAY & WAF      │ ──────────────────────────► │ Internal Infrastructure │
 │ Agent (Claude) │ ◄────────────────────────── │  • Unicode & Prompt Sanitizer  │ ◄────────────────────────── │ (Postgres, APIs, Files) │
-└────────────────┘     Attestation Receipt     │  • AST SQL Blast Armor         │      Signed Response        └─────────────────────────┘
+└────────────────┘     Attestation Receipt     │  • Hybrid SQL Lexer & Armor    │      Signed Response        └─────────────────────────┘
                        (Ed25519 Signed)        │  • Egress Whitelist Firewall   │
-                                               │  • Hardware Crypto Enclave     │
+                                               │  • Cryptographic Signing       │
                                                └────────────────────────────────┘
 ```
 
@@ -60,17 +60,26 @@ However, connecting models directly to tools without a security layer exposes yo
 
 * **🧠 4-Phase In-Memory WAF**:
   1. **Phase 1 (Unicode Normalizer)**: Strips zero-width characters, homoglyphs, and base64-obfuscated jailbreaks.
-  2. **Phase 2 (SQL Blast Radius Armor)**: Parses SQL into Abstract Syntax Trees (AST) to strictly block `DROP TABLE`, `TRUNCATE`, `ALTER`, and unconstrained bulk `DELETE`.
+  2. **Phase 2 (SQL Blast Radius Armor)**: Tokenizes SQL statements and comments to strictly block `DROP TABLE`, `TRUNCATE`, `ALTER`, and unconstrained bulk `DELETE`.
   3. **Phase 3 (Egress Firewall)**: Restricts outbound HTTP/webhook tool calls exclusively to verified company domains.
-  4. **Phase 4 (Cryptographic Enclave)**: Digitally signs every verified response with **Ed25519** public keys.
+  4. **Phase 4 (Cryptographic Enclave)**: Digitally signs every verified response with **Ed25519** signatures.
 * **⚡ Sub-1.5ms P99 Overhead**: Zero disk writes on the hot path. Stateless evaluation purely in volatile RAM.
-* **🔒 Zero Plaintext Persistence**: Raw prompts and database rows are never written to disk or used for training. Only anonymized SHA-256 telemetry metadata is stored.
-* **📜 SOC 2 Type II Compliance Ready**: Every transaction produces a tamper-proof cryptographic receipt proving policy adherence.
+* **🔒 Zero Plaintext Persistence**: Raw prompts and database rows are never written to disk. Telemetry is tracked in volatile memory ring buffers.
+* **📜 Cryptographic Attestations**: Every transaction produces a tamper-proof cryptographic receipt proving policy adherence.
 * **🤝 Universal Compatibility**: Works out of the box with **Claude Desktop**, **Cursor IDE**, **LangChain**, **CrewAI**, **AutoGen**, and any standard MCP server.
 
 ---
 
 ## 🚀 2-Minute Quickstart
+
+### Prerequisites
+Clone the repository and link the CLI tool locally:
+```bash
+git clone https://github.com/shubham1504611/mcp-shield.git
+cd mcp-shield
+npm install
+npm link --workspace=packages/cli-shield
+```
 
 ### 1. Claude Desktop Integration
 Add the proxy wrapper to your `claude_desktop_config.json`:
@@ -79,9 +88,9 @@ Add the proxy wrapper to your `claude_desktop_config.json`:
 {
   "mcpServers": {
     "shielded-postgres": {
-      "command": "npx",
+      "command": "node",
       "args": [
-        "-y", "@mcp-shield/cli", "wrap",
+        "packages/cli-shield/bin/mcp-shield.js", "wrap",
         "--target", "npx -y @modelcontextprotocol/server-postgres postgresql://user:pass@localhost:5432/db"
       ]
     }
@@ -93,13 +102,13 @@ Add the proxy wrapper to your `claude_desktop_config.json`:
 In **Cursor Settings ➔ Features ➔ MCP Servers**:
 * **Name**: `MCP-Shield-Gateway`
 * **Type**: `command`
-* **Command**: `npx @mcp-shield/cli proxy --port 8080 --key mcp_live_sec_your_key`
+* **Command**: `node packages/cli-shield/bin/mcp-shield.js proxy --port 8080 --key mcp_live_sec_your_key`
 
 ### 3. Outbound Reverse Tunnel (`mcp-tunnel` for Private VPCs)
 Connect private internal VPC databases with **zero open inbound ports**:
 
 ```bash
-npx @mcp-shield/cli tunnel \
+node packages/cli-shield/bin/mcp-shield.js tunnel \
   --target "npx -y @modelcontextprotocol/server-postgres postgresql://internal-vpc-db:5432/mydb" \
   --key "mcp_live_sec_your_key"
 ```
@@ -109,24 +118,30 @@ Audit local configs for unshielded servers and plaintext database passwords:
 
 ```bash
 # Scan local IDE configurations
-npx @mcp-shield/cli doctor
+node packages/cli-shield/bin/mcp-shield.js doctor
 
 # Automatically wrap all vulnerable servers in 1-click
-npx @mcp-shield/cli doctor --fix
+node packages/cli-shield/bin/mcp-shield.js doctor --fix
 ```
 
-### 5. Python SDK Integration
+### 5. Direct Python / Agent Integration
 ```python
-from mcp_shield import ShieldClient
-
-client = ShieldClient(
-    gateway_url="https://mcp-shield-gateway-core.vercel.app/v1/mcp",
-    api_key="mcp_live_sec_your_key"
-)
+import requests
 
 # Intercepts prompt injections, DLP leaks, and blocks destructive SQL
-result = client.call_tool("sql_query", {"query": "SELECT id, name FROM users LIMIT 50"})
-print("Attestation Signature:", result.signature)
+res = requests.post(
+    "https://mcp-shield-gateway-core.vercel.app/api/evaluate",
+    json={
+        "tool": "postgres_query",
+        "query": "SELECT id, name FROM users WHERE active = true LIMIT 50",
+        "agent": "Python Agent"
+    },
+    headers={"X-API-Key": "mcp_live_sec_your_key"}
+)
+
+data = res.json()
+print("Safe:", data.get("isSafe"))
+print("Signature:", data.get("signature"))
 ```
 
 ---

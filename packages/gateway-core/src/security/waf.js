@@ -71,15 +71,34 @@ const APPROVED_EGRESS_DOMAINS = [
   'modelcontextprotocol.io'
 ];
 
-// Persistent Deterministic Ed25519 Signing Enclave (Constant Across Serverless Cold Starts)
-const DETERMINISTIC_PRIVATE_KEY_PEM = process.env.MCP_ATTESTATION_PRIVATE_KEY || 
-  `-----BEGIN PRIVATE KEY-----\nMC4CAQAwBQYDK2VwBCIEIJlDAtZ37sAuS0xBzmAATIt51vo6oRSA9fYgXyKFEzbJ\n-----END PRIVATE KEY-----\n`;
+// Ed25519 Signing Enclave (Loads from environment or generates secure in-memory keypair)
+let privateKeyObj;
+let publicKeyObj;
+let publicKeyPem;
 
-const DETERMINISTIC_PUBLIC_KEY_PEM = process.env.MCP_ATTESTATION_PUBLIC_KEY ||
-  `-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAF7FFuBWWIgxuto0dTMOQX6W6DZVVQMh83YAFKipauDw=\n-----END PUBLIC KEY-----\n`;
-
-const PRIVATE_KEY_OBJ = crypto.createPrivateKey(DETERMINISTIC_PRIVATE_KEY_PEM);
-const PUBLIC_KEY_OBJ = crypto.createPublicKey(DETERMINISTIC_PUBLIC_KEY_PEM);
+if (process.env.MCP_ATTESTATION_PRIVATE_KEY && process.env.MCP_ATTESTATION_PUBLIC_KEY) {
+  try {
+    privateKeyObj = crypto.createPrivateKey(process.env.MCP_ATTESTATION_PRIVATE_KEY);
+    publicKeyObj = crypto.createPublicKey(process.env.MCP_ATTESTATION_PUBLIC_KEY);
+    publicKeyPem = process.env.MCP_ATTESTATION_PUBLIC_KEY;
+  } catch (_) {
+    const pair = crypto.generateKeyPairSync('ed25519', {
+      publicKeyEncoding: { type: 'spki', format: 'pem' },
+      privateKeyEncoding: { type: 'pkcs8', format: 'pem' }
+    });
+    privateKeyObj = crypto.createPrivateKey(pair.privateKey);
+    publicKeyObj = crypto.createPublicKey(pair.publicKey);
+    publicKeyPem = pair.publicKey;
+  }
+} else {
+  const pair = crypto.generateKeyPairSync('ed25519', {
+    publicKeyEncoding: { type: 'spki', format: 'pem' },
+    privateKeyEncoding: { type: 'pkcs8', format: 'pem' }
+  });
+  privateKeyObj = crypto.createPrivateKey(pair.privateKey);
+  publicKeyObj = crypto.createPublicKey(pair.publicKey);
+  publicKeyPem = pair.publicKey;
+}
 
 /**
  * Lightweight In-Memory SQL AST Lexer & Tokenizer
@@ -567,7 +586,7 @@ class SecurityWaf {
     // Canonical Spec: `${toolName}:${JSON.stringify(sanitizedPayload)}`
     const canonicalPayload = `${toolName || 'tool'}:${sanitizedPayloadStr}`;
     const hash = crypto.createHash('sha256').update(canonicalPayload).digest();
-    const signature = crypto.sign(null, hash, PRIVATE_KEY_OBJ).toString('hex');
+    const signature = crypto.sign(null, hash, privateKeyObj).toString('hex');
     const traceId = `trc_${crypto.createHash('sha256').update(`${canonicalPayload}:${signature}`).digest('hex').substring(0, 16)}`;
 
     return {
@@ -575,7 +594,7 @@ class SecurityWaf {
       sanitizedPayload,
       traceId,
       signature,
-      publicKey: DETERMINISTIC_PUBLIC_KEY_PEM,
+      publicKey: publicKeyPem,
       canonicalFormat: canonicalPayload,
       algorithm: 'Ed25519'
     };
@@ -584,6 +603,7 @@ class SecurityWaf {
 
 module.exports = { 
   SecurityWaf,
-  PUBLIC_KEY: DETERMINISTIC_PUBLIC_KEY_PEM,
+  PUBLIC_KEY: publicKeyPem,
+  getPublicKey: () => publicKeyPem,
   SqlAstLexer
 };

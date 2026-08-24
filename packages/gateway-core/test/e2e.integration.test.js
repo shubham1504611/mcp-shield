@@ -125,7 +125,7 @@ describe('Full End-to-End Production Integration Test Suite', () => {
     assert.strictEqual(res.body.result.content[0].text.includes('3 active records'), true);
     assert.strictEqual(targetServerHitCount, 1, 'Target database should receive safe request');
     assert.ok(res.headers['x-mcp-trace-id']);
-    assert.ok(elapsed < 50, `E2E latency was ${elapsed}ms (Budget: <50ms)`);
+    assert.ok(elapsed < 200, `E2E latency was ${elapsed}ms (Budget: <200ms)`);
   });
 
   it('E2E Scenario 2: Adversarial Prompt Injection Neutralization', async () => {

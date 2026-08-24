@@ -1,6 +1,5 @@
 /**
- * Serverless Real-Time WAF Evaluation & Cryptographic Attestation API
- * Endpoint: POST /api/evaluate
+ * Standalone Zero-Trust WAF Evaluation Endpoint for Vercel Serverless & Node.js
  */
 
 const { performance } = require('perf_hooks');
@@ -13,27 +12,35 @@ global.__MCP_METRICS__ = global.__MCP_METRICS__ || {
   blockedThreats: 0,
   latencies: []
 };
-
-// Rate limiter storage: IP/Key -> { count, resetAt }
 global.__MCP_RATE_LIMITS__ = global.__MCP_RATE_LIMITS__ || new Map();
+global.__MCP_API_KEYS__ = global.__MCP_API_KEYS__ || new Map();
 
-function checkRateLimit(identifier, maxRpm = 60) {
+const ALLOWED_ORIGINS = [
+  'https://mcp-shield-gateway-core.vercel.app',
+  'http://localhost:3000',
+  'http://localhost:8080',
+  'http://127.0.0.1:3000',
+  'http://127.0.0.1:8080'
+];
+
+function checkRateLimit(ip, isKeyHolder = false) {
+  const maxRpm = isKeyHolder ? 120 : 30;
   const now = Date.now();
-  const record = global.__MCP_RATE_LIMITS__.get(identifier) || { count: 0, resetAt: now + 60000 };
+  const windowMs = 60000;
+  const record = global.__MCP_RATE_LIMITS__.get(ip) || { count: 0, resetAt: now + windowMs };
 
   if (now > record.resetAt) {
     record.count = 0;
-    record.resetAt = now + 60000;
+    record.resetAt = now + windowMs;
   }
 
   record.count++;
-  global.__MCP_RATE_LIMITS__.set(identifier, record);
+  global.__MCP_RATE_LIMITS__.set(ip, record);
 
   return {
     allowed: record.count <= maxRpm,
-    current: record.count,
     remaining: Math.max(0, maxRpm - record.count),
-    resetAt: record.resetAt
+    resetInSec: Math.ceil((record.resetAt - now) / 1000)
   };
 }
 
@@ -64,9 +71,14 @@ async function parseRequestBody(req) {
 }
 
 module.exports = async (req, res) => {
-  const origin = req.headers['origin'] || '*';
-  res.setHeader('Access-Control-Allow-Origin', origin);
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  const origin = req.headers['origin'];
+  if (origin && ALLOWED_ORIGINS.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  } else {
+    res.setHeader('Access-Control-Allow-Origin', 'https://mcp-shield-gateway-core.vercel.app');
+  }
+
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-Key');
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
@@ -77,141 +89,106 @@ module.exports = async (req, res) => {
   }
 
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method Not Allowed', message: 'Use POST for WAF payload evaluation.' });
+    return res.status(405).json({
+      error: 'METHOD_NOT_ALLOWED',
+      message: 'Evaluation endpoint requires POST method.'
+    });
   }
 
-  // Client IP & Key identification
-  const clientIp = (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '127.0.0.1').split(',')[0].trim();
-  const apiKey = req.headers['x-api-key'] || (req.headers['authorization']?.replace(/^Bearer\s+/, '')) || '';
-  
-  // Rate Limit: 30 RPM for public playground, 120 RPM for API key holders
-  const maxRpm = apiKey.startsWith('mcp_live_sec_') ? 120 : 30;
-  const rateLimit = checkRateLimit(apiKey || clientIp, maxRpm);
+  const clientIp = (req.headers['x-forwarded-for'] || (req.socket && req.socket.remoteAddress) || '127.0.0.1').split(',')[0].trim();
+  const authHeader = req.headers['authorization'] || '';
+  const apiKeyHeader = req.headers['x-api-key'] || '';
+  const isKeyHolder = authHeader.startsWith('Bearer mcp_live_sec_') || apiKeyHeader.startsWith('mcp_live_sec_');
 
-  res.setHeader('X-RateLimit-Limit', maxRpm.toString());
-  res.setHeader('X-RateLimit-Remaining', rateLimit.remaining.toString());
-  res.setHeader('X-RateLimit-Reset', Math.ceil(rateLimit.resetAt / 1000).toString());
+  const rl = checkRateLimit(clientIp, isKeyHolder);
+  res.setHeader('X-RateLimit-Limit', isKeyHolder ? '120' : '30');
+  res.setHeader('X-RateLimit-Remaining', String(rl.remaining));
+  res.setHeader('X-RateLimit-Reset', String(rl.resetInSec));
 
-  if (!rateLimit.allowed) {
+  if (!rl.allowed) {
     return res.status(429).json({
       error: 'TOO_MANY_REQUESTS',
-      message: `Rate limit exceeded. Quota: ${maxRpm} requests per minute. Try again in a few seconds.`
+      message: `Rate limit exceeded. Try again in ${rl.resetInSec} seconds.`,
+      retryAfter: rl.resetInSec
     });
   }
 
-  const startTime = performance.now();
-
   try {
-    const body = await parseRequestBody(req);
-    const toolName = body.toolName || body.tool || 'postgres_query';
-    const payload = body.params || (body.query ? { query: body.query } : body);
-    const customKeywords = body.customKeywords || [];
-    const customRegexRules = body.customRegexRules || [];
+    const startTime = performance.now();
+    const rawBody = await parseRequestBody(req);
+
+    // Dynamic parameter mapping
+    const toolName = rawBody.tool || rawBody.method || rawBody.toolName || 'postgres_query';
+    let params = rawBody.params || rawBody.arguments || rawBody.args;
+    if (!params) {
+      if (rawBody.query) params = { query: rawBody.query };
+      else if (rawBody.path) params = { path: rawBody.path };
+      else if (rawBody.url) params = { url: rawBody.url };
+      else params = { payload: rawBody };
+    }
+
+    const agent = rawBody.agent || 'Live Playground';
 
     const waf = new SecurityWaf({
-      blockedKeywords: customKeywords,
-      customRegexRules: customRegexRules
+      enforceDlp: true
     });
 
-    const result = waf.inspectToolCall(toolName, payload);
-    const durationMs = parseFloat((performance.now() - startTime).toFixed(2));
+    const result = waf.inspectToolCall(toolName, params);
+    const endTime = performance.now();
+    const latencyMs = parseFloat((endTime - startTime).toFixed(2));
 
-    global.__MCP_METRICS__.totalCalls++;
-    global.__MCP_METRICS__.latencies.push(durationMs);
+    // Update real metrics
+    global.__MCP_METRICS__.totalCalls = (global.__MCP_METRICS__.totalCalls || 0) + 1;
+    if (!result.isSafe) {
+      global.__MCP_METRICS__.blockedThreats = (global.__MCP_METRICS__.blockedThreats || 0) + 1;
+    }
     if (global.__MCP_METRICS__.latencies.length > 500) {
       global.__MCP_METRICS__.latencies.shift();
     }
+    global.__MCP_METRICS__.latencies.push(latencyMs);
 
-    let responsePayload;
-    let logEntry;
+    // Record in genuine live audit log stream
+    const auditEntry = {
+      id: `log_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      time: 'Just now',
+      timestamp: new Date().toISOString(),
+      agent,
+      agentIcon: agent.includes('Cursor') ? '⬛' : (agent.includes('Claude') ? '🟠' : '🤖'),
+      tool: toolName,
+      payload: JSON.stringify(params).substring(0, 150),
+      verdict: result.isSafe ? 'PASS: Ed25519 Signed' : `BLOCKED: ${result.rule}`,
+      type: result.isSafe ? 'passed' : 'blocked',
+      rule: result.rule || null,
+      latency: `${latencyMs} ms`
+    };
 
-    if (!result.isSafe) {
-      global.__MCP_METRICS__.blockedThreats++;
-
-      responsePayload = {
-        jsonrpc: '2.0',
-        id: body.id || `req_${Date.now()}`,
-        error: {
-          code: -32001,
-          message: result.reason || 'Security policy violation detected',
-          data: {
-            rule: result.rule,
-            matchedSnippet: result.matchedSnippet,
-            policy: 'ZERO_TRUST_WAF_PROTECTION',
-            action: 'BLOCKED_BEFORE_EXECUTION',
-            latencyMs: durationMs
-          }
-        }
-      };
-
-      logEntry = {
-        id: Date.now() + Math.random(),
-        time: 'Just now',
-        agent: body.agent || (apiKey ? 'API Fleet Client' : 'Live Playground'),
-        agentIcon: '🔴',
-        tool: toolName,
-        payload: (typeof payload === 'string' ? payload : JSON.stringify(payload)).substring(0, 80),
-        verdict: `BLOCKED: ${result.rule}`,
-        type: 'blocked',
-        latency: `${durationMs} ms`
-      };
-    } else {
-      responsePayload = {
-        jsonrpc: '2.0',
-        id: body.id || `req_${Date.now()}`,
-        result: {
-          status: 'SUCCESS',
-          sanitizedPayload: result.sanitizedPayload,
-          _shield: {
-            traceId: result.traceId,
-            attestation: result.signature,
-            publicKey: PUBLIC_KEY,
-            canonicalFormat: result.canonicalFormat,
-            algorithm: 'Ed25519',
-            sanitized: true,
-            riskScore: 0.00,
-            executionLatencyMs: durationMs
-          }
-        }
-      };
-
-      logEntry = {
-        id: Date.now() + Math.random(),
-        time: 'Just now',
-        agent: body.agent || (apiKey ? 'API Fleet Client' : 'Live Playground'),
-        agentIcon: '🟢',
-        tool: toolName,
-        payload: (typeof payload === 'string' ? payload : JSON.stringify(payload)).substring(0, 80),
-        verdict: 'PASS: Ed25519 Signed',
-        type: 'passed',
-        latency: `${durationMs} ms`
-      };
-    }
-
-    // Add to audit stream ring buffer (max 100 items)
-    global.__MCP_AUDIT_LOGS__.unshift(logEntry);
+    global.__MCP_AUDIT_LOGS__.unshift(auditEntry);
     if (global.__MCP_AUDIT_LOGS__.length > 100) {
       global.__MCP_AUDIT_LOGS__.pop();
     }
 
-    res.setHeader('X-MCP-Signature', result.isSafe ? result.signature : 'EXECUTION_BLOCKED');
-    res.setHeader('X-MCP-Trace-ID', result.traceId || 'BLOCKED');
-    res.setHeader('X-MCP-Canonical-Format', result.canonicalFormat || `${toolName}:${JSON.stringify(result.sanitizedPayload || {})}`);
-    res.setHeader('X-Execution-Latency-Ms', durationMs.toString());
+    if (!result.isSafe) {
+      return res.status(200).json({
+        isSafe: false,
+        status: 'BLOCKED',
+        rule: result.rule,
+        reason: result.reason,
+        matchedSnippet: result.matchedSnippet,
+        latencyMs,
+        clientIp: clientIp.replace(/:\d+$/, '')
+      });
+    }
 
     return res.status(200).json({
-      isSafe: result.isSafe,
-      rule: result.rule || null,
-      reason: result.reason || null,
-      signature: result.signature || 'EXECUTION_BLOCKED',
-      publicKey: PUBLIC_KEY,
+      isSafe: true,
+      status: 'APPROVED',
+      traceId: result.traceId,
+      signature: result.signature,
+      publicKey: result.publicKey,
       canonicalFormat: result.canonicalFormat,
-      traceId: result.traceId || null,
-      sanitizedPayload: result.sanitizedPayload || null,
-      latencyMs: durationMs,
-      riskScore: result.isSafe ? '0.00' : '0.98',
-      response: responsePayload,
-      logEntry
+      algorithm: result.algorithm,
+      sanitizedPayload: result.sanitizedPayload,
+      latencyMs
     });
   } catch (err) {
     console.error('WAF Evaluation Error:', err);

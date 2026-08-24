@@ -40,7 +40,7 @@ const DLP_PATTERNS = [
 // Sensitive Column Extraction Regex (DLP Column Protection)
 const RE_SENSITIVE_COLUMN_EXTRACTION = /\b(SELECT|EXTRACT|GET)\s+[\s\S]*?\b(credit_card|card_number|cvv|cvc|ssn|social_security|bank_account(_number)?|routing_number|api_keys?|secret_tokens?|auth_tokens?|access_tokens?|private_keys?|master_keys?|passwords?|password_hash|passwd)\b/i;
 
-// Phase 3: SQL AST & Blast Radius Patterns
+// Phase 3: SQL Blast Radius & Schema Shield Patterns
 const RE_SQL_MULTI_STATEMENT = /;\s*(--|\/\*|SELECT|INSERT|UPDATE|DELETE|DROP|TRUNCATE|ALTER|CREATE|EXEC|\w+)/i;
 const RE_SQL_DDL = /\b(DROP\s+TABLE|DROP\s+DATABASE|DROP\s+VIEW|DROP\s+SCHEMA|TRUNCATE(\s+TABLE)?|ALTER\s+TABLE)\b/i;
 const RE_SQL_UNION_INJECTION = /\bUNION(\s+ALL)?\s+SELECT\b/i;
@@ -66,18 +66,37 @@ const APPROVED_EGRESS_DOMAINS = [
   'modelcontextprotocol.io'
 ];
 
-// Persistent Deterministic Ed25519 Signing Enclave
-const DETERMINISTIC_PRIVATE_KEY_PEM = process.env.MCP_ATTESTATION_PRIVATE_KEY || 
-  `-----BEGIN PRIVATE KEY-----\nMC4CAQAwBQYDK2VwBCIEIJlDAtZ37sAuS0xBzmAATIt51vo6oRSA9fYgXyKFEzbJ\n-----END PRIVATE KEY-----\n`;
+// Ed25519 Signing Enclave (Loads from environment or generates secure in-memory keypair)
+let privateKeyObj;
+let publicKeyObj;
+let publicKeyPem;
 
-const DETERMINISTIC_PUBLIC_KEY_PEM = process.env.MCP_ATTESTATION_PUBLIC_KEY ||
-  `-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAF7FFuBWWIgxuto0dTMOQX6W6DZVVQMh83YAFKipauDw=\n-----END PUBLIC KEY-----\n`;
-
-const PRIVATE_KEY_OBJ = crypto.createPrivateKey(DETERMINISTIC_PRIVATE_KEY_PEM);
-const PUBLIC_KEY_OBJ = crypto.createPublicKey(DETERMINISTIC_PUBLIC_KEY_PEM);
+if (process.env.MCP_ATTESTATION_PRIVATE_KEY && process.env.MCP_ATTESTATION_PUBLIC_KEY) {
+  try {
+    privateKeyObj = crypto.createPrivateKey(process.env.MCP_ATTESTATION_PRIVATE_KEY);
+    publicKeyObj = crypto.createPublicKey(process.env.MCP_ATTESTATION_PUBLIC_KEY);
+    publicKeyPem = process.env.MCP_ATTESTATION_PUBLIC_KEY;
+  } catch (_) {
+    const pair = crypto.generateKeyPairSync('ed25519', {
+      publicKeyEncoding: { type: 'spki', format: 'pem' },
+      privateKeyEncoding: { type: 'pkcs8', format: 'pem' }
+    });
+    privateKeyObj = crypto.createPrivateKey(pair.privateKey);
+    publicKeyObj = crypto.createPublicKey(pair.publicKey);
+    publicKeyPem = pair.publicKey;
+  }
+} else {
+  const pair = crypto.generateKeyPairSync('ed25519', {
+    publicKeyEncoding: { type: 'spki', format: 'pem' },
+    privateKeyEncoding: { type: 'pkcs8', format: 'pem' }
+  });
+  privateKeyObj = crypto.createPrivateKey(pair.privateKey);
+  publicKeyObj = crypto.createPublicKey(pair.publicKey);
+  publicKeyPem = pair.publicKey;
+}
 
 /**
- * Lightweight In-Memory SQL AST Lexer & Tokenizer
+ * Lightweight In-Memory SQL Tokenizer / Lexer
  */
 class SqlAstLexer {
   static tokenize(sql) {
@@ -137,7 +156,7 @@ class SqlAstLexer {
           if (sql[i] === '\\' && i + 1 < len) str += sql[i++];
           str += sql[i++];
         }
-        if (i < len) str += sql[i++]; // closing quote
+        if (i < len) str += sql[i++];
         tokens.push({ type: 'LITERAL_STRING', value: str });
         continue;
       }
@@ -189,21 +208,18 @@ class SecurityWaf {
     this.customBlockedKeywords = this.customBlockedKeywords.filter(k => k.toLowerCase() !== keyword.toLowerCase());
   }
 
-  /**
-   * Phase 1: Robust Multi-Layer Obfuscation Stripper & String Normalizer
-   */
   normalize(input) {
     if (typeof input !== 'string') return '';
     if (input.length === 0) return '';
 
     let normalized = input;
 
-    // 1. Strip zero-width & invisible unicode characters (U+200B, U+202E, U+FEFF, etc.)
+    // 1. Strip zero-width & invisible unicode characters
     if (RE_ZERO_WIDTH_AND_OVERRIDES.test(normalized)) {
       normalized = normalized.replace(RE_ZERO_WIDTH_AND_OVERRIDES, '');
     }
 
-    // 2. URL Decode if URL encoding is present
+    // 2. URL Decode if present
     if (/%[0-9a-fA-F]{2}/.test(normalized)) {
       try {
         normalized = decodeURIComponent(normalized);
@@ -223,15 +239,12 @@ class SecurityWaf {
       });
     }
 
-    // 4. Normalize all whitespace variants to a single space
+    // 4. Normalize whitespace
     normalized = normalized.replace(RE_ALL_WHITESPACE, ' ').trim();
 
     return normalized;
   }
 
-  /**
-   * Deep recursive payload sanitizer
-   */
   sanitizePayload(obj) {
     if (obj === null || obj === undefined) return obj;
 
@@ -262,9 +275,6 @@ class SecurityWaf {
     return stripped.replace(RE_ALL_WHITESPACE, ' ').trim();
   }
 
-  /**
-   * Deep recursive extraction of all string parameters
-   */
   extractStrings(obj, collector = []) {
     if (obj === null || obj === undefined) return collector;
 
@@ -273,14 +283,12 @@ class SecurityWaf {
       if (norm) {
         collector.push(norm);
 
-        // Also push SQL comment-stripped variant
         const sqlStripped = this.stripSqlComments(norm);
         if (sqlStripped && sqlStripped !== norm) {
           collector.push(sqlStripped);
         }
       }
 
-      // Check for base64 blobs and decode them
       const base64Matches = obj.match(RE_BASE64);
       if (base64Matches) {
         for (const match of base64Matches) {
@@ -308,15 +316,11 @@ class SecurityWaf {
     return collector;
   }
 
-  /**
-   * Phase 2: Adversarial Injection, Strict Egress Firewall & DLP Scanner
-   */
   scanAdversarialOverrides(strings) {
     for (let i = 0; i < strings.length; i++) {
       const str = strings[i];
       if (!str) continue;
 
-      // 1. Core Adversarial Injections & Path Traversals
       for (let j = 0; j < INJECTION_PATTERNS.length; j++) {
         const pattern = INJECTION_PATTERNS[j];
         if (pattern.regex.test(str)) {
@@ -329,7 +333,6 @@ class SecurityWaf {
         }
       }
 
-      // 2. Strict Egress Firewall (Blocks unapproved external URLs)
       const urlMatches = str.match(/https?:\/\/([a-zA-Z0-9.-]+)(:[0-9]+)?(\/[^\s]*)?/gi);
       if (urlMatches) {
         for (const url of urlMatches) {
@@ -351,7 +354,6 @@ class SecurityWaf {
         }
       }
 
-      // 3. Enterprise DLP (PII / Secrets Values)
       if (this.enforceDlp) {
         for (let j = 0; j < DLP_PATTERNS.length; j++) {
           const dlp = DLP_PATTERNS[j];
@@ -365,7 +367,6 @@ class SecurityWaf {
           }
         }
 
-        // 4. Sensitive Column Extraction Check
         if (RE_SENSITIVE_COLUMN_EXTRACTION.test(str)) {
           return {
             isSafe: false,
@@ -376,7 +377,6 @@ class SecurityWaf {
         }
       }
 
-      // 5. Dynamic Custom Regex Rules
       for (let j = 0; j < this.customRegexRules.length; j++) {
         const custom = this.customRegexRules[j];
         if (custom.regex.test(str)) {
@@ -389,7 +389,6 @@ class SecurityWaf {
         }
       }
 
-      // 6. Custom Blocked Keywords
       for (let k = 0; k < this.customBlockedKeywords.length; k++) {
         const keyword = this.customBlockedKeywords[k];
         if (str.toLowerCase().includes(keyword.toLowerCase())) {
@@ -406,18 +405,13 @@ class SecurityWaf {
     return { isSafe: true };
   }
 
-  /**
-   * Phase 3: AST SQL Blast Radius & Schema Shield
-   */
   scanSqlBlastRadius(strings) {
     for (let i = 0; i < strings.length; i++) {
       const str = strings[i];
       if (!str) continue;
 
-      // Tokenize using AST Lexer
       const tokens = SqlAstLexer.tokenize(str);
 
-      // Check comments themselves for destructive payloads
       for (const tok of tokens) {
         if (tok.type === 'COMMENT_BLOCK' || tok.type === 'COMMENT_LINE') {
           const commentContent = tok.value.replace(/^(\/\*|--)/, '').replace(/\*\/$/, '');
@@ -434,7 +428,6 @@ class SecurityWaf {
 
       const candidate = this.stripSqlComments(str);
 
-      // Chained multi-statement SQL (including ; followed by comment or statement)
       if (RE_SQL_MULTI_STATEMENT.test(str) || RE_SQL_MULTI_STATEMENT.test(candidate)) {
         return {
           isSafe: false,
@@ -444,7 +437,6 @@ class SecurityWaf {
         };
       }
 
-      // Destructive DDL (DROP, TRUNCATE, ALTER) - Check both raw and stripped
       if (RE_SQL_DDL.test(str) || RE_SQL_DDL.test(candidate)) {
         return {
           isSafe: false,
@@ -454,7 +446,6 @@ class SecurityWaf {
         };
       }
 
-      // UNION-based SQL injection exfiltration
       if (RE_SQL_UNION_INJECTION.test(str) || RE_SQL_UNION_INJECTION.test(candidate)) {
         return {
           isSafe: false,
@@ -464,7 +455,6 @@ class SecurityWaf {
         };
       }
 
-      // SQL Tautology / Predicate Bypass (OR 1=1, WHERE 1=1, HAVING 1=1, boolean TRUE)
       if (RE_SQL_TAUTOLOGY.test(candidate) || RE_SQL_WHERE_TAUTOLOGY.test(candidate) || RE_SQL_HAVING_TAUTOLOGY.test(candidate)) {
         return {
           isSafe: false,
@@ -474,7 +464,6 @@ class SecurityWaf {
         };
       }
 
-      // Sensitive Credential / Secret Tables Access & Schema Enumeration
       if (RE_SQL_SENSITIVE_TABLES.test(str) || RE_SQL_SENSITIVE_TABLES.test(candidate)) {
         return {
           isSafe: false,
@@ -484,7 +473,6 @@ class SecurityWaf {
         };
       }
 
-      // Privileged DML / Unauthorized Table Injection
       if (RE_SQL_PRIVILEGED_DML.test(candidate)) {
         return {
           isSafe: false,
@@ -494,7 +482,6 @@ class SecurityWaf {
         };
       }
 
-      // Privilege Escalation Attempt (is_admin=1, role='admin')
       if (RE_SQL_PRIVILEGE_ESCALATION.test(candidate) || RE_SQL_PRIVILEGE_ESCALATION.test(str)) {
         return {
           isSafe: false,
@@ -504,7 +491,6 @@ class SecurityWaf {
         };
       }
 
-      // Unconstrained DELETE (without WHERE or with WHERE 1=1 tautology)
       if ((/\bDELETE\s+FROM\b/i.test(candidate) && !RE_SQL_WHERE.test(candidate)) || (/\bDELETE\s+FROM\b/i.test(candidate) && RE_SQL_WHERE_TAUTOLOGY.test(candidate))) {
         return {
           isSafe: false,
@@ -514,7 +500,6 @@ class SecurityWaf {
         };
       }
 
-      // Unconstrained UPDATE (without WHERE or with WHERE 1=1 tautology)
       if ((/\bUPDATE\s+["`\w]+\s+SET\b/i.test(candidate) && !RE_SQL_WHERE.test(candidate)) || (/\bUPDATE\s+["`\w]+\s+SET\b/i.test(candidate) && RE_SQL_WHERE_TAUTOLOGY.test(candidate))) {
         return {
           isSafe: false,
@@ -528,9 +513,6 @@ class SecurityWaf {
     return { isSafe: true };
   }
 
-  /**
-   * Main Inspection Entrypoint
-   */
   inspectToolCall(toolName, params) {
     const rawPayloadStr = JSON.stringify(params || {});
     if (Buffer.byteLength(rawPayloadStr, 'utf8') > this.maxPayloadBytes) {
@@ -546,23 +528,18 @@ class SecurityWaf {
       this.extractStrings(toolName, strings);
     }
 
-    // Phase 2: Adversarial Injection & Egress Inspection
     const overrideResult = this.scanAdversarialOverrides(strings);
     if (!overrideResult.isSafe) return overrideResult;
 
-    // Phase 3: SQL Blast Radius & Schema Shield Inspection
     const sqlResult = this.scanSqlBlastRadius(strings);
     if (!sqlResult.isSafe) return sqlResult;
 
-    // Phase 1 Sanitization: Recursively strip zero-width & invisible override characters in returned payload
     const sanitizedPayload = this.sanitizePayload(params);
     const sanitizedPayloadStr = JSON.stringify(sanitizedPayload || {});
 
-    // Phase 4: Deterministic Ed25519 Cryptographic Attestation with Published Canonical Spec
-    // Canonical Spec: `${toolName}:${JSON.stringify(sanitizedPayload)}`
     const canonicalPayload = `${toolName || 'tool'}:${sanitizedPayloadStr}`;
     const hash = crypto.createHash('sha256').update(canonicalPayload).digest();
-    const signature = crypto.sign(null, hash, PRIVATE_KEY_OBJ).toString('hex');
+    const signature = crypto.sign(null, hash, privateKeyObj).toString('hex');
     const traceId = `trc_${crypto.createHash('sha256').update(`${canonicalPayload}:${signature}`).digest('hex').substring(0, 16)}`;
 
     return {
@@ -570,7 +547,7 @@ class SecurityWaf {
       sanitizedPayload,
       traceId,
       signature,
-      publicKey: DETERMINISTIC_PUBLIC_KEY_PEM,
+      publicKey: publicKeyPem,
       canonicalFormat: canonicalPayload,
       algorithm: 'Ed25519'
     };
@@ -579,6 +556,7 @@ class SecurityWaf {
 
 module.exports = { 
   SecurityWaf,
-  PUBLIC_KEY: DETERMINISTIC_PUBLIC_KEY_PEM,
+  PUBLIC_KEY: publicKeyPem,
+  getPublicKey: () => publicKeyPem,
   SqlAstLexer
 };

@@ -75,8 +75,8 @@
       <!-- Clean 1-Line CLI Quickstart -->
       <div class="hero-terminal-pill">
         <span class="term-prompt">$</span>
-        <span class="term-code">npx @mcp-shield/cli wrap --target "npx @modelcontextprotocol/server-postgres postgresql://..."</span>
-        <button class="term-copy" onclick="copySnippet('npx @mcp-shield/cli wrap')">Copy</button>
+        <span class="term-code">node packages/cli-shield/bin/mcp-shield.js wrap --target "npx @modelcontextprotocol/server-postgres postgresql://..."</span>
+        <button class="term-copy" onclick="copySnippet('node packages/cli-shield/bin/mcp-shield.js wrap')">Copy</button>
       </div>
 
       <!-- Ecosystem Compatibility Chips with Rich Branded SVG Icons -->
@@ -351,7 +351,7 @@
             <b>✓ Strict Egress Whitelist:</b> Restricts outbound tool connections exclusively to approved company domains and internal endpoints.
           </li>
           <li>
-            <b>✓ Ed25519 Cryptographic Attestations:</b> Every valid frame receives an immutable digital signature required for SOC 2 Type II compliance.
+            <b>✓ Ed25519 Cryptographic Attestations:</b> Every valid frame receives an immutable digital signature for end-to-end cryptographic verification.
           </li>
         </ul>
       </div>
@@ -799,11 +799,11 @@ console.log('Sanitized Payload:', data.sanitizedPayload);</code></pre>
           </p>
           <div class="footer-status-tag">
             <span class="status-pulse-green"></span>
-            <span>All Gateway Systems Operational (99.99%)</span>
+            <span>Open-Source Gateway Core Operational</span>
           </div>
           <div class="footer-badge-chips">
-            <span class="foot-chip">📦 npm v1.2.4</span>
-            <span class="foot-chip">⭐ Open Source</span>
+            <span class="foot-chip">⚡ Open-Source MIT</span>
+            <span class="foot-chip">⭐ GitHub Repo</span>
             <span class="foot-chip">🛡️ Ed25519 Enclave</span>
           </div>
         </div>
@@ -816,7 +816,7 @@ console.log('Sanitized Payload:', data.sanitizedPayload);</code></pre>
           <a href="#hub">Community Tool Hub</a>
           <a href="#console">Active Key Console</a>
           <a href="#guarantees">SQL Blast Armor</a>
-          <a href="#pricing">Pricing & Plans</a>
+          <a href="#pricing">Deployment Options</a>
         </div>
 
         <!-- Col 3: Integrations & Developers -->
@@ -832,19 +832,19 @@ console.log('Sanitized Payload:', data.sanitizedPayload);</code></pre>
 
         <!-- Col 4: Trust & Compliance -->
         <div class="footer-col">
-          <div class="footer-col-title">TRUST & COMPLIANCE</div>
+          <div class="footer-col-title">SECURITY & PRIVACY</div>
           <a href="javascript:void(0)" onclick="openPrivacyModal()">Privacy Policy</a>
           <a href="javascript:void(0)" onclick="openTermsModal()">Terms of Service</a>
-          <a href="javascript:void(0)" onclick="openRetentionModal()">Data Retention Guarantee</a>
+          <a href="javascript:void(0)" onclick="openRetentionModal()">Data Retention Policy</a>
           <a href="#guarantees">Cryptographic Attestation</a>
-          <a href="#guarantees">SOC 2 Type II Readiness</a>
+          <a href="/.well-known/security.txt">Security Disclosure</a>
           <a href="#guarantees">Zero-Persistence Policy</a>
         </div>
       </div>
 
       <!-- Bottom Bar -->
       <div class="footer-bottom-bar">
-        <div class="foot-copy">© 2026 MCP Shield Platform Inc. All rights reserved.</div>
+        <div class="foot-copy">© 2026 MCP Shield Open-Source Project. Released under the MIT License.</div>
         <div class="foot-center-tag">Designed for Autonomous Agent Security</div>
         <div class="foot-conforming">Official Model Context Protocol (MCP) JSON-RPC 2.0 Compliant</div>
       </div>
@@ -1012,11 +1012,11 @@ console.log('Sanitized Payload:', data.sanitizedPayload);</code></pre>
         <h4 class="legal-h4">1. Zero Plaintext Persistence Guarantee</h4>
         <p class="legal-p">Every tool invocation evaluated by MCP Shield has a <b>0.00-second persistence lifecycle</b> for plaintext payloads. Once the proxy sanitizes the parameters and computes the Ed25519 attestation signature, the payload buffer is permanently purged from memory.</p>
 
-        <h4 class="legal-h4">2. Retention Schedule by Plan Tier</h4>
+        <h4 class="legal-h4">2. Retention Schedule by Deployment Model</h4>
         <ul class="legal-ul">
-          <li><b>Developer Sandbox ($0/mo):</b> Volatile in-memory session tracking only. Telemetry discarded when browser or CLI process exits.</li>
-          <li><b>Engineering Team Pro:</b> 30-day encrypted retention of anonymized call metadata (SHA-256 hashes, latency metrics, tool names).</li>
-          <li><b>Enterprise Fleet:</b> 365-day immutable, tamper-evident audit vault designed for SOC 2 Type II and HIPAA compliance reviews.</li>
+          <li><b>Local CLI & Proxy ($0 Open Source):</b> Volatile in-memory session tracking only. Telemetry discarded when process terminates.</li>
+          <li><b>Self-Hosted Gateway ($0 Open Source):</b> Configurable storage backend via PostgreSQL or SQLite with custom retention policies.</li>
+          <li><b>Cloud Serverless Gateway:</b> Zero-persistence in-memory ring buffer with live stream telemetry and Ed25519 signature headers.</li>
         </ul>
 
         <h4 class="legal-h4">3. Independent Cryptographic Verification</h4>
