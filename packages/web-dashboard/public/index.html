@@ -76,7 +76,7 @@
       <div class="hero-terminal-pill">
         <span class="term-prompt">$</span>
         <span class="term-code">node packages/cli-shield/bin/mcp-shield.js wrap --target "npx @modelcontextprotocol/server-postgres postgresql://..."</span>
-        <button class="term-copy" onclick="copySnippet('node packages/cli-shield/bin/mcp-shield.js wrap')">Copy</button>
+        <button class="term-copy" onclick="copySnippet('node packages/cli-shield/bin/mcp-shield.js wrap --target &quot;npx @modelcontextprotocol/server-postgres postgresql://...&quot;')">Copy</button>
       </div>
 
       <!-- Ecosystem Compatibility Chips with Rich Branded SVG Icons -->
@@ -733,7 +733,7 @@ console.log('Sanitized Payload:', data.sanitizedPayload);</code></pre>
           <span class="faq-symbol">+</span>
         </div>
         <div class="faq-content">
-          The <code>npx mcp-shield tunnel</code> command initiates an outbound-only connection from your private VPC/network to the gateway. When an AI agent invokes a tool, requests are securely routed down this established tunnel to your internal server.
+          The <code>node packages/cli-shield/bin/mcp-shield.js tunnel</code> command initiates an outbound-only connection from your private VPC/network to the gateway. When an AI agent invokes a tool, requests are securely routed down this established tunnel to your internal server.
         </div>
       </div>
 
@@ -763,7 +763,7 @@ console.log('Sanitized Payload:', data.sanitizedPayload);</code></pre>
           <span class="faq-symbol">+</span>
         </div>
         <div class="faq-content">
-          Yes. The <code>npx mcp-shield wrap</code> command runs directly on your local machine, intercepting stdio tool calls without transmitting any database passwords to the cloud.
+          Yes. The <code>node packages/cli-shield/bin/mcp-shield.js wrap</code> command runs directly on your local machine, intercepting stdio tool calls without transmitting any database passwords to the cloud.
         </div>
       </div>
 
@@ -773,7 +773,7 @@ console.log('Sanitized Payload:', data.sanitizedPayload);</code></pre>
           <span class="faq-symbol">+</span>
         </div>
         <div class="faq-content">
-          The <code>npx mcp-shield doctor</code> command scans your `.cursor/mcp.json` and `claude_desktop_config.json` files for unshielded servers, plaintext database passwords, and root filesystem privileges, offering 1-click auto-patching.
+          The <code>node packages/cli-shield/bin/mcp-shield.js doctor</code> command scans your `.cursor/mcp.json` and `claude_desktop_config.json` files for unshielded servers, plaintext database passwords, and root filesystem privileges, offering 1-click auto-patching.
         </div>
       </div>
     </div>
