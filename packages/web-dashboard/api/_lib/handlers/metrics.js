@@ -1,4 +1,4 @@
-const { getAuditLogs } = require('../lib/store');
+const { getMetrics } = require('../store');
 
 const ALLOWED_ORIGINS = [
   'https://mcp-shield-gateway-core.vercel.app',
@@ -38,6 +38,6 @@ module.exports = async (req, res) => {
     return res.status(200).end();
   }
 
-  const logs = await getAuditLogs(50);
-  return res.status(200).json({ logs });
+  const metrics = await getMetrics();
+  return res.status(200).json(metrics);
 };

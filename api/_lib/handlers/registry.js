@@ -1,4 +1,4 @@
-const { getAuditLogs } = require('../lib/store');
+const { getAllTools } = require('../tools');
 
 const ALLOWED_ORIGINS = [
   'https://mcp-shield-gateway-core.vercel.app',
@@ -38,6 +38,9 @@ module.exports = async (req, res) => {
     return res.status(200).end();
   }
 
-  const logs = await getAuditLogs(50);
-  return res.status(200).json({ logs });
+  const tools = getAllTools();
+  return res.status(200).json({
+    count: tools.length,
+    tools
+  });
 };

@@ -1,12 +1,13 @@
-﻿const test = require('node:test');
+const test = require('node:test');
 const assert = require('node:assert');
 const crypto = require('crypto');
 
-const generateKeyHandler = require('./api/keys/generate');
-const evaluateHandler = require('./api/evaluate');
-const mcpHandler = require('./api/mcp');
-const { getMetrics, getAuditLogs } = require('./api/lib/store');
-const { PUBLIC_KEY, verifyAttestation } = require('./api/lib/waf');
+const unifiedApiHandler = require('./api/index');
+const generateKeyHandler = require('./api/_lib/handlers/keys');
+const evaluateHandler = require('./api/_lib/handlers/evaluate');
+const mcpHandler = require('./api/_lib/handlers/mcp');
+const { getMetrics, getAuditLogs } = require('./api/_lib/store');
+const { PUBLIC_KEY, verifyAttestation } = require('./api/_lib/waf');
 
 function createMockReqRes({ method = 'POST', headers = {}, body = null, url = '/', ip = '127.0.0.1' } = {}) {
   let statusCode = 200;
@@ -214,5 +215,30 @@ test('🛡️ API Route & Architecture Hardening Verification Suite (13 Remediat
     assert.ok(PUBLIC_KEY);
     assert.ok(PUBLIC_KEY.includes('BEGIN PUBLIC KEY'));
     assert.ok(PUBLIC_KEY.includes('END PUBLIC KEY'));
+  });
+
+  await t.test('Vercel Single Function Compliance: api/index.js Routes All API & MCP Endpoints', async () => {
+    // 1. Healthcheck via unified router
+    const { req: hReq, res: hRes } = createMockReqRes({ method: 'GET', url: '/healthz' });
+    await unifiedApiHandler(hReq, hRes);
+    assert.strictEqual(hRes._getResults().statusCode, 200);
+    assert.strictEqual(hRes._getResults().data.status, 'HEALTHY');
+
+    // 2. Attestation public key via unified router
+    const { req: aReq, res: aRes } = createMockReqRes({ method: 'GET', url: '/api/attestation/public-key' });
+    await unifiedApiHandler(aReq, aRes);
+    assert.strictEqual(aRes._getResults().statusCode, 200);
+    assert.ok(aRes._getResults().data.publicKey);
+
+    // 3. /v1/mcp ping via unified router
+    const { req: mReq, res: mRes } = createMockReqRes({
+      method: 'POST',
+      url: '/v1/mcp',
+      headers: { 'content-type': 'application/json' },
+      body: { jsonrpc: '2.0', id: 'ping_1', method: 'ping' }
+    });
+    await unifiedApiHandler(mReq, mRes);
+    assert.strictEqual(mRes._getResults().statusCode, 200);
+    assert.strictEqual(mRes._getResults().data.result.status, 'PONG');
   });
 });

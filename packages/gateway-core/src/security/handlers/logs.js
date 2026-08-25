@@ -1,4 +1,4 @@
-const { getAllApiKeys } = require('../lib/store');
+const { getAuditLogs } = require('../store');
 
 const ALLOWED_ORIGINS = [
   'https://mcp-shield-gateway-core.vercel.app',
@@ -27,7 +27,7 @@ module.exports = async (req, res) => {
     res.setHeader('Access-Control-Allow-Origin', 'https://mcp-shield-gateway-core.vercel.app');
   }
 
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-Key');
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -38,22 +38,6 @@ module.exports = async (req, res) => {
     return res.status(200).end();
   }
 
-  const authHeader = req.headers['authorization'] || '';
-  const apiKeyHeader = req.headers['x-api-key'] || '';
-
-  if (authHeader.includes('Bearer master_sec_') || apiKeyHeader.startsWith('mcp_live_sec_') || apiKeyHeader.startsWith('mcp_sandbox_')) {
-    const list = getAllApiKeys().map(k => ({
-      keyPrefix: k.keyPrefix,
-      name: k.name,
-      tier: k.tier || (k.keyPrefix.startsWith('mcp_sandbox_') ? 'sandbox' : 'production'),
-      rateLimitRpm: k.rateLimitRpm,
-      createdAt: k.createdAt
-    }));
-    return res.status(200).json({ keys: list });
-  }
-
-  return res.status(401).json({
-    error: 'UNAUTHORIZED',
-    message: 'Authentication required. Provide Authorization: Bearer <master_key> or X-API-Key to inspect key metadata.'
-  });
+  const logs = await getAuditLogs(50);
+  return res.status(200).json({ logs });
 };

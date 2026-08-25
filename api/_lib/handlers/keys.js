@@ -1,6 +1,6 @@
 const crypto = require('crypto');
 const querystring = require('querystring');
-const { saveApiKey } = require('../lib/store');
+const { saveApiKey } = require('../store');
 
 const ALLOWED_ORIGINS = [
   'https://mcp-shield-gateway-core.vercel.app',

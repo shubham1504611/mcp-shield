@@ -1,67 +1,112 @@
-const crypto = require('crypto');
-const { getAllTools } = require('./lib/tools');
+const evaluateHandler = require('./_lib/handlers/evaluate');
+const mcpHandler = require('./_lib/handlers/mcp');
+const keysHandler = require('./_lib/handlers/keys');
+const metricsHandler = require('./_lib/handlers/metrics');
+const logsHandler = require('./_lib/handlers/logs');
+const attestationHandler = require('./_lib/handlers/attestation');
+const registryHandler = require('./_lib/handlers/registry');
 
-// In-memory key & telemetry store
-global.__MCP_API_KEYS__ = global.__MCP_API_KEYS__ || new Map();
-global.__MCP_AUDIT_LOGS__ = global.__MCP_AUDIT_LOGS__ || [];
-global.__MCP_METRICS__ = global.__MCP_METRICS__ || {
-  totalCalls: 0,
-  blockedThreats: 0,
-  latencies: []
-};
+const ALLOWED_ORIGINS = [
+  'https://mcp-shield-gateway-core.vercel.app',
+  'http://localhost:3000',
+  'http://localhost:8080',
+  'http://127.0.0.1:3000',
+  'http://127.0.0.1:8080'
+];
 
 module.exports = async (req, res) => {
-  try {
-    const origin = req.headers['origin'] || '*';
-    res.setHeader('Access-Control-Allow-Origin', origin);
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-Key');
-    res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.setHeader('X-Frame-Options', 'DENY');
-    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-
-    if (req.method === 'OPTIONS') {
-      return res.status(200).end();
-    }
-
-    const url = req.url || '';
-
-    // 1. Healthcheck & readiness
-    if (url.includes('healthz') || url.includes('readyz')) {
-      return res.status(200).json({ 
-        status: 'HEALTHY', 
-        timestamp: new Date().toISOString(), 
-        service: 'MCP Shield Open-Source Gateway',
-        enclave: 'Ed25519 Cryptographic Verification'
-      });
-    }
-
-    // 2. Verified Tool Registry Endpoint
-    if (url.includes('registry') || url.includes('v1/registry/tools')) {
-      const tools = getAllTools();
-      return res.status(200).json({
-        count: tools.length,
-        tools
-      });
-    }
-
-    return res.status(200).json({ 
-      status: 'ONLINE', 
-      service: 'MCP Shield Platform API',
-      version: '2.5.0',
-      license: 'MIT',
-      endpoints: [
-        '/api/evaluate',
-        '/api/keys/generate',
-        '/api/registry',
-        '/api/telemetry/metrics',
-        '/api/audit/logs',
-        '/api/attestation/public-key',
-        '/v1/mcp'
-      ]
-    });
-  } catch (err) {
-    console.error('Serverless Function Error:', err);
-    return res.status(500).json({ error: 'Internal Server Error', message: err.message });
+  if (typeof res.status !== 'function') {
+    res.status = (code) => { res.statusCode = code; return res; };
   }
+  if (typeof res.json !== 'function') {
+    res.json = (data) => {
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.end(JSON.stringify(data));
+      return res;
+    };
+  }
+
+  const origin = req.headers['origin'];
+  if (origin && ALLOWED_ORIGINS.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  } else {
+    res.setHeader('Access-Control-Allow-Origin', 'https://mcp-shield-gateway-core.vercel.app');
+  }
+
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Mcp-Method, Mcp-Name, X-API-Key, X-Admin-Secret, X-MCP-Approval-Token');
+  res.setHeader('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
+  const rawUrl = req.url || '/';
+  const pathname = rawUrl.split('?')[0].replace(/\/+$/, '') || '/';
+
+  // 1. Tool Call Evaluation
+  if (pathname.endsWith('/evaluate')) {
+    return evaluateHandler(req, res);
+  }
+
+  // 2. MCP JSON-RPC Gateway & Health
+  if (pathname.endsWith('/mcp') || pathname === '/v1/mcp') {
+    return mcpHandler(req, res);
+  }
+
+  // 3. API Key Generation
+  if (pathname.endsWith('/keys/generate')) {
+    return keysHandler(req, res);
+  }
+
+  // 4. Telemetry Metrics
+  if (pathname.endsWith('/metrics') || pathname.endsWith('/telemetry/metrics')) {
+    return metricsHandler(req, res);
+  }
+
+  // 5. Audit Feed Logs
+  if (pathname.endsWith('/logs') || pathname.endsWith('/audit/logs')) {
+    return logsHandler(req, res);
+  }
+
+  // 6. Cryptographic Attestation Public Key
+  if (pathname.endsWith('/attestation/public-key') || pathname.endsWith('/attestation/key')) {
+    return attestationHandler(req, res);
+  }
+
+  // 7. Protected Tool Registry
+  if (pathname.endsWith('/registry') || pathname.endsWith('/registry/tools')) {
+    return registryHandler(req, res);
+  }
+
+  // 8. Health Check / Status
+  if (pathname.includes('healthz') || pathname.includes('readyz')) {
+    return res.status(200).json({
+      status: 'HEALTHY',
+      service: 'MCP Shield Gateway Core',
+      engine: '4-Phase Zero-Trust WAF & AST Enclave',
+      timestamp: new Date().toISOString()
+    });
+  }
+
+  // Root / Status endpoint
+  return res.status(200).json({
+    status: 'ONLINE',
+    service: 'MCP Shield Platform API',
+    version: '2.5.0',
+    license: 'MIT',
+    enclave: 'Deterministic Ed25519 Cryptographic Enclave',
+    endpoints: [
+      '/api/evaluate',
+      '/api/keys/generate',
+      '/api/telemetry/metrics',
+      '/api/audit/logs',
+      '/api/attestation/public-key',
+      '/api/registry',
+      '/v1/mcp'
+    ]
+  });
 };

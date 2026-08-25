@@ -1,4 +1,4 @@
-const { PUBLIC_KEY } = require('../lib/waf');
+const { PUBLIC_KEY } = require('../waf');
 
 const ALLOWED_ORIGINS = [
   'https://mcp-shield-gateway-core.vercel.app',

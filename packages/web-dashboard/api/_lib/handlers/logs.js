@@ -1,4 +1,4 @@
-const { PUBLIC_KEY } = require('../lib/waf');
+const { getAuditLogs } = require('../store');
 
 const ALLOWED_ORIGINS = [
   'https://mcp-shield-gateway-core.vercel.app',
@@ -38,13 +38,6 @@ module.exports = async (req, res) => {
     return res.status(200).end();
   }
 
-  return res.status(200).json({
-    algorithm: 'Ed25519',
-    format: 'SPKI_PEM',
-    publicKey: PUBLIC_KEY,
-    canonicalFormatSpecification: '<toolName>:<JSON_STRINGIFIED_SANITIZED_PARAMS>:<nonce>:<iso8601_timestamp>:<policy_version>',
-    canonicalPayloadFields: ['toolName', 'sanitizedParams', 'nonce', 'timestamp', 'policyVersion'],
-    policyVersion: '2.5.0',
-    purpose: 'Hardware-grade deterministic attestation of pre-screened Model Context Protocol tool requests'
-  });
+  const logs = await getAuditLogs(50);
+  return res.status(200).json({ logs });
 };

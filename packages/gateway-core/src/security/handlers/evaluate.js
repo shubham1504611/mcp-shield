@@ -4,8 +4,8 @@
 
 const { performance } = require('perf_hooks');
 const querystring = require('querystring');
-const { SecurityWaf, PUBLIC_KEY } = require('./lib/waf');
-const { recordEvaluation, validateApiKey, checkKeyRateLimit } = require('./lib/store');
+const { SecurityWaf, PUBLIC_KEY } = require('../waf');
+const { recordEvaluation, validateApiKey, checkKeyRateLimit } = require('../store');
 
 const ALLOWED_ORIGINS = [
   'https://mcp-shield-gateway-core.vercel.app',

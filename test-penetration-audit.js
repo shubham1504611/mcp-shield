@@ -586,7 +586,7 @@ test('Comprehensive Penetration Testing & Cryptographic Audit Verification Suite
   await t.test('Vector #91 [Deterministic Ed25519 Key Persistence Across Cold Starts]: Public keys remain stable and cross-verifiable', () => {
     const { getPublicKey } = require('./packages/gateway-core/src/security/waf');
     const key1 = getPublicKey();
-    const key2 = require('./api/lib/waf').PUBLIC_KEY;
+    const key2 = require('./api/_lib/waf').PUBLIC_KEY;
     
     assert.strictEqual(key1, key2, 'Public keys must be identical across gateway core and serverless enclaves!');
     assert.ok(key1.includes('BEGIN PUBLIC KEY'), 'Invalid PEM public key format');
