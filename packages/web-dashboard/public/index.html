@@ -435,29 +435,37 @@ Result: Query executed successfully</code>
         <div class="console-key-input-wrap">
           <div class="console-key-label-row">
             <span class="pulse-indicator pulse-idle" id="console-key-pulse"></span>
-            <span class="console-label" id="console-status-label">GATEWAY API KEY:</span>
+            <span class="console-label" id="console-status-label">ENTER GATEWAY KEY:</span>
           </div>
           <div class="console-input-group">
             <input 
               type="text" 
               id="console-key-input" 
               class="console-key-input" 
-              placeholder="Enter your Gateway Key (e.g. mcp_live_sec_...)" 
+              placeholder="Enter your Gateway Key (e.g. mcp_live_sec_... or mcp_sandbox_...)" 
               spellcheck="false" 
               autocomplete="off"
             />
             <button class="btn-console-primary" id="btn-validate-key" onclick="validateAndInspectKey()">
               ⚡ Test Key
             </button>
-            <button class="btn-console-action" onclick="generateAndSetKey()">
-              🔑 Generate Key
+            <button class="btn-console-action" onclick="openKeyModal()">
+              🔑 Provision Key
             </button>
           </div>
         </div>
         <div class="console-actions">
           <button class="btn-console-action" onclick="openPolicyEditorModal()">⚙️ Custom DLP Policies</button>
-          <button class="btn-console-action" onclick="runRealTestQuery()">⚡ Test Safe Query</button>
-          <button class="btn-console-action" onclick="runRealAttackBlockTest()">🚨 Test Attack Block</button>
+        </div>
+      </div>
+
+      <!-- Key Metadata Details Panel (Shown when a valid key is tested) -->
+      <div id="console-key-details" style="display: none; margin-bottom: 20px; padding: 16px 20px; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(99, 102, 241, 0.2); border-radius: 12px; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; color: #cbd5e1;">
+        <div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: center; justify-content: space-between;">
+          <div><b>Key Prefix:</b> <span id="meta-key-prefix" style="color: #38bdf8;">--</span></div>
+          <div><b>Tier:</b> <span id="meta-key-tier" style="color: #a855f7; text-transform: uppercase;">--</span></div>
+          <div><b>Quota:</b> <span id="meta-key-quota" style="color: #10b981;">--</span></div>
+          <div><b>Status:</b> <span id="meta-key-status" style="color: #10b981;">ACTIVE & VERIFIED</span></div>
         </div>
       </div>
 
@@ -465,26 +473,26 @@ Result: Query executed successfully</code>
       <div class="console-metrics-grid">
         <div class="console-stat-card">
           <div class="stat-meta">TOTAL TOOL CALLS</div>
-          <div class="stat-value" id="kpi-total-calls">--</div>
+          <div class="stat-value" id="kpi-total-calls">0</div>
           <div class="stat-subtext">Evaluated in-memory</div>
         </div>
 
         <div class="console-stat-card">
           <div class="stat-meta">ATTACKS INTERCEPTED</div>
-          <div class="stat-value text-emerald" id="kpi-threats-blocked">--</div>
+          <div class="stat-value text-emerald" id="kpi-threats-blocked">0</div>
           <div class="stat-subtext">Prompt injections & DDL</div>
         </div>
 
         <div class="console-stat-card">
           <div class="stat-meta">P99 LATENCY</div>
-          <div class="stat-value" id="kpi-latency">-- ms</div>
+          <div class="stat-value" id="kpi-latency">0.00 ms</div>
           <div class="stat-subtext">Real serverless measurement</div>
         </div>
 
         <div class="console-stat-card">
-          <div class="stat-meta">SECURITY POLICIES</div>
-          <div class="stat-value text-indigo" id="kpi-policies-count">6 Active</div>
-          <div class="stat-subtext">AST + DLP + Regex + Ed25519</div>
+          <div class="stat-meta">ACTIVE KEYS</div>
+          <div class="stat-value text-indigo" id="kpi-policies-count">0 Active</div>
+          <div class="stat-subtext">Provisioned gateway keys</div>
         </div>
       </div>
 

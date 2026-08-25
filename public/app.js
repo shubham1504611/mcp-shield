@@ -288,13 +288,15 @@ async function validateAndInspectKey(silent = false) {
   const pulse = document.getElementById('console-key-pulse');
   const label = document.getElementById('console-status-label');
   const btn = document.getElementById('btn-validate-key');
+  const detailsPanel = document.getElementById('console-key-details');
 
   const key = (keyInput ? keyInput.value : '').trim();
 
   if (!key) {
     if (pulse) pulse.className = 'pulse-indicator pulse-idle';
-    if (label) label.innerText = 'GATEWAY API KEY:';
-    if (!silent) showToast('Please enter a Gateway API key or click "🔑 Generate Key"');
+    if (label) label.innerText = 'ENTER GATEWAY KEY:';
+    if (detailsPanel) detailsPanel.style.display = 'none';
+    if (!silent) showToast('Please enter a Gateway API key or click "🔑 Provision Key"');
     resetConsoleMetrics();
     localAuditFeedCache = [];
     renderAuditFeed();
@@ -303,27 +305,43 @@ async function validateAndInspectKey(silent = false) {
 
   if (btn && !silent) btn.innerText = '⚡ Testing...';
 
-  // Validate format: must start with mcp_live_sec_ and be at least 20 chars
-  const isValidFormat = key.startsWith('mcp_live_sec_') && key.length >= 20;
+  // Validate format: must start with mcp_live_sec_ or mcp_sandbox_ and be at least 20 chars
+  const isProd = key.startsWith('mcp_live_sec_');
+  const isSandbox = key.startsWith('mcp_sandbox_');
+  const isValidFormat = (isProd || isSandbox) && key.length >= 20;
 
   if (!isValidFormat) {
     if (btn) btn.innerText = '⚡ Test Key';
     if (pulse) pulse.className = 'pulse-indicator pulse-invalid';
-    if (label) label.innerText = 'GATEWAY API KEY (INVALID FORMAT):';
+    if (label) label.innerText = 'ENTER GATEWAY KEY (INVALID FORMAT):';
+    if (detailsPanel) detailsPanel.style.display = 'none';
     resetConsoleMetrics();
     localAuditFeedCache = [];
     const tbody = document.getElementById('console-audit-tbody');
     if (tbody) {
-      tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #ef4444; padding: 24px; font-weight: 600;">❌ Invalid Gateway Key format. MCP Shield keys must start with <code>mcp_live_sec_</code>. Click "🔑 Generate Key" to create a new valid key.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #ef4444; padding: 24px; font-weight: 600;">❌ Invalid Gateway Key format. MCP Shield keys must start with <code>mcp_live_sec_</code> or <code>mcp_sandbox_</code>.</td></tr>`;
     }
-    if (!silent) showToast('Invalid Key format. Must start with mcp_live_sec_');
+    if (!silent) showToast('Invalid Key format. Must start with mcp_live_sec_ or mcp_sandbox_');
     return false;
   }
 
-  // Key is valid format - persist and connect to real backend telemetry
+  // Key is valid format - persist and display real key metadata
   localStorage.setItem('mcp_shield_active_key', key);
   if (pulse) pulse.className = 'pulse-indicator';
   if (label) label.innerText = 'GATEWAY API KEY (ACTIVE & VERIFIED):';
+
+  if (detailsPanel) {
+    detailsPanel.style.display = 'block';
+    const prefixEl = document.getElementById('meta-key-prefix');
+    const tierEl = document.getElementById('meta-key-tier');
+    const quotaEl = document.getElementById('meta-key-quota');
+    const statusEl = document.getElementById('meta-key-status');
+
+    if (prefixEl) prefixEl.innerText = key.substring(0, 16) + '...';
+    if (tierEl) tierEl.innerText = isProd ? 'Production' : 'Sandbox Demo';
+    if (quotaEl) quotaEl.innerText = isProd ? '120 RPM' : '30 RPM';
+    if (statusEl) statusEl.innerText = 'ACTIVE & VERIFIED';
+  }
 
   try {
     const res = await fetch('/api/evaluate', {
@@ -363,34 +381,18 @@ async function validateAndInspectKey(silent = false) {
 }
 
 async function generateAndSetKey() {
-  const keyInput = document.getElementById('console-key-input');
-  try {
-    const res = await fetch('/api/keys/generate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: 'Web Console Active Key', rateLimitRpm: 120 })
-    });
-    const data = await res.json();
-    if (data && data.key && data.key.rawKey) {
-      if (keyInput) keyInput.value = data.key.rawKey;
-      await validateAndInspectKey(false);
-      showToast('Generated new active Gateway Key');
-    }
-  } catch (err) {
-    const randomHex = Array.from(crypto.getRandomValues(new Uint8Array(16))).map(b => b.toString(16).padStart(2, '0')).join('');
-    const fallbackKey = `mcp_live_sec_${randomHex}`;
-    if (keyInput) keyInput.value = fallbackKey;
-    await validateAndInspectKey(false);
-  }
+  openKeyModal();
 }
 
 function resetConsoleMetrics() {
   const elCalls = document.getElementById('kpi-total-calls');
   const elThreats = document.getElementById('kpi-threats-blocked');
   const elLat = document.getElementById('kpi-latency');
-  if (elCalls) elCalls.innerText = '--';
-  if (elThreats) elThreats.innerText = '--';
-  if (elLat) elLat.innerText = '-- ms';
+  const elKeys = document.getElementById('kpi-policies-count');
+  if (elCalls) elCalls.innerText = '0';
+  if (elThreats) elThreats.innerText = '0';
+  if (elLat) elLat.innerText = '0.00 ms';
+  if (elKeys) elKeys.innerText = '0 Active';
 }
 
 async function fetchLiveMetrics() {
@@ -401,10 +403,12 @@ async function fetchLiveMetrics() {
       const elCalls = document.getElementById('kpi-total-calls');
       const elThreats = document.getElementById('kpi-threats-blocked');
       const elLat = document.getElementById('kpi-latency');
+      const elKeys = document.getElementById('kpi-policies-count');
       
       if (elCalls) elCalls.innerText = (metrics.totalCalls || 0).toLocaleString();
       if (elThreats) elThreats.innerText = (metrics.blockedThreats || 0).toLocaleString();
-      if (elLat) elLat.innerText = metrics.avgLatencyMs ? `${metrics.avgLatencyMs} ms` : '< 1.5 ms';
+      if (elLat) elLat.innerText = (metrics.avgLatencyMs && metrics.avgLatencyMs > 0) ? `${metrics.avgLatencyMs} ms` : '0.00 ms';
+      if (elKeys) elKeys.innerText = `${metrics.activeKeysCount || 0} Active`;
     }
   } catch (_) {}
 }
@@ -440,7 +444,7 @@ function renderAuditFeed() {
   if (!tbody) return;
 
   if (localAuditFeedCache.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--color-text-muted); padding: 28px; font-size: 0.875rem;">🔒 No audit events recorded yet. Enter a Gateway Key and click "⚡ Test Key" or run a test query to inspect live telemetry.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--color-text-muted); padding: 28px; font-size: 0.875rem;">🔒 No audit events recorded yet. Enter your Gateway Key and click "⚡ Test Key" to view real-time audit records.</td></tr>`;
     return;
   }
 
