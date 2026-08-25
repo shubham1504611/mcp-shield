@@ -651,6 +651,26 @@ async function runRealAttackBlockTest() {
   }
 }
 
+// 6b. Quickstart Tab Switcher
+function switchQuickstart(tab) {
+  const tabs = ['claude', 'python', 'nodejs', 'hitl', 'curl'];
+  tabs.forEach(t => {
+    const pane = document.getElementById(`pane-${t}`);
+    if (pane) pane.classList.remove('active');
+  });
+
+  const activePane = document.getElementById(`pane-${tab}`);
+  if (activePane) activePane.classList.add('active');
+
+  const navBtns = document.querySelectorAll('.quick-nav .quick-btn');
+  navBtns.forEach(btn => {
+    btn.classList.remove('active');
+    if (btn.getAttribute('onclick')?.includes(`'${tab}'`)) {
+      btn.classList.add('active');
+    }
+  });
+}
+
 // 7. Custom DLP & Policy Editor Logic
 function renderCustomPoliciesUI() {
   const kwList = document.getElementById('custom-keywords-list');
