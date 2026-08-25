@@ -1,65 +1,24 @@
 const crypto = require('crypto');
+const { getAllTools } = require('./lib/tools');
 
-function generateApiKey(orgId = 'org_demo_123', name = 'Default Key') {
-  const randomBytes = crypto.randomBytes(24).toString('hex');
-  const rawKey = `mcp_live_sec_${randomBytes}`;
-  const keyHash = crypto.createHash('sha256').update(rawKey).digest('hex');
-  const keyPrefix = rawKey.substring(0, 16);
-
-  return {
-    rawKey,
-    keyPrefix,
-    keyHash,
-    orgId,
-    name,
-    rateLimitRpm: 120,
-    isActive: true,
-    createdAt: new Date().toISOString()
-  };
-}
-
-function calculateDashboardMetrics(auditLogs = []) {
-  const totalCalls = auditLogs.length || 128490;
-  const blockedCount = 34;
-  const dollarsProtected = blockedCount * 4500;
-
-  return {
-    totalCalls,
-    blockedCount,
-    successRate: '100%',
-    avgLatencyMs: 1.4,
-    dollarsProtectedFormatted: `$${dollarsProtected.toLocaleString()}`,
-    status: 'ALL_SYSTEMS_PROTECTED'
-  };
-}
-
-function handleDodoWebhook(payload, signature, secret) {
-  if (!signature || !secret) {
-    return { success: false, error: 'MISSING_SIGNATURE_OR_SECRET' };
-  }
-
-  const computedSig = crypto
-    .createHmac('sha256', secret)
-    .update(typeof payload === 'string' ? payload : JSON.stringify(payload))
-    .digest('hex');
-
-  const isValid = crypto.timingSafeEqual(
-    Buffer.from(signature),
-    Buffer.from(computedSig)
-  );
-
-  if (!isValid) {
-    return { success: false, error: 'INVALID_SIGNATURE' };
-  }
-
-  return { success: true, processed: true, event: payload.event_type || 'payment.succeeded' };
-}
+// In-memory key & telemetry store
+global.__MCP_API_KEYS__ = global.__MCP_API_KEYS__ || new Map();
+global.__MCP_AUDIT_LOGS__ = global.__MCP_AUDIT_LOGS__ || [];
+global.__MCP_METRICS__ = global.__MCP_METRICS__ || {
+  totalCalls: 0,
+  blockedThreats: 0,
+  latencies: []
+};
 
 module.exports = async (req, res) => {
   try {
-    res.setHeader('Access-Control-Allow-Origin', '*');
+    const origin = req.headers['origin'] || '*';
+    res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-dodo-signature');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-Key');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
 
     if (req.method === 'OPTIONS') {
       return res.status(200).end();
@@ -67,32 +26,42 @@ module.exports = async (req, res) => {
 
     const url = req.url || '';
 
-    // 1. Healthcheck
+    // 1. Healthcheck & readiness
     if (url.includes('healthz') || url.includes('readyz')) {
-      return res.status(200).json({ status: 'HEALTHY', timestamp: new Date().toISOString() });
+      return res.status(200).json({ 
+        status: 'HEALTHY', 
+        timestamp: new Date().toISOString(), 
+        service: 'MCP Shield Open-Source Gateway',
+        enclave: 'Ed25519 Cryptographic Verification'
+      });
     }
 
-    // 2. API: Key Generation
-    if (req.method === 'POST' && url.includes('keys/generate')) {
-      const keyData = generateApiKey('org_prod_123', 'Dashboard Key');
-      return res.status(200).json(keyData);
+    // 2. Verified Tool Registry Endpoint
+    if (url.includes('registry') || url.includes('v1/registry/tools')) {
+      const tools = getAllTools();
+      return res.status(200).json({
+        count: tools.length,
+        tools
+      });
     }
 
-    // 3. API: Telemetry metrics
-    if (req.method === 'GET' && url.includes('telemetry/metrics')) {
-      const metrics = calculateDashboardMetrics();
-      return res.status(200).json(metrics);
-    }
-
-    // 4. API: Dodo Payments Webhook
-    if (req.method === 'POST' && url.includes('webhooks/dodo')) {
-      const signature = req.headers['x-dodo-signature'] || '';
-      const result = handleDodoWebhook(req.body || {}, signature, process.env.DODO_WEBHOOK_SECRET || 'whsec_demo_secret');
-      return res.status(200).json(result);
-    }
-
-    return res.status(200).json({ status: 'MCP Shield Dashboard API' });
+    return res.status(200).json({ 
+      status: 'ONLINE', 
+      service: 'MCP Shield Platform API',
+      version: '2.5.0',
+      license: 'MIT',
+      endpoints: [
+        '/api/evaluate',
+        '/api/keys/generate',
+        '/api/registry',
+        '/api/telemetry/metrics',
+        '/api/audit/logs',
+        '/api/attestation/public-key',
+        '/v1/mcp'
+      ]
+    });
   } catch (err) {
-    return res.status(500).json({ error: err.message });
+    console.error('Serverless Function Error:', err);
+    return res.status(500).json({ error: 'Internal Server Error', message: err.message });
   }
 };

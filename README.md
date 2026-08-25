@@ -10,7 +10,7 @@
 [![Node.js Version](https://img.shields.io/badge/node-%3E%3D20.0.0-brightgreen.svg)](https://nodejs.org)
 [![MCP Spec](https://img.shields.io/badge/MCP%20Spec-JSON--RPC%202.0%20Conforming-indigo.svg)](https://modelcontextprotocol.io)
 [![P99 Latency](https://img.shields.io/badge/P99%20Latency-%3C1.5ms-cyan.svg)](#performance--latency-benchmarks)
-[![Tests Status](https://img.shields.io/badge/Tests-114%2F114%20Passed-success.svg)](#-test-suite--penetration-testing)
+[![Tests Status](https://img.shields.io/badge/Tests-127%2F127%20Passed-success.svg)](#-test-suite--penetration-testing)
 [![Live Platform](https://img.shields.io/badge/Live%20Platform-Online-emerald.svg)](https://mcp-shield-gateway-core.vercel.app)
 
 [🌐 Live Platform & Playground](https://mcp-shield-gateway-core.vercel.app) • [📖 Community Hub](https://mcp-shield-gateway-core.vercel.app/#hub) • [🧪 Live Security Console](https://mcp-shield-gateway-core.vercel.app/#console) • [🐛 Report Issue](https://github.com/shubham1504611/mcp-shield/issues)
@@ -182,7 +182,7 @@ MCP Shield includes an exhaustive automated test suite covering all 55 adversari
 # Run all workspace test suites
 npm run test:all
 
-# Run 59-vector adversarial penetration audit
+# Run 72-vector adversarial penetration and evasion audit
 node --test test-penetration-audit.js
 ```
 
@@ -191,10 +191,12 @@ node --test test-penetration-audit.js
 ✓ @mcp-shield/gateway-core   ──► 37 Tests (Proxy, WAF, Tunnel, Registry, DLP) (PASSED)
 ✓ @mcp-shield/cli            ──► 7 Tests (Scanner, Local Runner, Doctor) (PASSED)
 ✓ @mcp-shield/web-dashboard  ──► 4 Tests (Key Gen, ROI Telemetry, Webhooks) (PASSED)
-✓ Penetration Audit Suite    ──► 59 Tests (55 Attack Vectors + Unicode Sanitization + Crypto Verification) (PASSED)
+✓ Penetration Audit Suite    ──► 72 Tests (66 Attack Vectors + Unicode Sanitization + Crypto Verification + Payload Validation) (PASSED)
 ─────────────────────────────────────────────────────────────────────────────
-TOTAL PASSED: 114 / 114 Tests (100% Passed)
+TOTAL PASSED: 127 / 127 Tests (100% Passed)
 ```
+
+> **Latency & Performance Transparency**: MCP Shield's in-memory AST lexer and Ed25519 cryptographic signing executes in **<1.5ms warm P99 latency** on the local daemon and Docker container. When hosted on serverless edge functions (such as Vercel), initial cold starts require ~10–15ms, returning to sub-1.5ms on subsequent warm requests.
 
 ---
 

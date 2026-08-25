@@ -360,6 +360,54 @@ test('Comprehensive Penetration Testing & Cryptographic Audit Verification Suite
       category: 'Privileged Account Table Mutation (INSERT INTO user_accounts ...)',
       payload: "INSERT INTO user_accounts (username, password_hash) VALUES ('root', 'hash123');",
       expectedRule: 'UNAUTHORIZED_ACCOUNT_MUTATION'
+    },
+    {
+      id: 59,
+      category: 'Zero-Width Unicode Space Keyword Evasion (DR\\u200BOP TAB\\u200BLE)',
+      payload: 'DR\u200BOP TAB\u200BLE users;',
+      expectedRule: 'DESTRUCTIVE_SQL_DDL'
+    },
+    {
+      id: 60,
+      category: 'SQL Inline Comment Splitting Evasion (DR/*bypass*/OP TAB/*bypass*/LE)',
+      payload: 'DR/*bypass*/OP TAB/*bypass*/LE users;',
+      expectedRule: 'DESTRUCTIVE_SQL_DDL'
+    },
+    {
+      id: 61,
+      category: 'Multi-Block Comment Splitting (D/**/R/**/O/**/P TABLE)',
+      payload: 'D/**/R/**/O/**/P TABLE users;',
+      expectedRule: 'DESTRUCTIVE_SQL_DDL'
+    },
+    {
+      id: 62,
+      category: 'Time-Based Blind SQL Delay Injection (SELECT pg_sleep(10))',
+      payload: 'SELECT pg_sleep(10);',
+      expectedRule: 'BLIND_SQL_TIME_DELAY_INJECTION'
+    },
+    {
+      id: 63,
+      category: 'MSSQL Time Delay Injection (WAITFOR DELAY)',
+      payload: "WAITFOR DELAY '0:0:10';",
+      expectedRule: 'BLIND_SQL_TIME_DELAY_INJECTION'
+    },
+    {
+      id: 64,
+      category: 'MySQL Heavy Query Time Delay (BENCHMARK)',
+      payload: 'SELECT BENCHMARK(10000000, MD5(1));',
+      expectedRule: 'BLIND_SQL_TIME_DELAY_INJECTION'
+    },
+    {
+      id: 65,
+      category: 'Hex-Encoded SQL Keyword Evasion (SELECT 0x44524F50205441424C45)',
+      payload: 'SELECT 0x44524F50205441424C45 FROM dual;',
+      expectedRule: 'DESTRUCTIVE_SQL_DDL'
+    },
+    {
+      id: 66,
+      category: 'Cyrillic Homoglyph SQL Keyword Injection (DRОP ТАBLE)',
+      payload: 'DRОP ТАBLE users;',
+      expectedRule: 'DESTRUCTIVE_SQL_DDL'
     }
   ];
 
@@ -373,7 +421,7 @@ test('Comprehensive Penetration Testing & Cryptographic Audit Verification Suite
     });
   }
 
-  await t.test('Vector #59 [In-Place Unicode & Zero-Width Sanitization]: Injected U+200B and U+202E characters MUST be stripped from returned payload', () => {
+  await t.test('Vector #67 [In-Place Unicode & Zero-Width Sanitization]: Injected U+200B and U+202E characters MUST be stripped from returned payload', () => {
     const dirtyPayload = { query: 'SELECT id,\u200B name\u202E FROM users WHERE active = true' };
     const res = waf.inspectToolCall('postgres_query', dirtyPayload);
 
@@ -383,7 +431,7 @@ test('Comprehensive Penetration Testing & Cryptographic Audit Verification Suite
     assert.ok(!res.sanitizedPayload.query.includes('\u202E'), 'Failed to strip U+202E RTL override character!');
   });
 
-  await t.test('Vector #60 [Legitimate Safe Query]: Should permit, attach nonce/timestamp, and cryptographically sign valid read queries', () => {
+  await t.test('Vector #68 [Legitimate Safe Query]: Should permit, attach nonce/timestamp, and cryptographically sign valid read queries', () => {
     const safePayload = { query: 'SELECT id, name, created_at FROM organizations WHERE plan = "enterprise" LIMIT 20;' };
     const res = waf.inspectToolCall('postgres_query', safePayload);
 
@@ -397,7 +445,7 @@ test('Comprehensive Penetration Testing & Cryptographic Audit Verification Suite
     assert.ok(res.publicKey);
   });
 
-  await t.test('Vector #61 [Ed25519 Attestation Nonce/Context Binding & Mathematical Verification]: Anyone can independently verify signature against canonical spec', () => {
+  await t.test('Vector #69 [Ed25519 Attestation Nonce/Context Binding & Mathematical Verification]: Anyone can independently verify signature against canonical spec', () => {
     const { verifyAttestation } = require('./packages/gateway-core/src/security/waf');
     const payload = { query: 'SELECT * FROM users WHERE active = true' };
     const res = waf.inspectToolCall('postgres_query', payload);
@@ -409,12 +457,26 @@ test('Comprehensive Penetration Testing & Cryptographic Audit Verification Suite
     assert.strictEqual(isVerified, true, 'Cryptographic Ed25519 verification failed against canonical specification!');
   });
 
-  await t.test('Vector #62 [Deterministic Ed25519 Key Persistence Across Cold Starts]: Public keys remain stable and cross-verifiable', () => {
+  await t.test('Vector #70 [Deterministic Ed25519 Key Persistence Across Cold Starts]: Public keys remain stable and cross-verifiable', () => {
     const { getPublicKey } = require('./packages/gateway-core/src/security/waf');
     const key1 = getPublicKey();
     const key2 = require('./api/lib/waf').PUBLIC_KEY;
     
     assert.strictEqual(key1, key2, 'Public keys must be identical across gateway core and serverless enclaves!');
     assert.ok(key1.includes('BEGIN PUBLIC KEY'), 'Invalid PEM public key format');
+  });
+
+  await t.test('Vector #71 [Empty Parameter Payload Rejection]: Tool invocations with empty body or empty parameters must be rejected', () => {
+    const res1 = waf.inspectToolCall('postgres_query', {});
+    assert.strictEqual(res1.isSafe, false);
+    assert.strictEqual(res1.rule, 'EMPTY_PAYLOAD_REJECTED');
+
+    const res2 = waf.inspectToolCall('', {});
+    assert.strictEqual(res2.isSafe, false);
+    assert.strictEqual(res2.rule, 'EMPTY_PAYLOAD_REJECTED');
+
+    const res3 = waf.inspectToolCall('postgres_query', { query: '   ' });
+    assert.strictEqual(res3.isSafe, false);
+    assert.strictEqual(res3.rule, 'EMPTY_PAYLOAD_REJECTED');
   });
 });

@@ -1,25 +1,57 @@
 /**
- * Hardened 4-Phase Security WAF, AST Lexer & DLP Engine for Model Context Protocol (MCP)
+ * Hardened 4-Phase Security WAF, AST Lexer & Enterprise DLP Engine for Model Context Protocol (MCP)
  * 
  * Phases:
- * 1. Deep In-Place Unicode & JSON Normalization & Sanitization (Decodes \uXXXX, \xXX, HTML, Base64, strips invisible/RTL tokens)
+ * 1. Deep Multi-Layer Unicode & Lexical Normalization (Zero-Width Stripping, NFKC/NFKD Normalization, Homoglyph Mapping, Inline SQL Comment Collapsing, Hex/Base64/URL/HTML Entity Decoding)
  * 2. Adversarial Injection, Strict Egress Firewall, SSRF & Comprehensive DLP Scanner (GitHub PAT, OpenAI, AWS, Private Keys)
- * 3. AST SQL Blast Radius & Schema Shield (DDL, Tautologies, CTE DML, Subqueries, pg_shadow, Sensitive Columns/Tables, Unconstrained DML)
- * 4. Ed25519 Cryptographic Attestation with Nonce, Timestamp & Canonical Verification
+ * 3. Deep SQL AST Blast Radius & Schema Shield (DDL, Tautologies, Time-Delay Blind SQLI, CTE DML, Subqueries, pg_shadow, Sensitive Columns/Tables, Unconstrained DML)
+ * 4. Non-Empty Payload Attestation with Deterministic Ed25519 Nonce, Timestamp & Canonical Verification
  */
 
 const crypto = require('crypto');
 
-// Zero-width and invisible/override unicode characters (U+200B..U+200D, U+FEFF, U+202A..U+202E RTL override, U+2060..U+206F)
-const RE_ZERO_WIDTH_AND_OVERRIDES = /[\u200B-\u200D\uFEFF\u202A-\u202E\u2060-\u206F]/g;
-// Unicode spaces (NBSP, narrow NBSP, ideographic, tabs, newlines)
+// Zero-width, invisible, control, soft hyphens, directional overrides, and Unicode filler characters
+const RE_ZERO_WIDTH_AND_INVISIBLE = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F\u00AD\u034F\u061C\u115F\u1160\u17B4\u17B5\u180E\u2000-\u200F\u2028\u2029\u202A-\u202E\u205F\u2060-\u206F\u3000\u3164\uFE00-\uFE0F\uFEFF\uFFA0\uFFF0-\uFFFF]/g;
+
+// All Unicode and ASCII whitespace variations
 const RE_ALL_WHITESPACE = /[\s\u00A0\u1680\u2000-\u200A\u2028\u2029\u202F\u205F\u3000]+/g;
+
 // SQL block comments (e.g. DROP/**/TABLE or DROP/*x*/TABLE/*y*/)
 const RE_SQL_BLOCK_COMMENTS = /\/\*[\s\S]*?\*\//g;
+
 // SQL line comments starting with whitespace or line start
 const RE_SQL_LINE_COMMENTS = /(?:^|\s+)--.*$/gm;
+
 // Base64 regex detector
 const RE_BASE64 = /\b([A-Za-z0-9+/]{12,}={0,2})\b/g;
+
+// Hex SQL literals (e.g. 0x44524F502054)
+const RE_HEX_LITERALS = /0x([0-9a-fA-F]{4,})\b/g;
+
+// SQL CHAR(...) / CHR(...) function calls
+const RE_SQL_CHAR_FUNC = /\b(?:CHAR|CHR)\s*\(\s*([0-9,\s]+)\s*\)/gi;
+
+// Homoglyph mappings for confusable characters across scripts
+const HOMOGLYPHS = {
+  'а': 'a', 'б': 'b', 'в': 'v', 'г': 'g', 'д': 'd', 'е': 'e', 'ё': 'e',
+  'ж': 'zh', 'з': 'z', 'и': 'i', 'й': 'y', 'к': 'k', 'л': 'l', 'м': 'm', 'н': 'n',
+  'о': 'o', 'п': 'p', 'р': 'r', 'с': 'c', 'т': 't', 'у': 'u', 'ф': 'f', 'х': 'x',
+  'ц': 'ts', 'ch': 'ch', 'ш': 'sh', 'щ': 'shch', 'ъ': '', 'ы': 'y', 'ь': '', 'э': 'e',
+  'ю': 'yu', 'я': 'ya',
+  'А': 'A', 'В': 'B', 'С': 'C', 'Е': 'E', 'Н': 'H', 'І': 'I', 'Ј': 'J', 'К': 'K',
+  'М': 'M', 'О': 'O', 'Р': 'P', 'Ѕ': 'S', 'Т': 'T', 'Х': 'X', 'Ү': 'Y', 'Ζ': 'Z',
+  'α': 'a', 'β': 'b', 'γ': 'g', 'δ': 'd', 'ε': 'e', 'ζ': 'z', 'η': 'h', 'θ': 'th',
+  'ι': 'i', 'κ': 'k', 'λ': 'l', 'μ': 'm', 'ν': 'n', 'ξ': 'x', 'ο': 'o', 'π': 'p',
+  'ρ': 'r', 'σ': 's', 'τ': 't', 'υ': 'u', 'φ': 'f', 'χ': 'x', 'ψ': 'ps', 'ω': 'o',
+  'Α': 'A', 'Β': 'B', 'Γ': 'G', 'Δ': 'D', 'Ε': 'E', 'Ζ': 'Z', 'Η': 'H', 'Θ': 'TH',
+  'Ι': 'I', 'Κ': 'K', 'Λ': 'L', 'Μ': 'M', 'Ν': 'N', 'Ξ': 'X', 'Ο': 'O', 'Π': 'P',
+  'Ρ': 'R', 'Σ': 'S', 'Τ': 'T', 'Υ': 'Y', 'Φ': 'F', 'Χ': 'X', 'Ψ': 'PS', 'Ω': 'O'
+};
+
+function normalizeHomoglyphs(str) {
+  if (!str || typeof str !== 'string') return '';
+  return str.replace(/[\u0400-\u04FF\u0370-\u03FF]/g, ch => HOMOGLYPHS[ch] || ch);
+}
 
 // Phase 2: Adversarial Injection, Egress & Non-SQL Traversal Patterns
 const INJECTION_PATTERNS = [
@@ -47,12 +79,15 @@ const RE_SENSITIVE_COLUMN_EXTRACTION = /\b(SELECT|EXTRACT|GET)\s+[\s\S]*?\b(cred
 
 // Phase 3: SQL AST & Blast Radius Patterns
 const RE_SQL_MULTI_STATEMENT = /;\s*(--|\/\*|SELECT|INSERT|UPDATE|DELETE|DROP|TRUNCATE|ALTER|CREATE|EXEC|\w+)/i;
-const RE_SQL_DDL = /\b(DROP\s+TABLE|DROP\s+DATABASE|DROP\s+VIEW|DROP\s+SCHEMA|TRUNCATE(\s+TABLE)?|ALTER\s+TABLE)\b/i;
+const RE_SQL_DDL = /\b(DROP\s+TABLE|DROP\s+DATABASE|DROP\s+VIEW|DROP\s+SCHEMA|DROP\s+ROLE|DROP\s+USER|TRUNCATE(\s+TABLE)?|ALTER\s+TABLE)\b/i;
 const RE_SQL_UNION_INJECTION = /\bUNION(\s+ALL)?\s+SELECT\b/i;
 const RE_SQL_TAUTOLOGY = /\b(?:OR|AND)\s+(?:1\s*=\s*1|0\s*=\s*0|TRUE\b|'([^']+)'\s*=\s*'\1')/i;
 const RE_SQL_WHERE_TAUTOLOGY = /\bWHERE\s+(?:1\s*=\s*1|0\s*=\s*0|TRUE\s*(?:;|\-\-|\/\*|$)|'([^']+)'\s*=\s*'\1')/i;
 const RE_SQL_HAVING_TAUTOLOGY = /\bHAVING\s+1\s*=\s*1\b/i;
 const RE_SQL_CTE_DML = /\bWITH\s+[\s\S]*?\bAS\s*\(\s*(?:DELETE|UPDATE|INSERT|DROP)\b/i;
+
+// Time-Based Blind SQL Injection Detection
+const RE_SQL_TIME_DELAY = /\b(?:pg_sleep\s*\(\s*[0-9.]+\s*\)|waitfor\s+delay\s+['"][0-9:.]+['"]|benchmark\s*\(\s*[0-9]+|sleep\s*\(\s*[0-9.]+\s*\)|dbms_lock\.sleep\s*\(|dbms_pipe\.receive_message\s*\(|generate_series\s*\(.*?pg_sleep)\b/i;
 
 // Sensitive System Catalog & Credential Tables Blocklist
 const RE_SQL_SENSITIVE_TABLES = /\b(FROM|JOIN|INTO|UPDATE|TABLE)\s+["`\w]*(pg_shadow|pg_authid|pg_roles|pg_user|pg_catalog(\.\w+)?|information_schema(\.\w+)?|sqlite_master|mysql\.(user|db|tables_priv)|sys(\.\w+)?|api_keys?|user_passwords?|passwords?|password_table|credentials?|master_keys?|auth_tokens?|secret_store|secrets?|tokens?|app_config|employee_salaries|admin_credentials|system_settings|user_secrets)["`\w]*/i;
@@ -62,11 +97,11 @@ const RE_SQL_PRIVILEGED_DML = /\b(INSERT\s+INTO|UPDATE)\s+["`\w]*(admin|auth|rol
 const RE_SQL_PRIVILEGE_ESCALATION = /\b(SET|UPDATE|VALUES|SELECT)\s+.*?\b(role\s*=\s*['"]?admin['"]?|is_admin\s*=\s*(1|true|'1'|'true'|'admin')|is_superuser\s*=\s*(1|true)|privileges?\s*=\s*|access_level\s*=\s*|'admin')/i;
 const RE_SQL_WHERE = /\bWHERE\b/i;
 
-// DML with Nested Subquery (e.g. INSERT INTO ... VALUES (1, (SELECT ...)), INSERT INTO ... SELECT ...)
+// DML with Nested Subquery
 const RE_SQL_DML_SUBQUERY = /\b(?:INSERT\s+INTO|UPDATE|DELETE\s+FROM|MERGE\s+INTO)\b[\s\S]*?\bSELECT\b/i;
 
 // Prohibit unprivileged writes/mutations to user accounts, auth, and identity tables
-const RE_SQL_UNAUTHORIZED_ACCOUNT_MUTATION = /\b(?:INSERT\s+INTO|UPDATE|DELETE\s+FROM|MERGE\s+INTO)\s+["`\w]*(users?|user_accounts?|accounts?|admins?|administrators?|auth|credentials?|roles?|permissions?|memberships?|tenants?|salaries?|keys?|tokens?|secrets?|pg_\w+|information_schema)["`\w]*/i;
+const RE_SQL_UNAUTHORIZED_ACCOUNT_MUTATION = /\b(?:INSERT\s+INTO\s+["`\w]*(users?|user_accounts?|accounts?|admins?|administrators?|auth|credentials?|roles?|permissions?|memberships?|tenants?|salaries?|keys?|tokens?|secrets?|pg_\w+|information_schema)|(?:UPDATE|DELETE\s+FROM|MERGE\s+INTO)\s+["`\w]*(user_accounts?|admins?|administrators?|auth|credentials?|roles?|permissions?|memberships?|tenants?|salaries?|keys?|tokens?|secrets?|pg_\w+|information_schema))["`\w]*/i;
 
 // Cloud Metadata / SSRF Target Addresses
 const RE_SSRF_TARGETS = /(?:https?:\/\/)?(?:169\.254\.169\.254|169\.254\.170\.2|metadata\.google\.internal|100\.100\.100\.200|instance-data|0\.0\.0\.0|\[::1\])/i;
@@ -246,7 +281,7 @@ class SecurityWaf {
   }
 
   /**
-   * Phase 1: Robust Multi-Layer Obfuscation Stripper & String Normalizer
+   * Phase 1: Robust Multi-Layer Obfuscation Stripper & Canonical Normalizer
    */
   normalize(input) {
     if (typeof input !== 'string') return '';
@@ -254,26 +289,32 @@ class SecurityWaf {
 
     let normalized = input;
 
-    // 1. Strip zero-width & invisible unicode characters
-    if (RE_ZERO_WIDTH_AND_OVERRIDES.test(normalized)) {
-      normalized = normalized.replace(RE_ZERO_WIDTH_AND_OVERRIDES, '');
-    }
+    // 1. Canonical Unicode Decomposition & Composition (NFKC)
+    try {
+      normalized = normalized.normalize('NFKC');
+    } catch (_) {}
 
-    // 2. Decode JSON Unicode escapes: \u0067\u0069\u0074... -> git...
+    // 2. Strip all zero-width, invisible, and control characters cleanly
+    normalized = normalized.replace(RE_ZERO_WIDTH_AND_INVISIBLE, '');
+
+    // 3. Homoglyph / confusable characters normalization
+    normalized = normalizeHomoglyphs(normalized);
+
+    // 4. Decode JSON Unicode escapes: \u0067\u0069\u0074... -> git...
     if (/\\u[0-9a-fA-F]{4}/i.test(normalized)) {
       try {
         normalized = normalized.replace(/\\u([0-9a-fA-F]{4})/gi, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
       } catch (_) {}
     }
 
-    // 3. Decode Hex escapes: \x67\x69... -> gi...
+    // 5. Decode Hex escapes: \x67\x69... -> gi...
     if (/\\x[0-9a-fA-F]{2}/i.test(normalized)) {
       try {
         normalized = normalized.replace(/\\x([0-9a-fA-F]{2})/gi, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
       } catch (_) {}
     }
 
-    // 4. Decode HTML Entities: &#x67;&#103;&amp; etc.
+    // 6. Decode HTML Entities: &#x67;&#103;&amp; etc.
     if (/&(?:#[0-9]+|#x[0-9a-fA-F]+|[a-zA-Z]+);/i.test(normalized)) {
       try {
         normalized = normalized
@@ -287,32 +328,40 @@ class SecurityWaf {
       } catch (_) {}
     }
 
-    // 5. Unwrap MySQL executable comments: /*!50000 DROP TABLE users */ -> DROP TABLE users
+    // 7. Unwrap MySQL executable comments: /*!50000 DROP TABLE users */ -> DROP TABLE users
     if (/\/\*![0-9]*/i.test(normalized)) {
       normalized = normalized.replace(/\/\*![0-9]*\s*([\s\S]*?)\*\//g, ' $1 ');
     }
 
-    // 6. URL Decode if URL encoding is present
-    if (/%[0-9a-fA-F]{2}/.test(normalized)) {
+    // 8. Recursive URL Decode if URL encoding is present
+    let urlDecoded = normalized;
+    let urlDecodeDepth = 0;
+    while (/%[0-9a-fA-F]{2}/.test(urlDecoded) && urlDecodeDepth < 3) {
       try {
-        normalized = decodeURIComponent(normalized);
-      } catch (_) {}
+        const next = decodeURIComponent(urlDecoded);
+        if (next === urlDecoded) break;
+        urlDecoded = next;
+        urlDecodeDepth++;
+      } catch (_) {
+        break;
+      }
     }
+    normalized = urlDecoded;
 
-    // 7. Decode base64 if present inline
+    // 9. Decode inline base64 strings
     if (RE_BASE64.test(normalized)) {
       normalized = normalized.replace(RE_BASE64, (match) => {
         try {
           const decoded = Buffer.from(match, 'base64').toString('utf8');
           if (/^[\x20-\x7E\s]+$/.test(decoded) && decoded.length > 3) {
-            return `${match} [DECODED: ${decoded}]`;
+            return `${match} ${decoded}`;
           }
         } catch (_) {}
         return match;
       });
     }
 
-    // 8. Normalize all whitespace variants to a single space
+    // 10. Normalize all whitespace variants to a single space
     normalized = normalized.replace(RE_ALL_WHITESPACE, ' ').trim();
 
     return normalized;
@@ -325,7 +374,11 @@ class SecurityWaf {
     if (obj === null || obj === undefined) return obj;
 
     if (typeof obj === 'string') {
-      return obj.replace(RE_ZERO_WIDTH_AND_OVERRIDES, '');
+      try {
+        return obj.normalize('NFKC').replace(RE_ZERO_WIDTH_AND_INVISIBLE, '');
+      } catch (_) {
+        return obj.replace(RE_ZERO_WIDTH_AND_INVISIBLE, '');
+      }
     }
 
     if (Array.isArray(obj)) {
@@ -335,7 +388,7 @@ class SecurityWaf {
     if (typeof obj === 'object') {
       const cleaned = {};
       for (const [k, v] of Object.entries(obj)) {
-        const cleanKey = typeof k === 'string' ? k.replace(RE_ZERO_WIDTH_AND_OVERRIDES, '') : k;
+        const cleanKey = typeof k === 'string' ? k.replace(RE_ZERO_WIDTH_AND_INVISIBLE, '') : k;
         cleaned[cleanKey] = this.sanitizePayload(v);
       }
       return cleaned;
@@ -352,7 +405,7 @@ class SecurityWaf {
   }
 
   /**
-   * Deep recursive extraction of all string parameters
+   * Deep recursive extraction of all string parameters with multi-stage decoding
    */
   extractStrings(obj, collector = []) {
     if (obj === null || obj === undefined) return collector;
@@ -362,10 +415,44 @@ class SecurityWaf {
       if (norm) {
         collector.push(norm);
 
-        // Also push SQL comment-stripped variant
-        const sqlStripped = this.stripSqlComments(norm);
-        if (sqlStripped && sqlStripped !== norm) {
-          collector.push(sqlStripped);
+        // Variant 1: SQL block comments replaced with space
+        const sqlSpaceStripped = norm.replace(RE_SQL_BLOCK_COMMENTS, ' ').replace(RE_SQL_LINE_COMMENTS, ' ').replace(RE_ALL_WHITESPACE, ' ').trim();
+        if (sqlSpaceStripped && sqlSpaceStripped !== norm) {
+          collector.push(sqlSpaceStripped);
+        }
+
+        // Variant 2: SQL block comments collapsed to empty string (handles DR/*bypass*/OP TAB/*bypass*/LE)
+        const sqlEmptyStripped = norm.replace(RE_SQL_BLOCK_COMMENTS, '').replace(RE_SQL_LINE_COMMENTS, ' ').replace(RE_ALL_WHITESPACE, ' ').trim();
+        if (sqlEmptyStripped && sqlEmptyStripped !== norm && sqlEmptyStripped !== sqlSpaceStripped) {
+          collector.push(sqlEmptyStripped);
+        }
+
+        // Variant 3: Hex SQL literals decoded (e.g. 0x44524F50205441424C45 -> "DROP TABLE")
+        const hexMatches = norm.matchAll(RE_HEX_LITERALS);
+        for (const match of hexMatches) {
+          try {
+            const hexVal = match[1];
+            if (hexVal.length % 2 === 0) {
+              const decodedAscii = Buffer.from(hexVal, 'hex').toString('utf8');
+              if (/^[\x20-\x7E\s]+$/.test(decodedAscii) && decodedAscii.length >= 3) {
+                collector.push(this.normalize(decodedAscii));
+                collector.push(norm.replace(match[0], ` '${decodedAscii}' `));
+              }
+            }
+          } catch (_) {}
+        }
+
+        // Variant 4: SQL CHAR(...) / CHR(...) functions decoded (e.g. CHAR(68,82,79,80) -> "DROP")
+        const charMatches = norm.matchAll(RE_SQL_CHAR_FUNC);
+        for (const match of charMatches) {
+          try {
+            const nums = match[1].split(',').map(n => parseInt(n.trim(), 10)).filter(n => !isNaN(n) && n >= 32 && n <= 126);
+            if (nums.length >= 3) {
+              const charStr = String.fromCharCode(...nums);
+              collector.push(this.normalize(charStr));
+              collector.push(norm.replace(match[0], ` '${charStr}' `));
+            }
+          } catch (_) {}
         }
       }
 
@@ -520,7 +607,7 @@ class SecurityWaf {
   }
 
   /**
-   * Phase 3: SQL Blast Radius & Schema Shield
+   * Phase 3: Deep SQL AST Blast Radius & Schema Shield
    */
   scanSqlBlastRadius(strings) {
     for (let i = 0; i < strings.length; i++) {
@@ -547,7 +634,10 @@ class SecurityWaf {
 
       const candidate = this.stripSqlComments(str);
 
-      // Chained multi-statement SQL (including ; followed by comment or statement)
+      // Compact alphanumeric signature for detecting fragmented / split keywords (e.g. DR/*x*/OP, D/**/R/**/O/**/P)
+      const compactAlpha = str.toUpperCase().replace(/[^A-Z0-9]/g, '');
+
+      // 1. Chained multi-statement SQL (including ; followed by comment or statement)
       if (RE_SQL_MULTI_STATEMENT.test(str) || RE_SQL_MULTI_STATEMENT.test(candidate)) {
         return {
           isSafe: false,
@@ -557,8 +647,32 @@ class SecurityWaf {
         };
       }
 
-      // Destructive DDL (DROP, TRUNCATE, ALTER) - Check both raw and stripped
-      if (RE_SQL_DDL.test(str) || RE_SQL_DDL.test(candidate)) {
+      // 2. Unconstrained DELETE (without WHERE or with WHERE 1=1 tautology)
+      if ((/\bDELETE\s+FROM\b/i.test(candidate) && !RE_SQL_WHERE.test(candidate)) || (/\bDELETE\s+FROM\b/i.test(candidate) && RE_SQL_WHERE_TAUTOLOGY.test(candidate))) {
+        return {
+          isSafe: false,
+          rule: 'UNCONSTRAINED_DELETE',
+          matchedSnippet: candidate.substring(0, 100),
+          reason: 'DELETE statement without a strict row WHERE clause (or with WHERE 1=1) is blocked to prevent data wiping'
+        };
+      }
+
+      // 3. Unconstrained UPDATE (without WHERE or with WHERE 1=1 tautology)
+      if ((/\bUPDATE\s+["`\w]+\s+SET\b/i.test(candidate) && !RE_SQL_WHERE.test(candidate)) || (/\bUPDATE\s+["`\w]+\s+SET\b/i.test(candidate) && RE_SQL_WHERE_TAUTOLOGY.test(candidate))) {
+        return {
+          isSafe: false,
+          rule: 'UNCONSTRAINED_UPDATE',
+          matchedSnippet: candidate.substring(0, 100),
+          reason: 'UPDATE statement without a strict row WHERE clause is blocked to prevent mass overwrites'
+        };
+      }
+
+      // 4. Destructive DDL (DROP, TRUNCATE, ALTER) - Check raw, stripped, and compact sequence
+      if (RE_SQL_DDL.test(str) || RE_SQL_DDL.test(candidate) || 
+          compactAlpha.includes('DROPTABLE') || compactAlpha.includes('DROPDATABASE') || 
+          compactAlpha.includes('DROPVIEW') || compactAlpha.includes('DROPSCHEMA') || 
+          compactAlpha.includes('DROPROLE') || compactAlpha.includes('DROPUSER') || 
+          compactAlpha.includes('TRUNCATETABLE') || compactAlpha.includes('ALTERTABLE')) {
         return {
           isSafe: false,
           rule: 'DESTRUCTIVE_SQL_DDL',
@@ -567,7 +681,18 @@ class SecurityWaf {
         };
       }
 
-      // CTE with DML mutations (WITH ... AS (DELETE/UPDATE/INSERT...))
+      // 5. Time-Based Blind SQL Injection (pg_sleep, WAITFOR DELAY, BENCHMARK)
+      if (RE_SQL_TIME_DELAY.test(str) || RE_SQL_TIME_DELAY.test(candidate) || 
+          compactAlpha.includes('PGSLEEP') || compactAlpha.includes('WAITFORDELAY') || compactAlpha.includes('BENCHMARK')) {
+        return {
+          isSafe: false,
+          rule: 'BLIND_SQL_TIME_DELAY_INJECTION',
+          matchedSnippet: str.substring(0, 100),
+          reason: 'Blind SQL time-delay injection attempt (pg_sleep / WAITFOR DELAY / BENCHMARK) detected and blocked'
+        };
+      }
+
+      // 6. CTE with DML mutations (WITH ... AS (DELETE/UPDATE/INSERT...))
       if (RE_SQL_CTE_DML.test(str) || RE_SQL_CTE_DML.test(candidate)) {
         return {
           isSafe: false,
@@ -577,8 +702,8 @@ class SecurityWaf {
         };
       }
 
-      // UNION-based SQL injection exfiltration
-      if (RE_SQL_UNION_INJECTION.test(str) || RE_SQL_UNION_INJECTION.test(candidate)) {
+      // 7. UNION-based SQL injection exfiltration
+      if (RE_SQL_UNION_INJECTION.test(str) || RE_SQL_UNION_INJECTION.test(candidate) || compactAlpha.includes('UNIONSELECT') || compactAlpha.includes('UNIONALLSELECT')) {
         return {
           isSafe: false,
           rule: 'SQL_UNION_INJECTION',
@@ -587,7 +712,7 @@ class SecurityWaf {
         };
       }
 
-      // SQL Tautology / Predicate Bypass (OR 1=1, WHERE 1=1, HAVING 1=1, boolean TRUE)
+      // 8. SQL Tautology / Predicate Bypass (OR 1=1, WHERE 1=1, HAVING 1=1, boolean TRUE)
       if (RE_SQL_TAUTOLOGY.test(candidate) || RE_SQL_WHERE_TAUTOLOGY.test(candidate) || RE_SQL_HAVING_TAUTOLOGY.test(candidate)) {
         return {
           isSafe: false,
@@ -597,8 +722,10 @@ class SecurityWaf {
         };
       }
 
-      // Sensitive Credential / Secret Tables Access & System Catalog
-      if (RE_SQL_SENSITIVE_TABLES.test(str) || RE_SQL_SENSITIVE_TABLES.test(candidate)) {
+      // 9. Sensitive Credential / Secret Tables Access & System Catalog
+      if (RE_SQL_SENSITIVE_TABLES.test(str) || RE_SQL_SENSITIVE_TABLES.test(candidate) ||
+          compactAlpha.includes('PGSHADOW') || compactAlpha.includes('PGAUTHID') || compactAlpha.includes('PGROLES') ||
+          compactAlpha.includes('INFORMATIONSCHEMATABLES') || compactAlpha.includes('INFORMATIONSCHEMACOLUMNS')) {
         return {
           isSafe: false,
           rule: 'SENSITIVE_CREDENTIAL_TABLE_BLOCKED',
@@ -607,7 +734,7 @@ class SecurityWaf {
         };
       }
 
-      // DML with Nested Subqueries (e.g. INSERT INTO ... VALUES (1, (SELECT ...)))
+      // 10. DML with Nested Subqueries (e.g. INSERT INTO ... VALUES (1, (SELECT ...)))
       if (RE_SQL_DML_SUBQUERY.test(str) || RE_SQL_DML_SUBQUERY.test(candidate)) {
         return {
           isSafe: false,
@@ -617,7 +744,7 @@ class SecurityWaf {
         };
       }
 
-      // Unauthorized Account & Identity Table Mutations
+      // 11. Unauthorized Account & Identity Table Mutations
       if (RE_SQL_UNAUTHORIZED_ACCOUNT_MUTATION.test(str) || RE_SQL_UNAUTHORIZED_ACCOUNT_MUTATION.test(candidate)) {
         return {
           isSafe: false,
@@ -627,7 +754,7 @@ class SecurityWaf {
         };
       }
 
-      // Privileged DML / Unauthorized Table Injection
+      // 12. Privileged DML / Unauthorized Table Injection
       if (RE_SQL_PRIVILEGED_DML.test(candidate)) {
         return {
           isSafe: false,
@@ -637,23 +764,13 @@ class SecurityWaf {
         };
       }
 
-      // Privilege Escalation Attempt (is_admin=1, role='admin')
+      // 13. Privilege Escalation Attempt (is_admin=1, role='admin')
       if (RE_SQL_PRIVILEGE_ESCALATION.test(candidate) || RE_SQL_PRIVILEGE_ESCALATION.test(str)) {
         return {
           isSafe: false,
           rule: 'SQL_PRIVILEGE_ESCALATION',
           matchedSnippet: candidate.substring(0, 100),
           reason: 'Attempted role privilege escalation (is_admin=1 / role=admin) blocked'
-        };
-      }
-
-      // Unconstrained DELETE (without WHERE or with WHERE 1=1 tautology)
-      if ((/\bDELETE\s+FROM\b/i.test(candidate) && !RE_SQL_WHERE.test(candidate)) || (/\bDELETE\s+FROM\b/i.test(candidate) && RE_SQL_WHERE_TAUTOLOGY.test(candidate))) {
-        return {
-          isSafe: false,
-          rule: 'UNCONSTRAINED_DELETE',
-          matchedSnippet: candidate.substring(0, 100),
-          reason: 'DELETE statement without a strict row WHERE clause (or with WHERE 1=1) is blocked to prevent data wiping'
         };
       }
 
@@ -671,10 +788,56 @@ class SecurityWaf {
     return { isSafe: true };
   }
 
+  extractValues(obj, collector = []) {
+    if (obj === null || obj === undefined) return collector;
+    if (typeof obj === 'string') {
+      const norm = this.normalize(obj);
+      if (norm && norm.trim().length > 0) collector.push(norm);
+    } else if (typeof obj === 'number' || typeof obj === 'boolean') {
+      collector.push(String(obj));
+    } else if (Array.isArray(obj)) {
+      for (let i = 0; i < obj.length; i++) {
+        this.extractValues(obj[i], collector);
+      }
+    } else if (typeof obj === 'object') {
+      const vals = Object.values(obj);
+      for (let i = 0; i < vals.length; i++) {
+        this.extractValues(vals[i], collector);
+      }
+    }
+    return collector;
+  }
+
   /**
    * Main Inspection Entrypoint
    */
   inspectToolCall(toolName, params) {
+    // 1. Enforce Non-Empty Payload Validation
+    if (!toolName || typeof toolName !== 'string' || toolName.trim().length === 0) {
+      return {
+        isSafe: false,
+        rule: 'EMPTY_PAYLOAD_REJECTED',
+        reason: 'Tool name is required for execution evaluation.'
+      };
+    }
+
+    if (!params || typeof params !== 'object' || Object.keys(params).length === 0) {
+      return {
+        isSafe: false,
+        rule: 'EMPTY_PAYLOAD_REJECTED',
+        reason: 'Tool execution arguments cannot be empty.'
+      };
+    }
+
+    const paramValues = this.extractValues(params);
+    if (paramValues.length === 0) {
+      return {
+        isSafe: false,
+        rule: 'EMPTY_PAYLOAD_REJECTED',
+        reason: 'Tool execution arguments contain no actionable query or parameters.'
+      };
+    }
+
     const rawPayloadStr = JSON.stringify(params || {});
     if (Buffer.byteLength(rawPayloadStr, 'utf8') > this.maxPayloadBytes) {
       return {
@@ -685,9 +848,7 @@ class SecurityWaf {
     }
 
     const strings = this.extractStrings(params);
-    if (toolName) {
-      this.extractStrings(toolName, strings);
-    }
+    this.extractStrings(toolName, strings);
 
     // Phase 2: Adversarial Injection & Egress Inspection
     const overrideResult = this.scanAdversarialOverrides(strings);
@@ -747,3 +908,4 @@ module.exports = {
   verifyAttestation,
   SqlAstLexer
 };
+
