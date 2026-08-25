@@ -40,10 +40,23 @@ function generateApiKey(orgId = 'org_live_default', name = 'Local Gateway Key', 
   return keyRecord;
 }
 
+function getClientIp(req) {
+  const socketIp = req.socket && req.socket.remoteAddress;
+  const xRealIp = req.headers['x-real-ip'];
+  const xForwardedFor = req.headers['x-forwarded-for'];
+
+  if (xForwardedFor) {
+    const ips = xForwardedFor.split(',').map(s => s.trim()).filter(Boolean);
+    return xRealIp || ips[0] || socketIp || '127.0.0.1';
+  }
+  return xRealIp || socketIp || '127.0.0.1';
+}
+
 function checkKeygenRateLimit(ip, authHeader = '') {
-  const adminSecret = process.env.MCP_ADMIN_SECRET || 'mcp_admin_master_secret';
-  if (authHeader && (authHeader === `Bearer ${adminSecret}` || authHeader === adminSecret)) {
-    return { allowed: true };
+  const adminSecret = process.env.MCP_ADMIN_SECRET;
+  const isAdmin = Boolean(adminSecret && adminSecret.length >= 16 && (authHeader === `Bearer ${adminSecret}` || authHeader === adminSecret));
+  if (isAdmin) {
+    return { allowed: true, isAdmin: true };
   }
 
   const now = Date.now();
@@ -76,46 +89,40 @@ function checkKeygenRateLimit(ip, authHeader = '') {
 }
 
 async function parseRequestBody(req) {
-  if (req.body !== undefined && req.body !== null) {
-    if (typeof req.body === 'object' && !Buffer.isBuffer(req.body)) {
-      return req.body;
+  if (req.body && typeof req.body === 'object' && !Buffer.isBuffer(req.body) && Object.keys(req.body).length > 0) {
+    return req.body;
+  }
+
+  if (typeof req.body === 'string' && req.body.trim().length > 0) {
+    const trimmed = req.body.replace(/^\uFEFF/, '').trim();
+    try { return JSON.parse(trimmed); } catch (_) {
+      try { return querystring.parse(trimmed); } catch (_) { return {}; }
     }
-    if (Buffer.isBuffer(req.body)) {
-      const raw = req.body.toString('utf8').replace(/^\uFEFF/, '').trim();
-      if (!raw) return {};
-      try { return JSON.parse(raw); } catch (_) {
-        try { return querystring.parse(raw); } catch (_) { return {}; }
-      }
-    }
-    if (typeof req.body === 'string') {
-      const trimmed = req.body.replace(/^\uFEFF/, '').trim();
-      if (!trimmed) return {};
-      try { return JSON.parse(trimmed); } catch (_) {
-        try { return querystring.parse(trimmed); } catch (_) { return {}; }
-      }
+  }
+
+  if (Buffer.isBuffer(req.body) && req.body.length > 0) {
+    const raw = req.body.toString('utf8').replace(/^\uFEFF/, '').trim();
+    try { return JSON.parse(raw); } catch (_) {
+      try { return querystring.parse(raw); } catch (_) { return {}; }
     }
   }
 
   try {
     const chunks = [];
     for await (const chunk of req) {
-      chunks.push(chunk);
+      chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : chunk);
     }
-    if (chunks.length === 0) return {};
-    const raw = Buffer.concat(chunks).toString('utf8').replace(/^\uFEFF/, '').trim();
-    if (!raw) return {};
-    try {
-      return JSON.parse(raw);
-    } catch (_) {
-      try {
-        return querystring.parse(raw);
-      } catch (_) {
-        return {};
+    if (chunks.length > 0) {
+      const raw = Buffer.concat(chunks).toString('utf8').replace(/^\uFEFF/, '').trim();
+      if (raw) {
+        try { return JSON.parse(raw); } catch (_) {
+          try { return querystring.parse(raw); } catch (_) { return {}; }
+        }
       }
     }
-  } catch (_) {
-    return {};
-  }
+  } catch (_) {}
+
+  return (req.body && typeof req.body === 'object') ? req.body : {};
 }
 
 module.exports = async (req, res) => {
@@ -156,7 +163,7 @@ module.exports = async (req, res) => {
   }
 
   try {
-    const clientIp = (req.headers['x-forwarded-for'] || (req.socket && req.socket.remoteAddress) || '127.0.0.1').split(',')[0].trim();
+    const clientIp = getClientIp(req);
     const authHeader = req.headers['authorization'] || req.headers['x-admin-secret'] || '';
     const rl = checkKeygenRateLimit(clientIp, authHeader);
 
@@ -174,8 +181,8 @@ module.exports = async (req, res) => {
     const name = body.name || 'Local Key';
     const rateLimitRpm = body.rateLimitRpm || 120;
 
-    const adminSecret = process.env.MCP_ADMIN_SECRET || 'mcp_admin_master_secret';
-    const isProduction = authHeader && (authHeader === `Bearer ${adminSecret}` || authHeader === adminSecret);
+    const adminSecret = process.env.MCP_ADMIN_SECRET;
+    const isProduction = Boolean(adminSecret && adminSecret.length >= 16 && (authHeader === `Bearer ${adminSecret}` || authHeader === adminSecret));
     const keyData = generateApiKey(orgId, name, rateLimitRpm, isProduction);
 
     return res.status(200).json({

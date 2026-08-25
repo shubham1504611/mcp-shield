@@ -1250,7 +1250,7 @@ class SecurityWaf {
    * Main Inspection Entrypoint
    */
   inspectToolCall(toolName, params) {
-    // 1. Enforce Non-Empty Payload Validation
+    // 1. Enforce Tool Name Validation
     if (!toolName || typeof toolName !== 'string' || toolName.trim().length === 0) {
       return {
         isSafe: false,
@@ -1259,12 +1259,10 @@ class SecurityWaf {
       };
     }
 
-    if (!params || typeof params !== 'object' || Object.keys(params).length === 0) {
-      return {
-        isSafe: false,
-        rule: 'EMPTY_PAYLOAD_REJECTED',
-        reason: 'Tool execution arguments cannot be empty.'
-      };
+    if (typeof params === 'string') {
+      params = { query: params };
+    } else if (!params || typeof params !== 'object') {
+      params = {};
     }
 
     const rawPayloadStr = JSON.stringify(params || {});
@@ -1276,8 +1274,9 @@ class SecurityWaf {
       };
     }
 
-    const paramValues = this.extractValues(params);
-    if (paramValues.length === 0) {
+    // Enforce non-empty actionable arguments
+    const rawValues = this.extractValues(params);
+    if (rawValues.length === 0) {
       return {
         isSafe: false,
         rule: 'EMPTY_PAYLOAD_REJECTED',

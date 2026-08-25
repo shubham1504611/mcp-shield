@@ -38,47 +38,53 @@ function checkRateLimit(ip, isKeyHolder = false) {
   };
 }
 
+function getClientIp(req) {
+  const socketIp = req.socket && req.socket.remoteAddress;
+  const xRealIp = req.headers['x-real-ip'];
+  const xForwardedFor = req.headers['x-forwarded-for'];
+
+  if (xForwardedFor) {
+    const ips = xForwardedFor.split(',').map(s => s.trim()).filter(Boolean);
+    return xRealIp || ips[0] || socketIp || '127.0.0.1';
+  }
+  return xRealIp || socketIp || '127.0.0.1';
+}
+
 async function parseRequestBody(req) {
-  if (req.body !== undefined && req.body !== null) {
-    if (typeof req.body === 'object' && !Buffer.isBuffer(req.body)) {
-      return req.body;
+  if (req.body && typeof req.body === 'object' && !Buffer.isBuffer(req.body) && Object.keys(req.body).length > 0) {
+    return req.body;
+  }
+
+  if (typeof req.body === 'string' && req.body.trim().length > 0) {
+    const trimmed = req.body.replace(/^\uFEFF/, '').trim();
+    try { return JSON.parse(trimmed); } catch (_) {
+      try { return querystring.parse(trimmed); } catch (_) { return { query: trimmed }; }
     }
-    if (Buffer.isBuffer(req.body)) {
-      const raw = req.body.toString('utf8').replace(/^\uFEFF/, '').trim();
-      if (!raw) return {};
-      try { return JSON.parse(raw); } catch (_) {
-        try { return querystring.parse(raw); } catch (_) { return { query: raw }; }
-      }
-    }
-    if (typeof req.body === 'string') {
-      const trimmed = req.body.replace(/^\uFEFF/, '').trim();
-      if (!trimmed) return {};
-      try { return JSON.parse(trimmed); } catch (_) {
-        try { return querystring.parse(trimmed); } catch (_) { return { query: trimmed }; }
-      }
+  }
+
+  if (Buffer.isBuffer(req.body) && req.body.length > 0) {
+    const raw = req.body.toString('utf8').replace(/^\uFEFF/, '').trim();
+    try { return JSON.parse(raw); } catch (_) {
+      try { return querystring.parse(raw); } catch (_) { return { query: raw }; }
     }
   }
 
   try {
     const chunks = [];
     for await (const chunk of req) {
-      chunks.push(chunk);
+      chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : chunk);
     }
-    if (chunks.length === 0) return {};
-    const raw = Buffer.concat(chunks).toString('utf8').replace(/^\uFEFF/, '').trim();
-    if (!raw) return {};
-    try {
-      return JSON.parse(raw);
-    } catch (_) {
-      try {
-        return querystring.parse(raw);
-      } catch (_) {
-        return { query: raw };
+    if (chunks.length > 0) {
+      const raw = Buffer.concat(chunks).toString('utf8').replace(/^\uFEFF/, '').trim();
+      if (raw) {
+        try { return JSON.parse(raw); } catch (_) {
+          try { return querystring.parse(raw); } catch (_) { return { query: raw }; }
+        }
       }
     }
-  } catch (_) {
-    return {};
-  }
+  } catch (_) {}
+
+  return (req.body && typeof req.body === 'object') ? req.body : {};
 }
 
 // Redact sensitive payload tokens before saving to audit stream
@@ -131,7 +137,7 @@ module.exports = async (req, res) => {
     });
   }
 
-  const clientIp = (req.headers['x-forwarded-for'] || (req.socket && req.socket.remoteAddress) || '127.0.0.1').split(',')[0].trim();
+  const clientIp = getClientIp(req);
   const authHeader = req.headers['authorization'] || '';
   const apiKeyHeader = req.headers['x-api-key'] || '';
   const isKeyHolder = authHeader.startsWith('Bearer mcp_live_sec_') || apiKeyHeader.startsWith('mcp_live_sec_');
@@ -162,7 +168,7 @@ module.exports = async (req, res) => {
     }
 
     // Dynamic parameter mapping supporting JSON-RPC, REST, and direct text queries
-    const toolName = rawBody.tool || rawBody.method || rawBody.toolName || (rawBody.query ? 'postgres_query' : null);
+    const toolName = rawBody.tool || rawBody.method || rawBody.toolName || (rawBody.query ? 'postgres_query' : 'postgres_query');
     let params = rawBody.params || rawBody.arguments || rawBody.args;
     if (!params) {
       if (rawBody.query !== undefined) params = { query: rawBody.query };
@@ -170,6 +176,9 @@ module.exports = async (req, res) => {
       else if (rawBody.url !== undefined) params = { url: rawBody.url };
       else if (rawBody.text !== undefined) params = { text: rawBody.text };
       else params = rawBody;
+    }
+    if (typeof params === 'string') {
+      params = { query: params };
     }
 
     if (!toolName) {

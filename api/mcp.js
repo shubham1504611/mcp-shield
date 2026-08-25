@@ -16,46 +16,40 @@ const ALLOWED_ORIGINS = [
 const waf = new SecurityWaf();
 
 async function parseRequestBody(req) {
-  if (req.body !== undefined && req.body !== null) {
-    if (typeof req.body === 'object' && !Buffer.isBuffer(req.body)) {
-      return req.body;
+  if (req.body && typeof req.body === 'object' && !Buffer.isBuffer(req.body) && Object.keys(req.body).length > 0) {
+    return req.body;
+  }
+
+  if (typeof req.body === 'string' && req.body.trim().length > 0) {
+    const trimmed = req.body.replace(/^\uFEFF/, '').trim();
+    try { return JSON.parse(trimmed); } catch (_) {
+      try { return querystring.parse(trimmed); } catch (_) { return { query: trimmed }; }
     }
-    if (Buffer.isBuffer(req.body)) {
-      const raw = req.body.toString('utf8').replace(/^\uFEFF/, '').trim();
-      if (!raw) return {};
-      try { return JSON.parse(raw); } catch (_) {
-        try { return querystring.parse(raw); } catch (_) { return { query: raw }; }
-      }
-    }
-    if (typeof req.body === 'string') {
-      const trimmed = req.body.replace(/^\uFEFF/, '').trim();
-      if (!trimmed) return {};
-      try { return JSON.parse(trimmed); } catch (_) {
-        try { return querystring.parse(trimmed); } catch (_) { return { query: trimmed }; }
-      }
+  }
+
+  if (Buffer.isBuffer(req.body) && req.body.length > 0) {
+    const raw = req.body.toString('utf8').replace(/^\uFEFF/, '').trim();
+    try { return JSON.parse(raw); } catch (_) {
+      try { return querystring.parse(raw); } catch (_) { return { query: raw }; }
     }
   }
 
   try {
     const chunks = [];
     for await (const chunk of req) {
-      chunks.push(chunk);
+      chunks.push(typeof chunk === 'string' ? Buffer.from(chunk) : chunk);
     }
-    if (chunks.length === 0) return {};
-    const raw = Buffer.concat(chunks).toString('utf8').replace(/^\uFEFF/, '').trim();
-    if (!raw) return {};
-    try {
-      return JSON.parse(raw);
-    } catch (_) {
-      try {
-        return querystring.parse(raw);
-      } catch (_) {
-        return { query: raw };
+    if (chunks.length > 0) {
+      const raw = Buffer.concat(chunks).toString('utf8').replace(/^\uFEFF/, '').trim();
+      if (raw) {
+        try { return JSON.parse(raw); } catch (_) {
+          try { return querystring.parse(raw); } catch (_) { return { query: raw }; }
+        }
       }
     }
-  } catch (_) {
-    return {};
-  }
+  } catch (_) {}
+
+  return (req.body && typeof req.body === 'object') ? req.body : {};
 }
 
 module.exports = async (req, res) => {
@@ -191,8 +185,12 @@ module.exports = async (req, res) => {
     let params = null;
 
     if (body.method === 'tools/call' || body.method === 'call_tool') {
-      toolName = toolName || body.params?.name;
-      params = body.params?.arguments || body.params?.params || body.params;
+      toolName = toolName || body.params?.name || body.params?.tool || body.name || body.tool;
+      params = body.params?.arguments || body.params?.params || body.arguments || body.params;
+      if (!params || (typeof params === 'object' && Object.keys(params).length === 0)) {
+        if (body.params?.query) params = { query: body.params.query };
+        else if (body.query) params = { query: body.query };
+      }
     } else if (body.tool || body.toolName) {
       toolName = toolName || body.tool || body.toolName;
       params = body.params || body.arguments || body.args || (body.query ? { query: body.query } : body);
@@ -205,10 +203,13 @@ module.exports = async (req, res) => {
     }
 
     if (!toolName) {
-      toolName = 'unknown_tool';
+      toolName = 'postgres_query';
     }
-    if (!params || typeof params !== 'object') {
-      params = body.params || (body.query ? { query: body.query } : {});
+
+    if (typeof params === 'string') {
+      params = { query: params };
+    } else if (!params || typeof params !== 'object') {
+      params = body.query ? { query: body.query } : (body.params || {});
     }
 
     // 5. Evaluate Least-Privilege & Human-In-The-Loop (HITL) Gate
