@@ -2,6 +2,8 @@ const { performance } = require('perf_hooks');
 const querystring = require('querystring');
 const { SecurityWaf, PUBLIC_KEY } = require('./lib/waf');
 const { recordEvaluation } = require('./lib/store');
+const { getAllTools } = require('./lib/tools');
+const { evaluateToolPolicy } = require('./lib/policy');
 
 const ALLOWED_ORIGINS = [
   'https://mcp-shield-gateway-core.vercel.app',
@@ -76,7 +78,7 @@ module.exports = async (req, res) => {
   }
 
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Mcp-Method, Mcp-Name, X-API-Key');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Mcp-Method, Mcp-Name, X-API-Key, X-MCP-Approval-Token');
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
@@ -99,7 +101,7 @@ module.exports = async (req, res) => {
         warmWafEvaluation: '<1.5ms',
         coldStartP99: '<15ms'
       },
-      supportedMethods: ['tools/call', 'tools/list', 'ping'],
+      supportedMethods: ['initialize', 'tools/list', 'tools/call', 'ping'],
       publicKey: PUBLIC_KEY,
       timestamp: new Date().toISOString()
     });
@@ -127,16 +129,64 @@ module.exports = async (req, res) => {
       });
     }
 
-    // Support JSON-RPC 2.0 ping
+    const requestId = body.id || 1;
+
+    // 1. JSON-RPC 2.0 Ping
     if (body.method === 'ping') {
       return res.status(200).json({
         jsonrpc: '2.0',
-        id: body.id || 1,
+        id: requestId,
         result: { status: 'PONG', timestamp: new Date().toISOString() }
       });
     }
 
-    // Resolve Tool Name and Arguments across JSON-RPC 2.0 (tools/call), REST, and Custom headers
+    // 2. Standard MCP Protocol Initialize Negotiation
+    if (body.method === 'initialize') {
+      return res.status(200).json({
+        jsonrpc: '2.0',
+        id: requestId,
+        result: {
+          protocolVersion: '2024-11-05',
+          capabilities: {
+            tools: { listChanged: false },
+            logging: {},
+            containment: {
+              wafEngine: '4-phase-ast-dlp',
+              attestation: 'ed25519',
+              leastPrivilege: true,
+              humanInTheLoop: true
+            }
+          },
+          serverInfo: {
+            name: 'mcp-shield-gateway',
+            version: '2.5.0'
+          }
+        }
+      });
+    }
+
+    // 3. Standard MCP Protocol Tools Listing (tools/list)
+    if (body.method === 'tools/list' || body.method === 'list_tools') {
+      const tools = getAllTools().map(t => ({
+        name: t.id,
+        description: t.desc,
+        inputSchema: {
+          type: 'object',
+          properties: {
+            query: { type: 'string', description: 'SQL query or search phrase' },
+            path: { type: 'string', description: 'Restricted filesystem path' },
+            url: { type: 'string', description: 'Target destination URL' }
+          }
+        }
+      }));
+      return res.status(200).json({
+        jsonrpc: '2.0',
+        id: requestId,
+        result: { tools }
+      });
+    }
+
+    // 4. Resolve Tool Name and Arguments across JSON-RPC 2.0 (tools/call), REST, and Custom headers
     let toolName = req.headers['mcp-name'];
     let params = null;
 
@@ -161,6 +211,48 @@ module.exports = async (req, res) => {
       params = body.params || (body.query ? { query: body.query } : {});
     }
 
+    // 5. Evaluate Least-Privilege & Human-In-The-Loop (HITL) Gate
+    const approvalToken = req.headers['x-mcp-approval-token'] || params.approvalToken;
+    const policyResult = evaluateToolPolicy(toolName, params, { approvalToken });
+
+    if (policyResult.requiresApproval) {
+      return res.status(200).json({
+        jsonrpc: '2.0',
+        id: requestId,
+        result: {
+          status: 'REQUIRES_APPROVAL',
+          action: 'HIGH_RISK_ACTION_GATED',
+          approvalToken: policyResult.approvalToken,
+          riskLevel: policyResult.riskLevel,
+          reason: policyResult.reason,
+          requiresConfirmation: true,
+          content: [
+            {
+              type: 'text',
+              text: `[MCP-SHIELD HUMAN-IN-THE-LOOP]: ${policyResult.reason} Approval Token: ${policyResult.approvalToken}`
+            }
+          ]
+        }
+      });
+    }
+
+    if (!policyResult.allowed) {
+      return res.status(200).json({
+        jsonrpc: '2.0',
+        id: requestId,
+        error: {
+          code: -32002,
+          message: `Containment Policy Violation: ${policyResult.reason} (Rule: ${policyResult.rule})`,
+          data: {
+            rule: policyResult.rule,
+            action_taken: 'CONTAINMENT_POLICY_BLOCKED',
+            timestamp: new Date().toISOString()
+          }
+        }
+      });
+    }
+
+    // 6. Security Inspection via 4-Phase WAF AST & DLP Engine
     const check = waf.inspectToolCall(toolName, params);
     const endTime = performance.now();
     const latencyMs = parseFloat((endTime - startTime).toFixed(2));
@@ -190,7 +282,7 @@ module.exports = async (req, res) => {
     if (!check.isSafe) {
       return res.status(200).json({
         jsonrpc: '2.0',
-        id: body.id || null,
+        id: requestId,
         error: {
           code: -32001,
           message: `Security Policy Violation: ${check.reason} (Rule: ${check.rule})`,
@@ -208,9 +300,10 @@ module.exports = async (req, res) => {
     res.setHeader('X-MCP-Trace-ID', check.traceId);
     res.setHeader('X-MCP-Public-Key', PUBLIC_KEY.replace(/-----BEGIN PUBLIC KEY-----|\r|\n|-----END PUBLIC KEY-----|\s+/g, ''));
 
+    // 7. Secure Result Dispatch conforming to standard MCP Tool Execution
     return res.status(200).json({
       jsonrpc: '2.0',
-      id: body.id || 1,
+      id: requestId,
       result: {
         status: 'AUTHENTICATED_AND_SIGNED',
         trace_id: check.traceId,
@@ -218,7 +311,12 @@ module.exports = async (req, res) => {
         publicKey: PUBLIC_KEY,
         sanitizedParams: check.sanitizedParams || params,
         latencyMs,
-        message: 'Payload passed hardened 4-phase zero-trust inspection'
+        content: [
+          {
+            type: 'text',
+            text: `[MCP-SHIELD CONTAINER EXECUTION]: Tool '${toolName}' verified and signed by deterministic enclave.`
+          }
+        ]
       }
     });
   } catch (err) {
