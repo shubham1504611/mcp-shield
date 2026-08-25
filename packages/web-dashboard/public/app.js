@@ -288,20 +288,45 @@ async function executePlayground(toolOverride) {
   }
 }
 
-// 5. Real Key Validation and Telemetry Inspection
+// 5. Real Key Validation, Disconnection, and Telemetry Inspection
+function disconnectKey() {
+  localStorage.removeItem('mcp_shield_active_key');
+  const keyInput = document.getElementById('console-key-input');
+  if (keyInput) keyInput.value = '';
+  
+  const pulse = document.getElementById('console-key-pulse');
+  if (pulse) pulse.className = 'pulse-indicator pulse-idle';
+  
+  const label = document.getElementById('console-status-label');
+  if (label) label.innerText = 'GATEWAY CONNECTION: AWAITING API KEY';
+
+  const btnDisconnect = document.getElementById('btn-disconnect-key');
+  if (btnDisconnect) btnDisconnect.style.display = 'none';
+
+  const detailsPanel = document.getElementById('console-key-details');
+  if (detailsPanel) detailsPanel.style.display = 'none';
+
+  resetConsoleMetrics();
+  localAuditFeedCache = [];
+  renderAuditFeed();
+  showToast('Key disconnected. Real-time telemetry session cleared.');
+}
+
 async function validateAndInspectKey(silent = false) {
   const keyInput = document.getElementById('console-key-input');
   const pulse = document.getElementById('console-key-pulse');
   const label = document.getElementById('console-status-label');
   const btn = document.getElementById('btn-validate-key');
+  const btnDisconnect = document.getElementById('btn-disconnect-key');
   const detailsPanel = document.getElementById('console-key-details');
 
   const key = (keyInput ? keyInput.value : '').trim();
 
   if (!key) {
     if (pulse) pulse.className = 'pulse-indicator pulse-idle';
-    if (label) label.innerText = 'ENTER GATEWAY KEY:';
+    if (label) label.innerText = 'GATEWAY CONNECTION: AWAITING API KEY';
     if (detailsPanel) detailsPanel.style.display = 'none';
+    if (btnDisconnect) btnDisconnect.style.display = 'none';
     if (!silent) showToast('Please enter a Gateway API key or click "🔑 Provision Key"');
     resetConsoleMetrics();
     localAuditFeedCache = [];
@@ -317,24 +342,26 @@ async function validateAndInspectKey(silent = false) {
   const isValidFormat = (isProd || isSandbox) && key.length >= 20;
 
   if (!isValidFormat) {
-    if (btn) btn.innerText = '⚡ Test Key';
+    if (btn) btn.innerText = '⚡ Connect & Test';
     if (pulse) pulse.className = 'pulse-indicator pulse-invalid';
-    if (label) label.innerText = 'ENTER GATEWAY KEY (INVALID FORMAT):';
+    if (label) label.innerText = 'GATEWAY KEY: INVALID FORMAT';
     if (detailsPanel) detailsPanel.style.display = 'none';
+    if (btnDisconnect) btnDisconnect.style.display = 'none';
     resetConsoleMetrics();
     localAuditFeedCache = [];
     const tbody = document.getElementById('console-audit-tbody');
     if (tbody) {
       tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #ef4444; padding: 24px; font-weight: 600;">❌ Invalid Gateway Key format. MCP Shield keys must start with <code>mcp_live_sec_</code> or <code>mcp_sandbox_</code>.</td></tr>`;
     }
-    if (!silent) showToast('Invalid Key format. Must start with mcp_live_sec_ or mcp_sandbox_');
+    if (!silent) showToast('Invalid key format. Must start with mcp_live_sec_ or mcp_sandbox_');
     return false;
   }
 
   // Key is valid format - persist and display real key metadata
   localStorage.setItem('mcp_shield_active_key', key);
   if (pulse) pulse.className = 'pulse-indicator';
-  if (label) label.innerText = 'GATEWAY API KEY (ACTIVE & VERIFIED):';
+  if (label) label.innerText = 'GATEWAY CONNECTION: ACTIVE & VERIFIED';
+  if (btnDisconnect) btnDisconnect.style.display = 'inline-block';
 
   if (detailsPanel) {
     detailsPanel.style.display = 'block';
@@ -344,7 +371,7 @@ async function validateAndInspectKey(silent = false) {
     const statusEl = document.getElementById('meta-key-status');
 
     if (prefixEl) prefixEl.innerText = key.substring(0, 16) + '...';
-    if (tierEl) tierEl.innerText = isProd ? 'Production' : 'Sandbox Demo';
+    if (tierEl) tierEl.innerText = isProd ? 'Production Tier' : 'Sandbox Tier';
     if (quotaEl) quotaEl.innerText = isProd ? '120 RPM' : '30 RPM';
     if (statusEl) statusEl.innerText = 'ACTIVE & VERIFIED';
   }
@@ -365,7 +392,22 @@ async function validateAndInspectKey(silent = false) {
     });
 
     const data = await res.json();
-    if (btn) btn.innerText = '⚡ Test Key';
+    if (btn) btn.innerText = '⚡ Connect & Test';
+
+    if (res.status === 401) {
+      if (pulse) pulse.className = 'pulse-indicator pulse-invalid';
+      if (label) label.innerText = 'GATEWAY KEY: UNAUTHORIZED / REVOKED';
+      if (detailsPanel) detailsPanel.style.display = 'none';
+      if (btnDisconnect) btnDisconnect.style.display = 'none';
+      localStorage.removeItem('mcp_shield_active_key');
+      resetConsoleMetrics();
+      const tbody = document.getElementById('console-audit-tbody');
+      if (tbody) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #ef4444; padding: 24px; font-weight: 600;">❌ Key rejected: ${data.message || 'Key is invalid or has been revoked.'}</td></tr>`;
+      }
+      if (!silent) showToast('Key unauthorized or revoked.');
+      return false;
+    }
 
     if (data.logEntry) {
       localAuditFeedCache.unshift(data.logEntry);
@@ -373,12 +415,13 @@ async function validateAndInspectKey(silent = false) {
     }
 
     await fetchLiveMetrics();
+    await fetchLiveAuditFeed();
     if (!silent) {
-      showToast(`Key active & verified with Ed25519 enclave (${data.latencyMs || 0.4}ms)`);
+      showToast(`Key connected & verified with Ed25519 enclave (${data.latencyMs || 0.4}ms)`);
     }
     return true;
   } catch (err) {
-    if (btn) btn.innerText = '⚡ Test Key';
+    if (btn) btn.innerText = '⚡ Connect & Test';
     await fetchLiveMetrics();
     await fetchLiveAuditFeed();
     if (!silent) showToast('Key connected. Live telemetry active.');
@@ -392,29 +435,54 @@ async function generateAndSetKey() {
 
 function resetConsoleMetrics() {
   const elCalls = document.getElementById('kpi-total-calls');
+  const elCallsSub = document.getElementById('kpi-total-calls-sub');
   const elThreats = document.getElementById('kpi-threats-blocked');
+  const elThreatsSub = document.getElementById('kpi-threats-blocked-sub');
   const elLat = document.getElementById('kpi-latency');
+  const elLatSub = document.getElementById('kpi-latency-sub');
   const elKeys = document.getElementById('kpi-policies-count');
-  if (elCalls) elCalls.innerText = '0';
-  if (elThreats) elThreats.innerText = '0';
-  if (elLat) elLat.innerText = '0.00 ms';
-  if (elKeys) elKeys.innerText = '0 Active';
+  const elKeysSub = document.getElementById('kpi-policies-count-sub');
+
+  if (elCalls) elCalls.innerText = '--';
+  if (elCallsSub) elCallsSub.innerText = 'Connect key to view telemetry';
+  if (elThreats) elThreats.innerText = '--';
+  if (elThreatsSub) elThreatsSub.innerText = 'Connect key to view telemetry';
+  if (elLat) elLat.innerText = '--';
+  if (elLatSub) elLatSub.innerText = 'Connect key to view telemetry';
+  if (elKeys) elKeys.innerText = '--';
+  if (elKeysSub) elKeysSub.innerText = 'Connect key to view telemetry';
 }
 
 async function fetchLiveMetrics() {
+  const currentKey = localStorage.getItem('mcp_shield_active_key');
+  if (!currentKey) {
+    resetConsoleMetrics();
+    return;
+  }
+
   try {
-    const res = await fetch('/api/telemetry/metrics');
+    const res = await fetch('/api/telemetry/metrics', {
+      headers: { 'X-API-Key': currentKey }
+    });
     if (res.ok) {
       const metrics = await res.json();
       const elCalls = document.getElementById('kpi-total-calls');
+      const elCallsSub = document.getElementById('kpi-total-calls-sub');
       const elThreats = document.getElementById('kpi-threats-blocked');
+      const elThreatsSub = document.getElementById('kpi-threats-blocked-sub');
       const elLat = document.getElementById('kpi-latency');
+      const elLatSub = document.getElementById('kpi-latency-sub');
       const elKeys = document.getElementById('kpi-policies-count');
+      const elKeysSub = document.getElementById('kpi-policies-count-sub');
       
-      if (elCalls) elCalls.innerText = (metrics.totalCalls || 0).toLocaleString();
-      if (elThreats) elThreats.innerText = (metrics.blockedThreats || 0).toLocaleString();
-      if (elLat) elLat.innerText = (metrics.avgLatencyMs && metrics.avgLatencyMs > 0) ? `${metrics.avgLatencyMs} ms` : '0.00 ms';
-      if (elKeys) elKeys.innerText = `${metrics.activeKeysCount || 0} Active`;
+      if (elCalls) elCalls.innerText = (metrics.totalCalls ?? 0).toLocaleString();
+      if (elCallsSub) elCallsSub.innerText = 'Evaluated in-memory';
+      if (elThreats) elThreats.innerText = (metrics.blockedThreats ?? 0).toLocaleString();
+      if (elThreatsSub) elThreatsSub.innerText = 'Prompt injections & DDL';
+      if (elLat) elLat.innerText = (metrics.avgLatencyMs !== undefined && metrics.avgLatencyMs > 0) ? `${metrics.avgLatencyMs} ms` : '0.00 ms';
+      if (elLatSub) elLatSub.innerText = 'Real serverless measurement';
+      if (elKeys) elKeys.innerText = `${metrics.activeKeysCount ?? 1} Active`;
+      if (elKeysSub) elKeysSub.innerText = 'Provisioned gateway keys';
     }
   } catch (_) {}
 }
@@ -430,8 +498,16 @@ function escapeHtml(str) {
 }
 
 async function fetchLiveAuditFeed() {
+  const currentKey = localStorage.getItem('mcp_shield_active_key');
+  if (!currentKey) {
+    renderAuditFeed();
+    return;
+  }
+
   try {
-    const res = await fetch('/api/audit/logs');
+    const res = await fetch('/api/audit/logs', {
+      headers: { 'X-API-Key': currentKey }
+    });
     if (res.ok) {
       const data = await res.json();
       if (data.logs && Array.isArray(data.logs) && data.logs.length > 0) {
@@ -449,8 +525,14 @@ function renderAuditFeed() {
   const tbody = document.getElementById('console-audit-tbody');
   if (!tbody) return;
 
+  const currentKey = localStorage.getItem('mcp_shield_active_key');
+  if (!currentKey) {
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #94a3b8; padding: 36px 20px; font-size: 0.9rem;">🔒 <b>No active API key connected.</b><br><span style="font-size: 0.8rem; color: #64748b; margin-top: 4px; display: inline-block;">Enter your Gateway Key above or click "🔑 Provision Key" to stream real-time audit records.</span></td></tr>`;
+    return;
+  }
+
   if (localAuditFeedCache.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--color-text-muted); padding: 28px; font-size: 0.875rem;">🔒 No audit events recorded yet. Enter your Gateway Key and click "⚡ Test Key" to view real-time audit records.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #94a3b8; padding: 36px 20px; font-size: 0.9rem;">🟢 <b>Gateway Key Connected & Active.</b><br><span style="font-size: 0.8rem; color: #64748b; margin-top: 4px; display: inline-block;">Run a payload in the Interactive Playground below or send a request to <code>/v1/mcp</code> to generate live audit entries.</span></td></tr>`;
     return;
   }
 
@@ -931,6 +1013,7 @@ window.loadPlaygroundPreset = loadPlaygroundPreset;
 window.executePlayground = executePlayground;
 window.setTopologyMode = setTopologyMode;
 window.validateAndInspectKey = validateAndInspectKey;
+window.disconnectKey = disconnectKey;
 window.generateAndSetKey = generateAndSetKey;
 window.switchQuickstart = switchQuickstart;
 window.toggleFaqRow = toggleFaqRow;
