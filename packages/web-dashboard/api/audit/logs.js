@@ -9,6 +9,17 @@ const ALLOWED_ORIGINS = [
 ];
 
 module.exports = async (req, res) => {
+  if (typeof res.status !== 'function') {
+    res.status = (code) => { res.statusCode = code; return res; };
+  }
+  if (typeof res.json !== 'function') {
+    res.json = (data) => {
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.end(JSON.stringify(data));
+      return res;
+    };
+  }
+
   const origin = req.headers['origin'];
   if (origin && ALLOWED_ORIGINS.includes(origin)) {
     res.setHeader('Access-Control-Allow-Origin', origin);
@@ -18,6 +29,7 @@ module.exports = async (req, res) => {
 
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-Key');
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');

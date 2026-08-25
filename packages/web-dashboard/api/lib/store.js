@@ -93,6 +93,9 @@ try {
     if (parsed.logs && Array.isArray(parsed.logs)) {
       global.__MCP_DURABLE_STORE__.logs = parsed.logs;
     }
+    if (parsed.apiKeys && Array.isArray(parsed.apiKeys)) {
+      global.__MCP_DURABLE_STORE__.apiKeys = new Map(parsed.apiKeys);
+    }
   }
 } catch (_) {}
 
@@ -100,7 +103,8 @@ function persistToDisk() {
   try {
     const data = {
       metrics: global.__MCP_DURABLE_STORE__.metrics,
-      logs: global.__MCP_DURABLE_STORE__.logs.slice(0, 100)
+      logs: global.__MCP_DURABLE_STORE__.logs.slice(0, 100),
+      apiKeys: Array.from(global.__MCP_DURABLE_STORE__.apiKeys.entries())
     };
     fs.writeFileSync(STATE_FILE, JSON.stringify(data), 'utf8');
   } catch (_) {}

@@ -37,20 +37,36 @@ function generateApiKey(orgId = 'org_live_default', name = 'Local Gateway Key', 
   return keyRecord;
 }
 
-function checkKeygenRateLimit(ip) {
+function checkKeygenRateLimit(ip, authHeader = '') {
+  const adminSecret = process.env.MCP_ADMIN_SECRET || 'mcp_admin_master_secret';
+  if (authHeader && (authHeader === `Bearer ${adminSecret}` || authHeader === adminSecret)) {
+    return { allowed: true };
+  }
+
   const now = Date.now();
-  const record = global.__MCP_KEYGEN_RATE_LIMITS__.get(ip) || { count: 0, resetAt: now + 3600000 };
+  const windowMs = 300000; // 5 minutes window
+  const record = global.__MCP_KEYGEN_RATE_LIMITS__.get(ip) || { count: 0, resetAt: now + windowMs };
 
   if (now > record.resetAt) {
     record.count = 0;
-    record.resetAt = now + 3600000;
+    record.resetAt = now + windowMs;
+  }
+
+  if (record.count >= 1) {
+    const retryAfter = Math.max(1, Math.ceil((record.resetAt - now) / 1000));
+    return {
+      allowed: false,
+      count: record.count,
+      resetAt: record.resetAt,
+      retryAfter
+    };
   }
 
   record.count++;
   global.__MCP_KEYGEN_RATE_LIMITS__.set(ip, record);
 
   return {
-    allowed: record.count <= 30,
+    allowed: true,
     count: record.count,
     resetAt: record.resetAt
   };
@@ -58,15 +74,19 @@ function checkKeygenRateLimit(ip) {
 
 async function parseRequestBody(req) {
   if (req.body !== undefined && req.body !== null) {
+    if (typeof req.body === 'object' && !Buffer.isBuffer(req.body)) {
+      return req.body;
+    }
     if (Buffer.isBuffer(req.body)) {
       const raw = req.body.toString('utf8').replace(/^\uFEFF/, '').trim();
+      if (!raw) return {};
       try { return JSON.parse(raw); } catch (_) {
         try { return querystring.parse(raw); } catch (_) { return {}; }
       }
     }
-    if (typeof req.body === 'object') return req.body;
     if (typeof req.body === 'string') {
       const trimmed = req.body.replace(/^\uFEFF/, '').trim();
+      if (!trimmed) return {};
       try { return JSON.parse(trimmed); } catch (_) {
         try { return querystring.parse(trimmed); } catch (_) { return {}; }
       }
@@ -78,6 +98,7 @@ async function parseRequestBody(req) {
     for await (const chunk of req) {
       chunks.push(chunk);
     }
+    if (chunks.length === 0) return {};
     const raw = Buffer.concat(chunks).toString('utf8').replace(/^\uFEFF/, '').trim();
     if (!raw) return {};
     try {
@@ -95,6 +116,17 @@ async function parseRequestBody(req) {
 }
 
 module.exports = async (req, res) => {
+  if (typeof res.status !== 'function') {
+    res.status = (code) => { res.statusCode = code; return res; };
+  }
+  if (typeof res.json !== 'function') {
+    res.json = (data) => {
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.end(JSON.stringify(data));
+      return res;
+    };
+  }
+
   const origin = req.headers['origin'];
   if (origin && ALLOWED_ORIGINS.includes(origin)) {
     res.setHeader('Access-Control-Allow-Origin', origin);
@@ -103,7 +135,8 @@ module.exports = async (req, res) => {
   }
 
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-Key');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-Key, X-Admin-Secret');
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
@@ -121,12 +154,15 @@ module.exports = async (req, res) => {
 
   try {
     const clientIp = (req.headers['x-forwarded-for'] || (req.socket && req.socket.remoteAddress) || '127.0.0.1').split(',')[0].trim();
-    const rl = checkKeygenRateLimit(clientIp);
+    const authHeader = req.headers['authorization'] || req.headers['x-admin-secret'] || '';
+    const rl = checkKeygenRateLimit(clientIp, authHeader);
 
     if (!rl.allowed) {
+      res.setHeader('Retry-After', String(rl.retryAfter));
       return res.status(429).json({
         error: 'TOO_MANY_REQUESTS',
-        message: 'Rate limit exceeded for key provisioning.'
+        message: `Rate limit exceeded. Sandbox key creation is limited to 1 key per 5 minutes. Try again in ${rl.retryAfter}s.`,
+        retryAfter: rl.retryAfter
       });
     }
 
@@ -149,6 +185,6 @@ module.exports = async (req, res) => {
     });
   } catch (err) {
     console.error('Key Generation Error:', err);
-    return res.status(500).json({ error: 'Key Provisioning Error', message: err.message });
+    return res.status(500).json({ error: 'KEY_PROVISIONING_ERROR', message: 'Failed to provision API key.' });
   }
 };

@@ -40,15 +40,19 @@ function checkRateLimit(ip, isKeyHolder = false) {
 
 async function parseRequestBody(req) {
   if (req.body !== undefined && req.body !== null) {
+    if (typeof req.body === 'object' && !Buffer.isBuffer(req.body)) {
+      return req.body;
+    }
     if (Buffer.isBuffer(req.body)) {
       const raw = req.body.toString('utf8').replace(/^\uFEFF/, '').trim();
+      if (!raw) return {};
       try { return JSON.parse(raw); } catch (_) {
         try { return querystring.parse(raw); } catch (_) { return { query: raw }; }
       }
     }
-    if (typeof req.body === 'object') return req.body;
     if (typeof req.body === 'string') {
       const trimmed = req.body.replace(/^\uFEFF/, '').trim();
+      if (!trimmed) return {};
       try { return JSON.parse(trimmed); } catch (_) {
         try { return querystring.parse(trimmed); } catch (_) { return { query: trimmed }; }
       }
@@ -60,6 +64,7 @@ async function parseRequestBody(req) {
     for await (const chunk of req) {
       chunks.push(chunk);
     }
+    if (chunks.length === 0) return {};
     const raw = Buffer.concat(chunks).toString('utf8').replace(/^\uFEFF/, '').trim();
     if (!raw) return {};
     try {
@@ -82,12 +87,23 @@ function redactSensitiveData(str) {
   return str
     .replace(/\b(?:github_pat_|gh[pousr]_)[0-9a-zA-Z_]{10,}/gi, '[REDACTED_GITHUB_TOKEN]')
     .replace(/\bsk-(?:proj-|svcacct-|admin-)?[0-9a-zA-Z_-]{10,}/gi, '[REDACTED_API_KEY]')
-    .replace(/\b\d{3}-\d{2}-\d{4}\b/g, '[REDACTED_SSN]')
+    .replace(/\b\d{3}[-\s]\d{2}[-\s]\d{4}\b/g, '[REDACTED_SSN]')
     .replace(/\b(?:\d{4}[-\s]?){3}\d{4}\b/g, '[REDACTED_CREDIT_CARD]')
     .replace(/-----BEGIN[ A-Z0-9_-]*PRIVATE KEY-----[\s\S]*?-----END[ A-Z0-9_-]*PRIVATE KEY-----/gi, '[REDACTED_PRIVATE_KEY]');
 }
 
 module.exports = async (req, res) => {
+  if (typeof res.status !== 'function') {
+    res.status = (code) => { res.statusCode = code; return res; };
+  }
+  if (typeof res.json !== 'function') {
+    res.json = (data) => {
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.end(JSON.stringify(data));
+      return res;
+    };
+  }
+
   const origin = req.headers['origin'];
   if (origin && ALLOWED_ORIGINS.includes(origin)) {
     res.setHeader('Access-Control-Allow-Origin', origin);
@@ -97,6 +113,7 @@ module.exports = async (req, res) => {
 
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-Key');
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.setHeader('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload');
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');

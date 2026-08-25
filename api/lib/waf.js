@@ -97,14 +97,15 @@ const INJECTION_PATTERNS = [
 
 // Phase 2: Enterprise Data Loss Prevention (DLP)
 const DLP_PATTERNS = [
-  { rule: 'DLP_SSN_DETECTED', regex: /\b\d{3}-\d{2}-\d{4}\b/, desc: 'Social Security Number (SSN)' },
-  { rule: 'DLP_CREDIT_CARD_DETECTED', regex: /\b(?:4[0-9]{3}[-\s]?[0-9]{4}[-\s]?[0-9]{4}[-\s]?[0-9]{4}|5[1-5][0-9]{2}[-\s]?[0-9]{4}[-\s]?[0-9]{4}[-\s]?[0-9]{4}|3[47][0-9]{2}[-\s]?[0-9]{6}[-\s]?[0-9]{5}|6(?:011|5[0-9]{2})[-\s]?[0-9]{4}[-\s]?[0-9]{4}[-\s]?[0-9]{4}|(?:4[0-9]{12}(?:[0-9]{3})?|5[1-5][0-9]{14}|3[47][0-9]{13}|6(?:011|5[0-9]{2})[0-9]{12}))\b/, desc: 'Credit / Debit Card Number' },
+  { rule: 'DLP_SSN_DETECTED', regex: /\b\d{3}[-\s]\d{2}[-\s]\d{4}\b/, desc: 'Social Security Number (SSN)' },
+  { rule: 'DLP_CREDIT_CARD_DETECTED', regex: /\b(?:4[0-9]{3}[-\s]?[0-9]{4}[-\s]?[0-9]{4}[-\s]?[0-9]{4}|5[1-5][0-9]{2}[-\s]?[0-9]{4}[-\s]?[0-9]{4}|3[47][0-9]{2}[-\s]?[0-9]{6}[-\s]?[0-9]{5}|6(?:011|5[0-9]{2})[-\s]?[0-9]{4}[-\s]?[0-9]{4}[-\s]?[0-9]{4}|(?:4[0-9]{12}(?:[0-9]{3})?|5[1-5][0-9]{14}|3[47][0-9]{13}|6(?:011|5[0-9]{2})[0-9]{12}))\b/, desc: 'Credit / Debit Card Number' },
   { rule: 'DLP_PRIVATE_KEY_DETECTED', regex: /(?:-----BEGIN[ A-Z0-9_-]*PRIVATE KEY-----|BEGIN (?:RSA|EC|DSA|OPENSSH|PGP|ENCRYPTED|ED25519)?\s*PRIVATE KEY)/i, desc: 'Cryptographic Private Key Block' },
-  { rule: 'DLP_API_SECRET_DETECTED', regex: /\b(?:github_pat_[0-9a-zA-Z_]{20,255}|gh[pousr]_[0-9a-zA-Z]{36,255}|sk-(?:proj-|svcacct-|admin-)?[0-9a-zA-Z_-]{20,255}|xox[baprs]-[0-9a-zA-Z-]{10,100}|(?:AKIA|ASIA|ABIA|ACCA)[0-9A-Z]{16}|[rs]k_(?:live|test)_[0-9a-zA-Z]{24,99}|AIzaSy[0-9a-zA-Z_-]{20,40}|eyJ[a-zA-Z0-9_-]{10,}\.eyJ[a-zA-Z0-9_-]{10,}\.[a-zA-Z0-9_-]{10,})\b/i, desc: 'Cloud / API / Auth Secret Token' }
+  { rule: 'DLP_JWT_TOKEN_DETECTED', regex: /\bey[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b/i, desc: 'JSON Web Token (JWT)' },
+  { rule: 'DLP_API_SECRET_DETECTED', regex: /\b(?:github_pat_[0-9a-zA-Z_]{20,255}|gh[pousr]_[0-9a-zA-Z]{36,255}|sk-(?:proj-|svcacct-|admin-)?[0-9a-zA-Z_-]{20,255}|xox[baprs]-[0-9a-zA-Z-]{10,100}|(?:AKIA|ASIA|ABIA|ACCA)[0-9A-Z]{16}|[rs]k_(?:live|test)_[0-9a-zA-Z]{24,99}|AIzaSy[0-9a-zA-Z_-]{20,40})\b/i, desc: 'Cloud / API Auth Secret Token' }
 ];
 
 // Sensitive Column Extraction Regex (DLP Column Protection)
-const RE_SENSITIVE_COLUMN_EXTRACTION = /\b(SELECT|EXTRACT|GET)\s+[\s\S]*?\b(credit_card(_number)?|credit_card_num|card_number|card_num|cc_number|cc_num|cvv[0-9]?|cvc[0-9]?|ssn|social_security(_number)?|bank_account(_number)?|routing_number|api_keys?|secret_tokens?|auth_tokens?|access_tokens?|private_keys?|master_keys?|passwords?|password_hash|passwd)\b/i;
+const RE_SENSITIVE_COLUMN_EXTRACTION = /\b(SELECT|EXTRACT|GET)\s+[\s\S]*?\b(credit_card(_number)?|credit_card_num|card_number|card_num|cc_number|cc_num|cvv[0-9]?|cvc[0-9]?|ssn|social_security(_number)?|bank_account(_number)?|routing_number|api_keys?|secret_tokens?|auth_tokens?|access_tokens?|private_keys?|master_keys?|passwords?|password_hash|passwd|jwt_token|session_token)\b/i;
 
 // Phase 3: SQL AST, DDL, DCL, File Bridges & Blast Radius Patterns
 const RE_SQL_MULTI_STATEMENT = /;\s*(--|\/\*|SELECT|INSERT|UPDATE|DELETE|DROP|TRUNCATE|ALTER|CREATE|GRANT|REVOKE|COPY|DO|EXECUTE|PREPARE|CALL|VACUUM|REINDEX|SET|SHOW|\w+)/i;
@@ -128,16 +129,16 @@ const RE_SQL_ADMIN_COMMANDS = /\b(?:VACUUM(?:\s+FULL)?|CLUSTER|REINDEX|CHECKPOIN
 const RE_SQL_PROCEDURAL_EXEC = /\b(?:DO\s+\$\$|EXECUTE\s+(?:IMMEDIATE\s+)?|PREPARE\s+\w+|SET\s+SESSION\s+AUTHORIZATION|SET\s+ROLE\s+|SECURITY\s+DEFINER)\b/i;
 
 const RE_SQL_UNION_INJECTION = /\bUNION(\s+ALL)?\s+SELECT\b/i;
-const RE_SQL_TAUTOLOGY = /\b(?:OR|AND)\s+(?:1\s*=\s*1|0\s*=\s*0|TRUE\b|'([^']+)'\s*=\s*'\1')/i;
-const RE_SQL_WHERE_TAUTOLOGY = /\bWHERE\s+(?:1\s*=\s*1|0\s*=\s*0|TRUE\s*(?:;|\-\-|\/\*|$)|'([^']+)'\s*=\s*'\1')/i;
-const RE_SQL_HAVING_TAUTOLOGY = /\bHAVING\s+1\s*=\s*1\b/i;
+const RE_SQL_TAUTOLOGY = /\b(?:OR|AND)\s+(?:1\s*=\s*1|0\s*=\s*0|TRUE\b|1\b|'([^']+)'\s*=\s*'\1'|1\s+IN\s*\(\s*1\s*\)|0\s*<>\s*1|0\s*!=\s*1|[0-9]+\s*>\s*[0-9]+|'([^']+)'\s+LIKE\s+'\2')/i;
+const RE_SQL_WHERE_TAUTOLOGY = /\bWHERE\s+(?:1\s*(?:;|\-\-|\/\*|$|\s+(?:AND|OR)\s+)|1\s*=\s*1|0\s*=\s*0|TRUE\s*(?:;|\-\-|\/\*|$|\s+(?:AND|OR)\s+)|'([^']+)'\s*=\s*'\1'|1\s+IN\s*\(\s*1\s*\)|0\s*<>\s*1|0\s*!=\s*1|[0-9]+\s*>\s*[0-9]+|\w+\s*=\s*['"]?([^'"]+)['"]?\s+LIKE\s+['"]?\2['"]?|'([^']+)'\s+LIKE\s+'\3')/i;
+const RE_SQL_HAVING_TAUTOLOGY = /\bHAVING\s+(?:1\s*=\s*1|0\s*=\s*0|TRUE\b|1\b|0\s*<>\s*1|1\s+IN\s*\(\s*1\s*\))/i;
 const RE_SQL_CTE_DML = /\bWITH\s+[\s\S]*?\bAS\s*\(\s*(?:DELETE|UPDATE|INSERT|DROP)\b/i;
 
 // Time-Based Blind SQL Injection Detection
 const RE_SQL_TIME_DELAY = /\b(?:pg_sleep\s*\(\s*[0-9.]+\s*\)|waitfor\s+delay\s+['"][0-9:.]+['"]|benchmark\s*\(\s*[0-9]+|sleep\s*\(\s*[0-9.]+\s*\)|dbms_lock\.sleep\s*\(|dbms_pipe\.receive_message\s*\(|generate_series\s*\(.*?pg_sleep)\b/i;
 
-// Sensitive System Catalog, Views, System Schemas & Credential Tables Blocklist (including pg_stat_activity, SQLite master, MySQL user, sys.user$)
-const RE_SQL_SENSITIVE_TABLES = /\b(FROM|JOIN|INTO|UPDATE|TABLE)\s+["`\w]*(pg_stat_\w+|pg_shadow|pg_authid|pg_roles|pg_user|pg_catalog(\.\w+)?|information_schema(\.\w+)?|sqlite_master|sqlite_temp_master|sqlite_schema|mysql\.(user|db|tables_priv|columns_priv)|sys(\.\w+)?|pg_settings|pg_config|pg_file_settings|pg_hba_file_rules|pg_locks|pg_prepared_xacts|sys\.user\$|all_users|dba_users|api_keys?|user_passwords?|passwords?|password_table|credentials?|master_keys?|auth_tokens?|secret_store|secrets?|tokens?|app_config|employee_salaries|admin_credentials|system_settings|user_secrets)["`\w]*/i;
+// Sensitive System Catalog, Views, System Schemas, Sessions & Credential Tables Blocklist
+const RE_SQL_SENSITIVE_TABLES = /\b(FROM|JOIN|INTO|UPDATE|TABLE)\s+["`\w]*(pg_stat_\w+|pg_shadow|pg_authid|pg_roles|pg_user|pg_catalog(\.\w+)?|information_schema(\.\w+)?|sqlite_master|sqlite_temp_master|sqlite_schema|mysql\.(user|db|tables_priv|columns_priv)|sys(\.\w+)?|pg_settings|pg_config|pg_file_settings|pg_hba_file_rules|pg_locks|pg_prepared_xacts|sys\.user\$|all_users|dba_users|sessions?|user_sessions?|auth_sessions?|payment_cards?|cards?|customer_cards?|wallets?|billing(_accounts?)?|oauth_tokens?|refresh_tokens?|api_tokens?|api_keys?|user_passwords?|passwords?|password_table|credentials?|master_keys?|auth_tokens?|secret_store|secrets?|tokens?|app_config|employee_salaries|admin_credentials|system_settings|user_secrets|audit_logs?)["`\w]*/i;
 const RE_SQL_UNCONSTRAINED_DELETE = /\bDELETE\s+FROM\s+["`\w]+(?!\s+WHERE\b)/i;
 const RE_SQL_UNCONSTRAINED_UPDATE = /\bUPDATE\s+["`\w]+(\s+SET\s+[\s\S]+?)(?!\s+WHERE\b)/i;
 const RE_SQL_PRIVILEGED_DML = /\b(INSERT\s+INTO|UPDATE)\s+["`\w]*(admin|auth|roles?|permissions?|credentials?|salaries?)["`\w]*/i;
@@ -337,8 +338,11 @@ class SqlAstLexer {
       'PG_PREPARED_XACTS', 'PG_STAT_ACTIVITY', 'PG_STAT_REPLICATION', 'PG_STAT_WAL',
       'PG_STAT_DATABASE', 'PG_STAT_USER_TABLES', 'PG_STATIO_USER_TABLES',
       'PG_STAT_STATEMENTS', 'PG_STAT_SSL', 'PG_TABLESPACE', 'PG_NAMESPACE',
-      'PG_CLASS', 'PG_PROC', 'INFORMATION_SCHEMA', 'SQLITE_MASTER', 'SYS_CONFIG',
-      'USER_PASSWORDS', 'ADMIN_CREDENTIALS', 'SECRET_STORE', 'API_KEYS'
+      'PG_CLASS', 'PG_PROC', 'INFORMATION_SCHEMA', 'SQLITE_MASTER', 'SQLITE_TEMP_MASTER',
+      'SQLITE_SCHEMA', 'SYS_CONFIG', 'USER_PASSWORDS', 'ADMIN_CREDENTIALS',
+      'SECRET_STORE', 'API_KEYS', 'SESSIONS', 'USER_SESSIONS', 'AUTH_SESSIONS',
+      'PAYMENT_CARDS', 'CARDS', 'CUSTOMER_CARDS', 'WALLETS', 'BILLING_ACCOUNTS',
+      'OAUTH_TOKENS', 'REFRESH_TOKENS', 'API_TOKENS', 'AUDIT_LOGS'
     ]);
 
     const ADMIN_COMMAND_KEYWORDS = new Set([
@@ -520,20 +524,23 @@ class SecurityWaf {
       normalized = normalized.normalize('NFKC');
     } catch (_) {}
 
-    // 2. Strip all zero-width, invisible, and control characters cleanly
+    // 2. Convert full-width ASCII/digits (０-９, ａ-ｚ, Ａ-Ｚ) to regular ASCII
+    normalized = normalized.replace(/[\uFF01-\uFF5E]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0));
+
+    // 3. Strip all zero-width, invisible, and control characters cleanly
     normalized = normalized.replace(RE_ZERO_WIDTH_AND_INVISIBLE, '');
 
-    // 3. Homoglyph / confusable characters normalization
+    // 4. Homoglyph / confusable characters normalization
     normalized = normalizeHomoglyphs(normalized);
 
-    // 4. Decode JSON Unicode escapes: \u0067\u0069\u0074... -> git...
+    // 5. Decode JSON Unicode escapes: \u0067\u0069\u0074... -> git...
     if (/\\u[0-9a-fA-F]{4}/i.test(normalized)) {
       try {
         normalized = normalized.replace(/\\u([0-9a-fA-F]{4})/gi, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
       } catch (_) {}
     }
 
-    // 5. Decode Hex escapes: \x67\x69... -> gi...
+    // 6. Decode Hex escapes: \x67\x69... -> gi...
     if (/\\x[0-9a-fA-F]{2}/i.test(normalized)) {
       try {
         normalized = normalized.replace(/\\x([0-9a-fA-F]{2})/gi, (_, hex) => String.fromCharCode(parseInt(hex, 16)));
@@ -638,9 +645,16 @@ class SecurityWaf {
     if (depth > 12) return collector; // Guard against recursive nesting DoS
 
     if (typeof obj === 'string') {
+      const rawTrimmed = obj.trim();
+      if (rawTrimmed && !collector.includes(rawTrimmed)) {
+        collector.push(rawTrimmed);
+      }
+
       const norm = this.normalize(obj);
-      if (norm) {
+      if (norm && norm !== rawTrimmed) {
         collector.push(norm);
+      }
+      if (norm) {
 
         // Variant 1: SQL block comments replaced with space
         const sqlSpaceStripped = norm.replace(RE_SQL_BLOCK_COMMENTS, ' ').replace(RE_SQL_LINE_COMMENTS, ' ').replace(RE_ALL_WHITESPACE, ' ').trim();
@@ -694,6 +708,19 @@ class SecurityWaf {
               if (decodedNorm) collector.push(decodedNorm);
             }
           } catch (_) {}
+        }
+      }
+
+      // Check for ROT13 obfuscated text (e.g. vtaber nyy -> ignore all)
+      if (/[a-zA-Z]{5,}/.test(norm)) {
+        const rot13 = norm.replace(/[a-zA-Z]/g, c => {
+          const code = c.charCodeAt(0);
+          if (code >= 65 && code <= 90) return String.fromCharCode(((code - 65 + 13) % 26) + 65);
+          if (code >= 97 && code <= 122) return String.fromCharCode(((code - 97 + 13) % 26) + 97);
+          return c;
+        });
+        if (rot13 !== norm) {
+          collector.push(rot13);
         }
       }
     } else if (Array.isArray(obj)) {
