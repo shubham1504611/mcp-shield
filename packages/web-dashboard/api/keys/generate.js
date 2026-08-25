@@ -12,19 +12,23 @@ const ALLOWED_ORIGINS = [
 
 global.__MCP_KEYGEN_RATE_LIMITS__ = global.__MCP_KEYGEN_RATE_LIMITS__ || new Map();
 
-function generateApiKey(orgId = 'org_live_default', name = 'Local Gateway Key', rateLimitRpm = 120) {
+function generateApiKey(orgId = 'org_live_default', name = 'Local Gateway Key', requestedRpm = 120) {
   const randomBytes = crypto.randomBytes(24).toString('hex');
   const rawKey = `mcp_live_sec_${randomBytes}`;
   const keyHash = crypto.createHash('sha256').update(rawKey).digest('hex');
   const keyPrefix = rawKey.substring(0, 16);
 
+  // Self-serve keys are capped strictly between 10 and 120 RPM to prevent resource exhaustion
+  const parsedRpm = parseInt(requestedRpm, 10);
+  const rateLimitRpm = Number.isFinite(parsedRpm) ? Math.min(Math.max(10, parsedRpm), 120) : 120;
+
   const keyRecord = {
     rawKey,
     keyPrefix,
     keyHash,
-    orgId: orgId || 'org_live_default',
-    name: name || 'Local Gateway Key',
-    rateLimitRpm: parseInt(rateLimitRpm, 10) || 120,
+    orgId: String(orgId || 'org_live_default').substring(0, 50),
+    name: String(name || 'Local Gateway Key').substring(0, 50),
+    rateLimitRpm,
     isActive: true,
     createdAt: new Date().toISOString()
   };

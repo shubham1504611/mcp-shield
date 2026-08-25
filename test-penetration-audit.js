@@ -462,6 +462,78 @@ test('Comprehensive Penetration Testing & Cryptographic Audit Verification Suite
       category: 'Anonymous Procedural Execution Block (DO $$ ... $$)',
       payload: "DO $$ BEGIN EXECUTE 'DROP TABLE users'; END $$",
       expectedRule: 'SQL_MULTI_STATEMENT_INJECTION'
+    },
+    {
+      id: 76,
+      category: 'PostgreSQL Audit Log Evasion (set_config)',
+      payload: "SELECT set_config('log_statement', 'none', false)",
+      expectedRule: 'DANGEROUS_PG_FUNCTION_BLOCKED'
+    },
+    {
+      id: 77,
+      category: 'PostgreSQL Active Backend Kill (pg_cancel_backend)',
+      payload: 'SELECT pg_cancel_backend(12345)',
+      expectedRule: 'DANGEROUS_PG_FUNCTION_BLOCKED'
+    },
+    {
+      id: 78,
+      category: 'PostgreSQL Hard Connection Kill (pg_terminate_backend)',
+      payload: 'SELECT pg_terminate_backend(12345)',
+      expectedRule: 'DANGEROUS_PG_FUNCTION_BLOCKED'
+    },
+    {
+      id: 79,
+      category: 'PostgreSQL Server Configuration Manipulation (pg_reload_conf)',
+      payload: 'SELECT pg_reload_conf()',
+      expectedRule: 'DANGEROUS_PG_FUNCTION_BLOCKED'
+    },
+    {
+      id: 80,
+      category: 'PostgreSQL Active Query & Credential Sniffing (pg_stat_activity)',
+      payload: 'SELECT query FROM pg_stat_activity',
+      expectedRule: 'SENSITIVE_CREDENTIAL_TABLE_BLOCKED'
+    },
+    {
+      id: 81,
+      category: 'PostgreSQL WAL / Replication Disruption (pg_switch_wal)',
+      payload: 'SELECT pg_switch_wal()',
+      expectedRule: 'DANGEROUS_PG_FUNCTION_BLOCKED'
+    },
+    {
+      id: 82,
+      category: 'PostgreSQL Backup Disruption (pg_stop_backup)',
+      payload: 'SELECT pg_stop_backup()',
+      expectedRule: 'DANGEROUS_PG_FUNCTION_BLOCKED'
+    },
+    {
+      id: 83,
+      category: 'PostgreSQL Advisory Lock Resource Exhaustion DoS (pg_advisory_lock)',
+      payload: 'SELECT pg_advisory_lock(1)',
+      expectedRule: 'DANGEROUS_PG_FUNCTION_BLOCKED'
+    },
+    {
+      id: 84,
+      category: 'PostgreSQL Internal Network Topology Recon (inet_server_addr)',
+      payload: 'SELECT inet_server_addr(), inet_server_port()',
+      expectedRule: 'DANGEROUS_PG_FUNCTION_BLOCKED'
+    },
+    {
+      id: 85,
+      category: 'PostgreSQL Server Version Fingerprinting (current_setting)',
+      payload: "SELECT current_setting('server_version')",
+      expectedRule: 'DANGEROUS_PG_FUNCTION_BLOCKED'
+    },
+    {
+      id: 86,
+      category: 'PostgreSQL Log Rotation & Forensics Evasion (pg_rotate_logfile)',
+      payload: 'SELECT pg_rotate_logfile()',
+      expectedRule: 'DANGEROUS_PG_FUNCTION_BLOCKED'
+    },
+    {
+      id: 87,
+      category: 'PostgreSQL Exclusive Table Lock DoS (VACUUM FULL)',
+      payload: 'VACUUM FULL accounts;',
+      expectedRule: 'UNAUTHORIZED_PRIVILEGED_DML'
     }
   ];
 
@@ -475,7 +547,7 @@ test('Comprehensive Penetration Testing & Cryptographic Audit Verification Suite
     });
   }
 
-  await t.test('Vector #76 [In-Place Unicode & Zero-Width Sanitization]: Injected U+200B and U+202E characters MUST be stripped from returned payload', () => {
+  await t.test('Vector #88 [In-Place Unicode & Zero-Width Sanitization]: Injected U+200B and U+202E characters MUST be stripped from returned payload', () => {
     const dirtyPayload = { query: 'SELECT id,\u200B name\u202E FROM users WHERE active = true' };
     const res = waf.inspectToolCall('postgres_query', dirtyPayload);
 
@@ -485,7 +557,7 @@ test('Comprehensive Penetration Testing & Cryptographic Audit Verification Suite
     assert.ok(!res.sanitizedPayload.query.includes('\u202E'), 'Failed to strip U+202E RTL override character!');
   });
 
-  await t.test('Vector #77 [Legitimate Safe Query]: Should permit, attach nonce/timestamp, and cryptographically sign valid read queries', () => {
+  await t.test('Vector #89 [Legitimate Safe Query]: Should permit, attach nonce/timestamp, and cryptographically sign valid read queries', () => {
     const safePayload = { query: 'SELECT id, name, created_at FROM organizations WHERE plan = "enterprise" LIMIT 20;' };
     const res = waf.inspectToolCall('postgres_query', safePayload);
 
@@ -499,7 +571,7 @@ test('Comprehensive Penetration Testing & Cryptographic Audit Verification Suite
     assert.ok(res.publicKey);
   });
 
-  await t.test('Vector #78 [Ed25519 Attestation Nonce/Context Binding & Mathematical Verification]: Anyone can independently verify signature against canonical spec', () => {
+  await t.test('Vector #90 [Ed25519 Attestation Nonce/Context Binding & Mathematical Verification]: Anyone can independently verify signature against canonical spec', () => {
     const { verifyAttestation } = require('./packages/gateway-core/src/security/waf');
     const payload = { query: 'SELECT * FROM users WHERE active = true' };
     const res = waf.inspectToolCall('postgres_query', payload);
@@ -511,7 +583,7 @@ test('Comprehensive Penetration Testing & Cryptographic Audit Verification Suite
     assert.strictEqual(isVerified, true, 'Cryptographic Ed25519 verification failed against canonical specification!');
   });
 
-  await t.test('Vector #79 [Deterministic Ed25519 Key Persistence Across Cold Starts]: Public keys remain stable and cross-verifiable', () => {
+  await t.test('Vector #91 [Deterministic Ed25519 Key Persistence Across Cold Starts]: Public keys remain stable and cross-verifiable', () => {
     const { getPublicKey } = require('./packages/gateway-core/src/security/waf');
     const key1 = getPublicKey();
     const key2 = require('./api/lib/waf').PUBLIC_KEY;
@@ -520,7 +592,7 @@ test('Comprehensive Penetration Testing & Cryptographic Audit Verification Suite
     assert.ok(key1.includes('BEGIN PUBLIC KEY'), 'Invalid PEM public key format');
   });
 
-  await t.test('Vector #80 [Empty Parameter Payload Rejection]: Tool invocations with empty body or empty parameters must be rejected', () => {
+  await t.test('Vector #92 [Empty Parameter Payload Rejection]: Tool invocations with empty body or empty parameters must be rejected', () => {
     const res1 = waf.inspectToolCall('postgres_query', {});
     assert.strictEqual(res1.isSafe, false);
     assert.strictEqual(res1.rule, 'EMPTY_PAYLOAD_REJECTED');

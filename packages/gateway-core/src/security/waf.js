@@ -89,6 +89,12 @@ const RE_SQL_DCL = /\b(?:GRANT\s+[\s\S]+?\bTO\b|REVOKE\s+[\s\S]+?\bFROM\b)\b/i;
 // PostgreSQL File Exfiltration & Bridge Commands (COPY TO/FROM, lo_export, pg_read_file, pg_write_file, dblink)
 const RE_SQL_FILE_EXFILTRATION = /\b(?:COPY\s+[\s\S]+?\b(?:TO|FROM)\b|lo_export\s*\(|lo_import\s*\(|lo_unlink\s*\(|pg_read_file\s*\(|pg_write_file\s*\(|pg_ls_dir\s*\(|pg_read_binary_file\s*\(|pg_stat_file\s*\(|dblink\s*\(|dblink_exec\s*\(|dblink_connect\s*\()/i;
 
+// PostgreSQL Admin, Diagnostics, Session & Reconnaissance Functions Blocklist
+const RE_SQL_PG_ADMIN_FUNCS = /\b(?:set_config|current_setting|inet_server_addr|inet_server_port|inet_client_addr|inet_client_port|version|session_user|current_user|current_database|current_schema|pg_cancel_backend|pg_terminate_backend|pg_reload_conf|pg_rotate_logfile|pg_switch_wal|pg_stop_backup|pg_start_backup|pg_create_restore_point|pg_export_snapshot|pg_import_snapshot|pg_wal_replay_pause|pg_wal_replay_resume|pg_advisory_lock|pg_advisory_unlock|pg_advisory_xact_lock|pg_try_advisory_lock|pg_logdir_ls|pg_ls_logdir|pg_ls_waldir|pg_ls_archive_statusdir|pg_ls_tmpdir|pg_notify|pg_listening_channels|pg_backend_pid|pg_tablespace_size|pg_database_size|pg_relation_size|pg_column_size|pg_indexes_size|pg_total_relation_size|pg_size_pretty|pg_sleep)\s*\(/i;
+
+// Dangerous Administrative Server Commands (VACUUM, CLUSTER, REINDEX, LOCK TABLE, DISCARD, CHECKPOINT, etc.)
+const RE_SQL_ADMIN_COMMANDS = /\b(?:VACUUM(?:\s+FULL)?|CLUSTER|REINDEX|CHECKPOINT|LOCK\s+TABLE|LISTEN\s+\w+|NOTIFY\s+\w+|DEALLOCATE|SAVEPOINT|ROLLBACK\s+TO|DISCARD\s+ALL)\b/i;
+
 // Anonymous Procedural Execution & Session Impersonation (DO $$, EXECUTE IMMEDIATE, PREPARE)
 const RE_SQL_PROCEDURAL_EXEC = /\b(?:DO\s+\$\$|EXECUTE\s+(?:IMMEDIATE\s+)?|PREPARE\s+\w+|SET\s+SESSION\s+AUTHORIZATION|SET\s+ROLE\s+|SECURITY\s+DEFINER)\b/i;
 
@@ -101,8 +107,8 @@ const RE_SQL_CTE_DML = /\bWITH\s+[\s\S]*?\bAS\s*\(\s*(?:DELETE|UPDATE|INSERT|DRO
 // Time-Based Blind SQL Injection Detection
 const RE_SQL_TIME_DELAY = /\b(?:pg_sleep\s*\(\s*[0-9.]+\s*\)|waitfor\s+delay\s+['"][0-9:.]+['"]|benchmark\s*\(\s*[0-9]+|sleep\s*\(\s*[0-9.]+\s*\)|dbms_lock\.sleep\s*\(|dbms_pipe\.receive_message\s*\(|generate_series\s*\(.*?pg_sleep)\b/i;
 
-// Sensitive System Catalog & Credential Tables Blocklist
-const RE_SQL_SENSITIVE_TABLES = /\b(FROM|JOIN|INTO|UPDATE|TABLE)\s+["`\w]*(pg_shadow|pg_authid|pg_roles|pg_user|pg_catalog(\.\w+)?|information_schema(\.\w+)?|sqlite_master|mysql\.(user|db|tables_priv)|sys(\.\w+)?|api_keys?|user_passwords?|passwords?|password_table|credentials?|master_keys?|auth_tokens?|secret_store|secrets?|tokens?|app_config|employee_salaries|admin_credentials|system_settings|user_secrets)["`\w]*/i;
+// Sensitive System Catalog, Views & Credential Tables Blocklist (including pg_stat_activity, pg_locks, pg_settings)
+const RE_SQL_SENSITIVE_TABLES = /\b(FROM|JOIN|INTO|UPDATE|TABLE)\s+["`\w]*(pg_stat_\w+|pg_shadow|pg_authid|pg_roles|pg_user|pg_catalog(\.\w+)?|information_schema(\.\w+)?|sqlite_master|mysql\.(user|db|tables_priv)|sys(\.\w+)?|pg_settings|pg_config|pg_file_settings|pg_hba_file_rules|pg_locks|pg_prepared_xacts|api_keys?|user_passwords?|passwords?|password_table|credentials?|master_keys?|auth_tokens?|secret_store|secrets?|tokens?|app_config|employee_salaries|admin_credentials|system_settings|user_secrets)["`\w]*/i;
 const RE_SQL_UNCONSTRAINED_DELETE = /\bDELETE\s+FROM\s+["`\w]+(?!\s+WHERE\b)/i;
 const RE_SQL_UNCONSTRAINED_UPDATE = /\bUPDATE\s+["`\w]+(\s+SET\s+[\s\S]+?)(?!\s+WHERE\b)/i;
 const RE_SQL_PRIVILEGED_DML = /\b(INSERT\s+INTO|UPDATE)\s+["`\w]*(admin|auth|roles?|permissions?|credentials?|salaries?)["`\w]*/i;
@@ -284,16 +290,31 @@ class SqlAstLexer {
       };
     }
 
-    const DANGEROUS_PG_FUNCS = new Set([
-      'LO_EXPORT', 'LO_IMPORT', 'LO_UNLINK', 'PG_READ_FILE', 'PG_WRITE_FILE',
-      'PG_LS_DIR', 'PG_READ_BINARY_FILE', 'PG_STAT_FILE', 'DBLINK', 'DBLINK_EXEC',
-      'DBLINK_CONNECT', 'PG_SLEEP', 'SLEEP', 'BENCHMARK', 'DBMS_LOCK.SLEEP'
+    const SAFE_PG_FUNCS = new Set([
+      'PG_TYPEOF', 'PG_COLUMN_SIZE'
+    ]);
+
+    const DANGEROUS_NON_PG_FUNCS = new Set([
+      'SET_CONFIG', 'CURRENT_SETTING', 'INET_SERVER_ADDR', 'INET_SERVER_PORT',
+      'INET_CLIENT_ADDR', 'INET_CLIENT_PORT', 'VERSION', 'SESSION_USER',
+      'CURRENT_USER', 'CURRENT_DATABASE', 'CURRENT_SCHEMA', 'DBLINK',
+      'DBLINK_EXEC', 'DBLINK_CONNECT', 'LO_EXPORT', 'LO_IMPORT', 'LO_UNLINK',
+      'SLEEP', 'BENCHMARK', 'DBMS_LOCK.SLEEP', 'DBMS_PIPE.RECEIVE_MESSAGE'
     ]);
 
     const SENSITIVE_TABLE_NAMES = new Set([
       'PG_SHADOW', 'PG_AUTHID', 'PG_ROLES', 'PG_USER', 'PG_DATABASE', 'PG_SETTINGS',
-      'INFORMATION_SCHEMA', 'SQLITE_MASTER', 'SYS_CONFIG', 'USER_PASSWORDS',
-      'ADMIN_CREDENTIALS', 'SECRET_STORE', 'API_KEYS'
+      'PG_CONFIG', 'PG_FILE_SETTINGS', 'PG_HBA_FILE_RULES', 'PG_LOCKS',
+      'PG_PREPARED_XACTS', 'PG_STAT_ACTIVITY', 'PG_STAT_REPLICATION', 'PG_STAT_WAL',
+      'PG_STAT_DATABASE', 'PG_STAT_USER_TABLES', 'PG_STATIO_USER_TABLES',
+      'PG_STAT_STATEMENTS', 'PG_STAT_SSL', 'PG_TABLESPACE', 'PG_NAMESPACE',
+      'PG_CLASS', 'PG_PROC', 'INFORMATION_SCHEMA', 'SQLITE_MASTER', 'SYS_CONFIG',
+      'USER_PASSWORDS', 'ADMIN_CREDENTIALS', 'SECRET_STORE', 'API_KEYS'
+    ]);
+
+    const ADMIN_COMMAND_KEYWORDS = new Set([
+      'VACUUM', 'CLUSTER', 'REINDEX', 'CHECKPOINT', 'LOCK', 'LISTEN', 'NOTIFY',
+      'DEALLOCATE', 'SAVEPOINT', 'DISCARD'
     ]);
 
     for (const stmt of statements) {
@@ -301,6 +322,15 @@ class SqlAstLexer {
       if (keywords.length === 0) continue;
 
       const firstKw = keywords[0];
+
+      // Admin command statements: VACUUM, CLUSTER, REINDEX, LOCK, etc.
+      if (ADMIN_COMMAND_KEYWORDS.has(firstKw)) {
+        return {
+          isSafe: false,
+          rule: 'UNAUTHORIZED_PRIVILEGED_DML',
+          reason: `PostgreSQL administrative server command '${firstKw}' is prohibited`
+        };
+      }
 
       // DCL Statements: GRANT, REVOKE
       if (firstKw === 'GRANT' || firstKw === 'REVOKE') {
@@ -358,9 +388,10 @@ class SqlAstLexer {
         }
       }
 
-      // Check all identifiers for dangerous functions and tables
+      // Check all identifiers for dangerous functions, views, and tables
       for (const kw of keywords) {
-        if (DANGEROUS_PG_FUNCS.has(kw)) {
+        // Any pg_ function (unless safe scalar)
+        if (kw.startsWith('PG_') && !SAFE_PG_FUNCS.has(kw)) {
           if (kw === 'PG_SLEEP' || kw === 'SLEEP' || kw === 'BENCHMARK') {
             return {
               isSafe: false,
@@ -368,14 +399,29 @@ class SqlAstLexer {
               reason: `Blind SQL time-delay injection function '${kw}' is blocked`
             };
           }
+          if (kw === 'PG_STAT_ACTIVITY' || kw.startsWith('PG_STAT_')) {
+            return {
+              isSafe: false,
+              rule: 'SENSITIVE_CREDENTIAL_TABLE_BLOCKED',
+              reason: `Access to sensitive activity catalog view '${kw}' is blocked`
+            };
+          }
           return {
             isSafe: false,
             rule: 'DANGEROUS_PG_FUNCTION_BLOCKED',
-            reason: `Dangerous PostgreSQL server function '${kw}' (filesystem/remote execution) is strictly blocked`
+            reason: `PostgreSQL internal/admin function '${kw}' is strictly blocked`
           };
         }
 
-        if (SENSITIVE_TABLE_NAMES.has(kw)) {
+        if (DANGEROUS_NON_PG_FUNCS.has(kw)) {
+          return {
+            isSafe: false,
+            rule: 'DANGEROUS_PG_FUNCTION_BLOCKED',
+            reason: `Administrative/reconnaissance function '${kw}' is strictly blocked`
+          };
+        }
+
+        if (SENSITIVE_TABLE_NAMES.has(kw) || kw.startsWith('PG_STAT_')) {
           return {
             isSafe: false,
             rule: 'SENSITIVE_CREDENTIAL_TABLE_BLOCKED',
@@ -936,19 +982,48 @@ class SecurityWaf {
         };
       }
 
-      // 12. Sensitive Credential / Secret Tables Access & System Catalog
+      // 12. PostgreSQL Administrative, Diagnostic & Reconnaissance Functions (set_config, pg_cancel_backend, inet_server_addr, etc.)
+      if (RE_SQL_PG_ADMIN_FUNCS.test(str) || RE_SQL_PG_ADMIN_FUNCS.test(candidate) ||
+          compactAlpha.includes('SETCONFIG') || compactAlpha.includes('CURRENTSETTING') ||
+          compactAlpha.includes('INETSERVERADDR') || compactAlpha.includes('INETSERVERPORT') ||
+          compactAlpha.includes('PGCANCELBACKEND') || compactAlpha.includes('PGTERMINATEBACKEND') ||
+          compactAlpha.includes('PGRELOADCONF') || compactAlpha.includes('PGROLOGFILE') || compactAlpha.includes('PGROTATELOGFILE') ||
+          compactAlpha.includes('PGSWITCHWAL') || compactAlpha.includes('PGSTOPBACKUP') || compactAlpha.includes('PGSTARTBACKUP') ||
+          compactAlpha.includes('PGADVISORYLOCK') || compactAlpha.includes('PGADVISORYUNLOCK')) {
+        return {
+          isSafe: false,
+          rule: 'DANGEROUS_PG_FUNCTION_BLOCKED',
+          matchedSnippet: str.substring(0, 100),
+          reason: 'PostgreSQL administrative, configuration manipulation, or session reconnaissance function is strictly blocked'
+        };
+      }
+
+      // 13. Dangerous Server Administration Commands (VACUUM, CLUSTER, REINDEX, LOCK TABLE, etc.)
+      if (RE_SQL_ADMIN_COMMANDS.test(str) || RE_SQL_ADMIN_COMMANDS.test(candidate) ||
+          compactAlpha.startsWith('VACUUM') || compactAlpha.startsWith('CLUSTER') || compactAlpha.startsWith('REINDEX') ||
+          compactAlpha.startsWith('LOCKTABLE') || compactAlpha.startsWith('DISCARDALL')) {
+        return {
+          isSafe: false,
+          rule: 'UNAUTHORIZED_PRIVILEGED_DML',
+          matchedSnippet: str.substring(0, 100),
+          reason: 'PostgreSQL administrative server maintenance command is strictly prohibited'
+        };
+      }
+
+      // 14. Sensitive Credential / Secret Tables Access & System Catalog Views (including pg_stat_activity)
       if (RE_SQL_SENSITIVE_TABLES.test(str) || RE_SQL_SENSITIVE_TABLES.test(candidate) ||
           compactAlpha.includes('PGSHADOW') || compactAlpha.includes('PGAUTHID') || compactAlpha.includes('PGROLES') ||
+          compactAlpha.includes('PGSTATACTIVITY') || compactAlpha.includes('PGSETTINGS') || compactAlpha.includes('PGCONFIG') ||
           compactAlpha.includes('INFORMATIONSCHEMATABLES') || compactAlpha.includes('INFORMATIONSCHEMACOLUMNS')) {
         return {
           isSafe: false,
           rule: 'SENSITIVE_CREDENTIAL_TABLE_BLOCKED',
           matchedSnippet: candidate.substring(0, 100),
-          reason: 'Direct querying or schema enumeration of sensitive credential/auth/key table is blocked by policy'
+          reason: 'Direct querying or schema enumeration of sensitive credential/auth/key table or activity view is blocked by policy'
         };
       }
 
-      // 13. DML with Nested Subqueries (e.g. INSERT INTO ... VALUES (1, (SELECT ...)))
+      // 15. DML with Nested Subqueries (e.g. INSERT INTO ... VALUES (1, (SELECT ...)))
       if (RE_SQL_DML_SUBQUERY.test(str) || RE_SQL_DML_SUBQUERY.test(candidate)) {
         return {
           isSafe: false,
@@ -958,7 +1033,7 @@ class SecurityWaf {
         };
       }
 
-      // 14. Unauthorized Account & Identity Table Mutations
+      // 16. Unauthorized Account & Identity Table Mutations
       if (RE_SQL_UNAUTHORIZED_ACCOUNT_MUTATION.test(str) || RE_SQL_UNAUTHORIZED_ACCOUNT_MUTATION.test(candidate)) {
         return {
           isSafe: false,
@@ -968,7 +1043,7 @@ class SecurityWaf {
         };
       }
 
-      // 15. Privileged DML / Unauthorized Table Injection
+      // 17. Privileged DML / Unauthorized Table Injection
       if (RE_SQL_PRIVILEGED_DML.test(candidate)) {
         return {
           isSafe: false,
@@ -978,7 +1053,7 @@ class SecurityWaf {
         };
       }
 
-      // 16. Privilege Escalation Attempt (is_admin=1, role='admin')
+      // 18. Privilege Escalation Attempt (is_admin=1, role='admin')
       if (RE_SQL_PRIVILEGE_ESCALATION.test(candidate) || RE_SQL_PRIVILEGE_ESCALATION.test(str)) {
         return {
           isSafe: false,
