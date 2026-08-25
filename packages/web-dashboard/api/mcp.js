@@ -206,7 +206,7 @@ module.exports = async (req, res) => {
 
     res.setHeader('X-MCP-Signature', check.signature);
     res.setHeader('X-MCP-Trace-ID', check.traceId);
-    res.setHeader('X-MCP-Public-Key', PUBLIC_KEY);
+    res.setHeader('X-MCP-Public-Key', PUBLIC_KEY.replace(/-----BEGIN PUBLIC KEY-----|\r|\n|-----END PUBLIC KEY-----|\s+/g, ''));
 
     return res.status(200).json({
       jsonrpc: '2.0',

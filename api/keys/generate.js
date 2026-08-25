@@ -12,22 +12,25 @@ const ALLOWED_ORIGINS = [
 
 global.__MCP_KEYGEN_RATE_LIMITS__ = global.__MCP_KEYGEN_RATE_LIMITS__ || new Map();
 
-function generateApiKey(orgId = 'org_live_default', name = 'Local Gateway Key', requestedRpm = 120) {
+function generateApiKey(orgId = 'org_live_default', name = 'Local Gateway Key', requestedRpm = 120, isProduction = false) {
   const randomBytes = crypto.randomBytes(24).toString('hex');
-  const rawKey = `mcp_live_sec_${randomBytes}`;
+  const prefix = isProduction ? 'mcp_live_sec_' : 'mcp_sandbox_';
+  const rawKey = `${prefix}${randomBytes}`;
   const keyHash = crypto.createHash('sha256').update(rawKey).digest('hex');
   const keyPrefix = rawKey.substring(0, 16);
 
-  // Self-serve keys are capped strictly between 10 and 120 RPM to prevent resource exhaustion
+  // Self-serve sandbox keys are capped at 30 RPM, authenticated production keys up to 120 RPM
+  const maxAllowedRpm = isProduction ? 120 : 30;
   const parsedRpm = parseInt(requestedRpm, 10);
-  const rateLimitRpm = Number.isFinite(parsedRpm) ? Math.min(Math.max(10, parsedRpm), 120) : 120;
+  const rateLimitRpm = Number.isFinite(parsedRpm) ? Math.min(Math.max(10, parsedRpm), maxAllowedRpm) : (isProduction ? 120 : 30);
 
   const keyRecord = {
     rawKey,
     keyPrefix,
     keyHash,
+    tier: isProduction ? 'production' : 'sandbox',
     orgId: String(orgId || 'org_live_default').substring(0, 50),
-    name: String(name || 'Local Gateway Key').substring(0, 50),
+    name: String(name || (isProduction ? 'Production Gateway Key' : 'Sandbox Demo Key')).substring(0, 50),
     rateLimitRpm,
     isActive: true,
     createdAt: new Date().toISOString()
@@ -171,10 +174,13 @@ module.exports = async (req, res) => {
     const name = body.name || 'Local Key';
     const rateLimitRpm = body.rateLimitRpm || 120;
 
-    const keyData = generateApiKey(orgId, name, rateLimitRpm);
+    const adminSecret = process.env.MCP_ADMIN_SECRET || 'mcp_admin_master_secret';
+    const isProduction = authHeader && (authHeader === `Bearer ${adminSecret}` || authHeader === adminSecret);
+    const keyData = generateApiKey(orgId, name, rateLimitRpm, isProduction);
 
     return res.status(200).json({
       status: 'KEY_PROVISIONED',
+      tier: keyData.tier,
       rawKey: keyData.rawKey,
       apiKey: keyData.rawKey,
       keyPrefix: keyData.keyPrefix,

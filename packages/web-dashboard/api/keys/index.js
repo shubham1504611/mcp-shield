@@ -41,10 +41,11 @@ module.exports = async (req, res) => {
   const authHeader = req.headers['authorization'] || '';
   const apiKeyHeader = req.headers['x-api-key'] || '';
 
-  if (authHeader.includes('Bearer master_sec_') || apiKeyHeader.startsWith('mcp_live_sec_')) {
+  if (authHeader.includes('Bearer master_sec_') || apiKeyHeader.startsWith('mcp_live_sec_') || apiKeyHeader.startsWith('mcp_sandbox_')) {
     const list = getAllApiKeys().map(k => ({
       keyPrefix: k.keyPrefix,
       name: k.name,
+      tier: k.tier || (k.keyPrefix.startsWith('mcp_sandbox_') ? 'sandbox' : 'production'),
       rateLimitRpm: k.rateLimitRpm,
       createdAt: k.createdAt
     }));

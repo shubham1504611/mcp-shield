@@ -307,6 +307,51 @@ class SqlAstLexer {
     return statements;
   }
 
+  static buildAst(tokens) {
+    if (!tokens || tokens.length === 0) return null;
+    const codeTokens = tokens.filter(t => t.type !== 'COMMENT_BLOCK' && t.type !== 'COMMENT_LINE');
+    if (codeTokens.length === 0) return null;
+
+    const firstUpper = codeTokens[0].upper || codeTokens[0].value.toUpperCase();
+    const ast = {
+      type: `${firstUpper.charAt(0) + firstUpper.slice(1).toLowerCase()}Statement`,
+      statementType: firstUpper,
+      clauses: {},
+      tokens: codeTokens
+    };
+
+    const CLAUSE_KEYWORDS = new Set([
+      'SELECT', 'FROM', 'WHERE', 'GROUP', 'HAVING', 'ORDER', 'LIMIT', 'OFFSET',
+      'INTO', 'VALUES', 'SET', 'JOIN', 'LEFT', 'RIGHT', 'INNER', 'OUTER', 'CROSS', 'UNION'
+    ]);
+
+    let currentClause = 'HEADER';
+    ast.clauses[currentClause] = [];
+
+    for (let i = 0; i < codeTokens.length; i++) {
+      const tok = codeTokens[i];
+      const upper = tok.upper || tok.value.toUpperCase();
+
+      if (CLAUSE_KEYWORDS.has(upper)) {
+        if (upper === 'GROUP' && codeTokens[i + 1]?.upper === 'BY') {
+          currentClause = 'GROUP_BY';
+          i++;
+        } else if (upper === 'ORDER' && codeTokens[i + 1]?.upper === 'BY') {
+          currentClause = 'ORDER_BY';
+          i++;
+        } else {
+          currentClause = upper;
+        }
+        if (!ast.clauses[currentClause]) ast.clauses[currentClause] = [];
+      } else {
+        if (!ast.clauses[currentClause]) ast.clauses[currentClause] = [];
+        ast.clauses[currentClause].push(tok);
+      }
+    }
+
+    return ast;
+  }
+
   static analyzeAst(sql) {
     if (!sql || typeof sql !== 'string') return { isSafe: true };
     const statements = this.parseStatements(sql);
@@ -351,6 +396,47 @@ class SqlAstLexer {
     ]);
 
     for (const stmt of statements) {
+      const ast = this.buildAst(stmt);
+      if (ast) {
+        // 1. Unconstrained Mutation check via AST clause analysis
+        if (ast.statementType === 'DELETE' || ast.statementType === 'UPDATE') {
+          if (!ast.clauses.WHERE || ast.clauses.WHERE.length === 0) {
+            return {
+              isSafe: false,
+              rule: 'UNCONSTRAINED_BULK_DML',
+              reason: `Unconstrained ${ast.statementType} statement without a WHERE clause is blocked`
+            };
+          }
+        }
+
+        // 2. WHERE / HAVING Tautology AST Evaluation
+        for (const clauseKey of ['WHERE', 'HAVING']) {
+          const clauseTokens = ast.clauses[clauseKey];
+          if (clauseTokens && clauseTokens.length > 0) {
+            const rawClause = clauseTokens.map(t => t.value).join(' ').trim();
+            const upperClause = rawClause.toUpperCase();
+
+            // Constant scalar truth: WHERE 1, WHERE TRUE, WHERE 'a', WHERE 1 IN (1), WHERE 0<>1, WHERE 2>1
+            if (/^(1|TRUE|'[^']*'|\d+\s*=\s*\d+|\d+\s*<>\s*\d+|\d+\s*!=\s*\d+|\d+\s*>\s*\d+|\d+\s*<\s*\d+|1\s+IN\s*\(\s*1\s*\))$/i.test(upperClause)) {
+              return {
+                isSafe: false,
+                rule: 'SQL_TAUTOLOGY_INJECTION',
+                reason: `Always-true tautology condition detected in ${clauseKey} clause ('${rawClause}')`
+              };
+            }
+
+            // Disjunctive tautology: ... OR 1=1, ... OR TRUE, ... OR 1 IN (1), ... OR 2>1
+            if (/\bOR\s+(1=1|TRUE|1\s+IN\s*\(\s*1\s*\)|0<>1|0!=1|\d+>\d+|'[^']+'\s*LIKE\s*'[^']+'|'[^']+'\s*=\s*'[^']+')/i.test(upperClause)) {
+              return {
+                isSafe: false,
+                rule: 'SQL_TAUTOLOGY_INJECTION',
+                reason: `Disjunctive always-true tautology bypass detected in ${clauseKey} clause ('${rawClause}')`
+              };
+            }
+          }
+        }
+      }
+
       const keywords = stmt.filter(t => t.type === 'KEYWORD_OR_IDENT').map(t => t.upper);
       if (keywords.length === 0) continue;
 
