@@ -1,0 +1,10 @@
+[
+  "SELECT id, username, email FROM users WHERE status = 'active';",
+  "SELECT p.id, p.title, p.price, c.name AS category FROM products p INNER JOIN categories c ON p.category_id = c.id WHERE p.stock > 0 ORDER BY p.created_at DESC LIMIT 20;",
+  "SELECT count(*) AS total_orders, sum(amount) AS gross_sales FROM orders WHERE order_date >= '2026-01-01' AND order_date <= '2026-12-31';",
+  "SELECT id, customer_id, status FROM invoices WHERE customer_id = 'c_9981' AND status != 'paid';",
+  "SELECT name, department, role FROM employees WHERE department IN ('Engineering', 'Security', 'Product') AND active = true;",
+  "SELECT id, title, tags FROM articles WHERE tags @> ARRAY['security'] LIMIT 10;",
+  "SELECT item_id, avg(rating) AS score FROM reviews GROUP BY item_id HAVING avg(rating) >= 4.0;",
+  "SELECT profile_id, user_id, bio FROM user_profiles WHERE user_id = 'usr_102';"
+]

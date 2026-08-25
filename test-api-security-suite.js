@@ -8,6 +8,10 @@ const evaluateHandler = require('./api/_lib/handlers/evaluate');
 const mcpHandler = require('./api/_lib/handlers/mcp');
 const { getMetrics, getAuditLogs } = require('./api/_lib/store');
 const { PUBLIC_KEY, verifyAttestation } = require('./api/_lib/waf');
+const { setDatabaseClient } = require('./packages/gateway-core/src/security/store');
+const { TestPostgresAdapter } = require('./packages/gateway-core/src/security/testDbAdapter');
+
+setDatabaseClient(new TestPostgresAdapter());
 
 function createMockReqRes({ method = 'POST', headers = {}, body = null, url = '/', ip = '127.0.0.1' } = {}) {
   let statusCode = 200;

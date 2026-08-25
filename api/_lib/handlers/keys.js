@@ -179,6 +179,15 @@ module.exports = async (req, res) => {
   }
 
   try {
+    const { isDatabaseConfigured } = require('../store');
+    if (!isDatabaseConfigured()) {
+      return res.status(503).json({
+        error: 'SERVICE_UNAVAILABLE',
+        message: 'Persistent database store is currently unconfigured or unavailable.',
+        code: 'DATABASE_NOT_CONFIGURED'
+      });
+    }
+
     const clientIp = getClientIp(req);
     const authHeader = req.headers['authorization'] || req.headers['x-admin-secret'] || '';
     const rl = checkKeygenRateLimit(clientIp, authHeader);
@@ -193,6 +202,23 @@ module.exports = async (req, res) => {
     }
 
     const body = await parseRequestBody(req);
+
+    // Key Rotation Endpoint
+    if (req.url && req.url.includes('rotate')) {
+      const { rotateApiKey } = require('../store');
+      const apiKeyHeader = req.headers['x-api-key'] || '';
+      const rawKey = apiKeyHeader || (authHeader.startsWith('Bearer ') ? authHeader.substring(7).trim() : authHeader) || body.oldApiKey || body.apiKey;
+      const rotateResult = await rotateApiKey(rawKey, body.name);
+      if (!rotateResult.success) {
+        return res.status(rotateResult.statusCode || 400).json({
+          error: 'ROTATION_FAILED',
+          message: `Key rotation failed: ${rotateResult.error}`,
+          code: rotateResult.error
+        });
+      }
+      return res.status(200).json(rotateResult);
+    }
+
     const orgId = body.orgId || 'org_live_default';
     const name = body.name || 'Local Key';
     const rateLimitRpm = body.rateLimitRpm || 120;

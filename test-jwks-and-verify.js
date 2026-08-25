@@ -8,6 +8,10 @@ const evaluateHandler = require('./api/_lib/handlers/evaluate');
 const keysHandler = require('./api/_lib/handlers/keys');
 const { verifyAttestationSignature } = require('./packages/cli-shield/src/verify');
 const { PUBLIC_KEY } = require('./packages/gateway-core/src/security/waf');
+const { setDatabaseClient } = require('./packages/gateway-core/src/security/store');
+const { TestPostgresAdapter } = require('./packages/gateway-core/src/security/testDbAdapter');
+
+setDatabaseClient(new TestPostgresAdapter());
 
 function mockRes() {
   let statusCode = 200;

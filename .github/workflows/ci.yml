@@ -1,0 +1,44 @@
+name: MCP Shield Production CI & Security Verification Suite
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test-and-verify:
+    name: Security Hardening & Zero-Trust Verification
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x, 22.x]
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - name: Install Monorepo Dependencies
+        run: npm install
+
+      - name: Run Workspace Unit & Integration Test Matrix
+        run: npm run test:all
+
+      - name: Run Phase 1-4 Security Acceptance Tests
+        run: |
+          node --test test/phase1-durable-state.test.js
+          node --test test/phase2-cryptographic-hardening.test.js
+          node --test test/phase3-waf-allowlist.test.js
+          node --test test/phase4-truth-in-advertising.test.js
+          node --test test/fuzz-harness.test.js
+          node --test test-mcp-full-spec.js
+          node --test test-penetration-audit.js
+
+      - name: Run Latency Benchmark Verification
+        run: node scripts/benchmark.js

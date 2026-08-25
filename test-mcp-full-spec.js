@@ -5,6 +5,10 @@ const mcpHandler = require('./api/_lib/handlers/mcp');
 const evaluateHandler = require('./api/_lib/handlers/evaluate');
 const keysHandler = require('./api/_lib/handlers/keys');
 const store = require('./api/_lib/store');
+const { setDatabaseClient } = require('./packages/gateway-core/src/security/store');
+const { TestPostgresAdapter } = require('./packages/gateway-core/src/security/testDbAdapter');
+
+setDatabaseClient(new TestPostgresAdapter());
 
 function mockRes() {
   let statusCode = 200;

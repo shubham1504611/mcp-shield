@@ -133,9 +133,12 @@ module.exports = async (req, res) => {
     // 2. Enforce API Key Authentication
     const authResult = await validateApiKey(rawKey);
     if (!authResult.valid) {
-      return res.status(401).json({
-        error: 'UNAUTHORIZED',
-        message: 'A valid API key is required. Provide header "X-API-Key: mcp_live_sec_..." or generate a sandbox key via POST /api/keys/generate.',
+      const status = authResult.statusCode || 401;
+      return res.status(status).json({
+        error: status === 503 ? 'SERVICE_UNAVAILABLE' : 'UNAUTHORIZED',
+        message: status === 503 
+          ? 'Persistent database store is currently unavailable or unconfigured.' 
+          : 'A valid API key is required. Provide header "X-API-Key: mcp_live_sec_..." or generate a sandbox key via POST /api/keys/generate.',
         code: authResult.reason
       });
     }

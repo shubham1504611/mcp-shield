@@ -15,17 +15,23 @@ module.exports = async (req, res) => {
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.setHeader('Access-Control-Allow-Origin', '*');
 
-  const hasSupabase = Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
+  const { isDatabaseConfigured } = require('../store');
+  const dbConfigured = isDatabaseConfigured();
   const hasSigningKey = Boolean(PUBLIC_KEY && PUBLIC_KEY.includes('PUBLIC KEY'));
 
-  return res.status(200).json({
-    status: 'HEALTHY',
+  const overallStatus = dbConfigured ? 'HEALTHY' : 'DEGRADED';
+  const statusCode = dbConfigured ? 200 : 503;
+
+  return res.status(statusCode).json({
+    status: overallStatus,
     service: 'MCP Shield Gateway Core',
     version: '2.5.0',
     timestamp: new Date().toISOString(),
-    engine: '4-Phase Zero-Trust WAF & AST Enclave',
-    storageMode: hasSupabase ? 'supabase-persistent' : 'in-memory-resilient',
+    engine: 'multi-phase lexical normalization + policy engine',
+    database: dbConfigured ? 'connected' : 'unconfigured',
+    storageMode: dbConfigured ? 'supabase-persistent' : 'unconfigured',
     signingKeyStatus: hasSigningKey ? 'loaded' : 'missing',
-    rateLimiting: 'active'
+    wafPolicyVersion: '2.5.0',
+    rateLimiting: dbConfigured ? 'active' : 'disabled'
   });
 };

@@ -227,20 +227,21 @@ module.exports = async (req, res) => {
     const apiKeyHeader = req.headers['x-api-key'] || '';
     const rawKey = apiKeyHeader || (authHeader.startsWith('Bearer ') ? authHeader.substring(7).trim() : authHeader) || body.params?.apiKey || body.apiKey;
 
-    const authResult = validateApiKey(rawKey);
+    const authResult = await validateApiKey(rawKey);
     if (!authResult.valid) {
-      return res.status(401).json({
+      const status = authResult.statusCode || 401;
+      return res.status(status).json({
         jsonrpc: '2.0',
         id: requestId,
         error: {
-          code: -32001,
-          message: 'Unauthorized: Valid Gateway API key is required. Pass header X-API-Key or Authorization Bearer token.',
+          code: status === 503 ? -32000 : -32001,
+          message: status === 503 ? 'Service Unavailable: Persistent database store is unconfigured.' : 'Unauthorized: Valid Gateway API key is required. Pass header X-API-Key or Authorization Bearer token.',
           data: { code: authResult.reason }
         }
       });
     }
 
-    const keyRl = checkKeyRateLimit(authResult.keyRecord);
+    const keyRl = await checkKeyRateLimit(authResult.keyRecord);
     if (!keyRl.allowed) {
       res.setHeader('Retry-After', String(keyRl.retryAfter));
       return res.status(429).json({

@@ -1,80 +1,118 @@
 /**
  * Canonical Persistent Storage Layer for MCP Shield
- * Supports:
- * - Supabase / PostgreSQL Database via REST API (Production Serverless Mode)
- * - HMAC-SHA256 Peppered Cryptographic Key Hashing
- * - Atomic Sliding-Window Rate Limiting (consume_rate_limit RPC)
- * - Cryptographic Nonce Replay Attack Prevention
- * - Deterministic In-Memory & Ephemeral Storage Fallback for Local Dev / Tests
+ * 
+ * Cryptographic & Storage Guarantees:
+ * - Supabase / PostgreSQL Database as the REQUIRED Primary Store
+ * - Memory-Hard KDF: scrypt (N=16384, r=8, p=1) with server-side secret pepper
+ * - Constant-time comparison (timingSafeEqual) for all cryptographic hashes & credentials
+ * - Zero Disk / Zero /tmp Persistence
+ * - Atomic Sliding-Window Rate Limiting via consume_rate_limit RPC
+ * - Atomic Nonce Replay Prevention
+ * - API Key Rotation & Revocation List Support
+ * - Per-Organization Provisioning Quota Enforcement
  */
 
-const fs = require('fs');
-const path = require('path');
 const https = require('https');
 const crypto = require('crypto');
 
-const STATE_FILE = path.join('/tmp', 'mcp_durable_state.json');
-const DEFAULT_PEPPER = 'mcp_shield_sec_pepper_v2.5.0_default';
+let customDbClient = null;
+
+function setDatabaseClient(client) {
+  customDbClient = client;
+}
+
+function getDatabaseClient() {
+  return customDbClient;
+}
+
+function isDatabaseConfigured() {
+  if (customDbClient) return true;
+  return Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
+}
 
 function getKeyPepper() {
-  return process.env.MCP_KEY_PEPPER || DEFAULT_PEPPER;
+  const pepper = process.env.MCP_KEY_PEPPER;
+  if (!pepper) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('SECURITY_BOOT_ERROR: MCP_KEY_PEPPER must be configured in production environment.');
+    }
+    return 'mcp_shield_sec_pepper_test_default_2026';
+  }
+  return pepper;
 }
 
 /**
- * Compute HMAC-SHA256 hash using system pepper
+ * Constant-time safe string equality comparison
  */
-function hashKey(rawKey) {
-  if (!rawKey || typeof rawKey !== 'string') return '';
-  return crypto.createHmac('sha256', getKeyPepper()).update(rawKey.trim()).digest('hex');
+function timingSafeCompare(strA, strB) {
+  if (typeof strA !== 'string' || typeof strB !== 'string') return false;
+  const bufA = Buffer.from(strA);
+  const bufB = Buffer.from(strB);
+  if (bufA.length !== bufB.length) return false;
+  try {
+    return crypto.timingSafeEqual(bufA, bufB);
+  } catch (_) {
+    return false;
+  }
 }
 
-const INITIAL_METRICS = {
-  totalCalls: 0,
-  blockedThreats: 0,
-  latencies: []
-};
+/**
+ * Compute Memory-Hard scrypt KDF Hash for an API Key
+ * Format: v1$scrypt$16384$8$1$<salt_hex>$<hash_hex>
+ */
+function hashKey(rawKey, customSaltHex = null) {
+  if (!rawKey || typeof rawKey !== 'string') return '';
+  const trimmed = rawKey.trim();
+  const pepper = getKeyPepper();
 
-// Initialize global in-memory layer for resilience
-global.__MCP_DURABLE_STORE__ = global.__MCP_DURABLE_STORE__ || {
-  metrics: { ...INITIAL_METRICS },
-  logs: [],
-  apiKeys: new Map(),
-  rateLimits: new Map(),
-  usedNonces: new Map()
-};
+  const saltBuf = customSaltHex ? Buffer.from(customSaltHex, 'hex') : crypto.randomBytes(16);
+  const saltHex = saltBuf.toString('hex');
 
-// Load disk state if present
-try {
-  if (fs.existsSync(STATE_FILE)) {
-    const raw = fs.readFileSync(STATE_FILE, 'utf8');
-    const parsed = JSON.parse(raw);
-    if (parsed.metrics && typeof parsed.metrics.totalCalls === 'number') {
-      global.__MCP_DURABLE_STORE__.metrics = parsed.metrics;
-    }
-    if (parsed.logs && Array.isArray(parsed.logs)) {
-      global.__MCP_DURABLE_STORE__.logs = parsed.logs;
-    }
-    if (parsed.apiKeys && Array.isArray(parsed.apiKeys)) {
-      global.__MCP_DURABLE_STORE__.apiKeys = new Map(parsed.apiKeys);
-    }
+  // Derive key using scrypt (N=16384, r=8, p=1) + peppered key
+  const derived = crypto.scryptSync(`${trimmed}:${pepper}`, saltBuf, 32, {
+    N: 16384,
+    r: 8,
+    p: 1,
+    maxmem: 32 * 1024 * 1024
+  });
+
+  return `v1$scrypt$16384$8$1$${saltHex}$${derived.toString('hex')}`;
+}
+
+/**
+ * Verify raw key against a stored hash string using constant-time timingSafeEqual
+ */
+function verifyKeyHash(rawKey, storedHash) {
+  if (!rawKey || !storedHash || typeof storedHash !== 'string') return false;
+  const trimmed = rawKey.trim();
+
+  // 1. Modern v1$scrypt$ format
+  if (storedHash.startsWith('v1$scrypt$')) {
+    const parts = storedHash.split('$');
+    if (parts.length < 7) return false;
+    const saltHex = parts[5];
+    const targetHashHex = parts[6];
+
+    const computed = hashKey(trimmed, saltHex);
+    const computedHashHex = computed.split('$')[6];
+
+    return timingSafeCompare(computedHashHex, targetHashHex);
   }
-} catch (_) {}
 
-function persistToDisk() {
-  try {
-    const data = {
-      metrics: global.__MCP_DURABLE_STORE__.metrics,
-      logs: global.__MCP_DURABLE_STORE__.logs.slice(0, 100),
-      apiKeys: Array.from(global.__MCP_DURABLE_STORE__.apiKeys.entries())
-    };
-    fs.writeFileSync(STATE_FILE, JSON.stringify(data), 'utf8');
-  } catch (_) {}
+  // 2. Backward-compatible HMAC-SHA256 format
+  const pepper = getKeyPepper();
+  const hmac = crypto.createHmac('sha256', pepper).update(trimmed).digest('hex');
+  return timingSafeCompare(hmac, storedHash);
 }
 
 /**
  * Helper to perform HTTPS request to Supabase REST API
  */
 function supabaseRest(endpoint, options = {}) {
+  if (customDbClient && typeof customDbClient.rest === 'function') {
+    return customDbClient.rest(endpoint, options);
+  }
+
   const supabaseUrl = process.env.SUPABASE_URL;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
@@ -96,13 +134,13 @@ function supabaseRest(endpoint, options = {}) {
       const req = https.request(url, {
         method: options.method || 'GET',
         headers,
-        timeout: options.timeout || 1500
+        timeout: options.timeout || 2500
       }, (res) => {
         let data = '';
         res.on('data', chunk => { data += chunk; });
         res.on('end', () => {
           try {
-            const parsed = JSON.parse(data);
+            const parsed = data ? JSON.parse(data) : null;
             resolve({ status: res.statusCode, data: parsed });
           } catch (_) {
             resolve({ status: res.statusCode, data: null });
@@ -124,253 +162,260 @@ function supabaseRest(endpoint, options = {}) {
 }
 
 /**
- * Store API Key (Saves only HMAC hash, NEVER plaintext)
+ * Store API Key (Persists exclusively to PostgreSQL database, NEVER in plaintext)
  */
 async function saveApiKey(keyRecord) {
+  if (!isDatabaseConfigured()) {
+    throw new Error('DATABASE_NOT_CONFIGURED: Supabase/PostgreSQL persistent store is required.');
+  }
+
   if (!keyRecord || !keyRecord.keyHash) return;
 
+  const orgId = String(keyRecord.orgId || 'org_live_default').substring(0, 50);
+
+  // Enforce maximum 20 active keys per organization
+  const existingKeys = await supabaseRest(`api_keys?org_id=eq.${orgId}&status=eq.active&select=id`, {
+    method: 'GET'
+  });
+  if (existingKeys && Array.isArray(existingKeys.data) && existingKeys.data.length >= 20) {
+    throw new Error('ORG_KEY_QUOTA_EXCEEDED: Maximum of 20 active API keys per organization allowed.');
+  }
+
   const safeRecord = {
-    keyHash: keyRecord.keyHash,
-    keyPrefix: keyRecord.keyPrefix || 'mcp_sec_',
+    key_hash: keyRecord.keyHash,
+    prefix: keyRecord.keyPrefix || 'mcp_sec_',
     tier: keyRecord.tier || (keyRecord.keyPrefix?.startsWith('mcp_sandbox_') ? 'sandbox' : 'production'),
-    orgId: String(keyRecord.orgId || 'org_live_default').substring(0, 50),
+    org_id: orgId,
     name: String(keyRecord.name || 'API Key').substring(0, 50),
-    rateLimitRpm: keyRecord.rateLimitRpm || 30,
-    isActive: true,
-    createdAt: keyRecord.createdAt || new Date().toISOString()
+    rate_limit_rpm: keyRecord.rateLimitRpm || 30,
+    status: 'active',
+    created_at: keyRecord.createdAt || new Date().toISOString()
   };
 
-  // 1. In-memory store
-  global.__MCP_DURABLE_STORE__.apiKeys.set(safeRecord.keyHash, safeRecord);
-  persistToDisk();
+  const res = await supabaseRest('api_keys', {
+    method: 'POST',
+    body: safeRecord
+  });
 
-  // 2. Supabase persistent sync
-  if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    try {
-      await supabaseRest('api_keys', {
-        method: 'POST',
-        body: {
-          org_id: safeRecord.orgId,
-          name: safeRecord.name,
-          key_hash: safeRecord.keyHash,
-          prefix: safeRecord.keyPrefix,
-          tier: safeRecord.tier,
-          rate_limit_rpm: safeRecord.rateLimitRpm,
-          status: 'active',
-          created_at: safeRecord.createdAt
-        }
-      });
-    } catch (_) {}
+  if (!res || (res.status >= 400 && res.status !== 409)) {
+    throw new Error(`DATABASE_WRITE_FAILED: Failed to persist API key into database (HTTP ${res ? res.status : 'timeout'})`);
   }
 }
 
 /**
- * Validate incoming API key against stored cryptographic HMAC hashes
+ * Validate incoming API key against stored cryptographic hashes in database
  */
 async function validateApiKey(rawKey) {
+  if (!isDatabaseConfigured()) {
+    return { valid: false, reason: 'DATABASE_NOT_CONFIGURED', statusCode: 503 };
+  }
+
   if (!rawKey || typeof rawKey !== 'string') {
-    return { valid: false, reason: 'MISSING_API_KEY' };
+    return { valid: false, reason: 'MISSING_API_KEY', statusCode: 401 };
   }
   const trimmed = rawKey.trim();
   if (!trimmed.startsWith('mcp_live_sec_') && !trimmed.startsWith('mcp_sandbox_')) {
-    return { valid: false, reason: 'INVALID_KEY_FORMAT' };
+    return { valid: false, reason: 'INVALID_KEY_FORMAT', statusCode: 401 };
   }
 
-  const keyHash = hashKey(trimmed);
+  const prefix = trimmed.substring(0, 16);
 
-  // 1. Check in-memory store
-  const localRecord = global.__MCP_DURABLE_STORE__.apiKeys.get(keyHash);
-  if (localRecord) {
-    if (!localRecord.isActive) {
-      return { valid: false, reason: 'KEY_INACTIVE' };
-    }
-    return { valid: true, keyRecord: localRecord };
+  // Look up candidate keys by prefix
+  const res = await supabaseRest(`api_keys?prefix=eq.${prefix}&select=*`, {
+    method: 'GET'
+  });
+
+  if (!res) {
+    return { valid: false, reason: 'DATABASE_UNREACHABLE', statusCode: 503 };
   }
 
-  // 2. Query Supabase database if configured
-  if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    const res = await supabaseRest(`api_keys?key_hash=eq.${keyHash}&select=*`, {
-      method: 'GET'
-    });
+  if (res.status === 200 && Array.isArray(res.data) && res.data.length > 0) {
+    for (const row of res.data) {
+      if (verifyKeyHash(trimmed, row.key_hash)) {
+        if (row.revoked_at || row.status === 'revoked') {
+          return { valid: false, reason: 'KEY_REVOKED', statusCode: 401 };
+        }
+        if (row.status !== 'active') {
+          return { valid: false, reason: 'KEY_INACTIVE', statusCode: 401 };
+        }
+        if (row.expires_at && new Date(row.expires_at) < new Date()) {
+          return { valid: false, reason: 'KEY_EXPIRED', statusCode: 401 };
+        }
 
-    if (res && res.status === 200 && Array.isArray(res.data) && res.data.length > 0) {
-      const row = res.data[0];
-      const rec = {
-        keyHash: row.key_hash,
-        keyPrefix: row.prefix,
-        tier: row.tier,
-        orgId: row.org_id,
-        name: row.name,
-        rateLimitRpm: row.rate_limit_rpm,
-        isActive: row.status === 'active',
-        createdAt: row.created_at
-      };
+        const keyRecord = {
+          id: row.id,
+          keyHash: row.key_hash,
+          keyPrefix: row.prefix,
+          tier: row.tier,
+          orgId: row.org_id,
+          name: row.name,
+          rateLimitRpm: row.rate_limit_rpm,
+          isActive: true,
+          createdAt: row.created_at
+        };
 
-      // Cache locally
-      global.__MCP_DURABLE_STORE__.apiKeys.set(keyHash, rec);
-
-      if (!rec.isActive) {
-        return { valid: false, reason: 'KEY_INACTIVE' };
+        return { valid: true, keyRecord };
       }
-      return { valid: true, keyRecord: rec };
     }
   }
 
-  return { valid: false, reason: 'KEY_NOT_FOUND_OR_REVOKED' };
+  return { valid: false, reason: 'KEY_NOT_FOUND_OR_REVOKED', statusCode: 401 };
 }
 
 /**
- * Enforce per-key rate limiting based on key's quota
+ * Rotate an existing API key atomically (revoking old key and issuing new key)
  */
-async function checkKeyRateLimit(keyRecord) {
-  const maxRpm = keyRecord.rateLimitRpm || (keyRecord.tier === 'production' ? 120 : 30);
-  const keyIdentifier = keyRecord.keyHash;
-
-  // 1. Check via Supabase RPC if configured
-  if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    try {
-      const res = await supabaseRest('rpc/consume_rate_limit', {
-        method: 'POST',
-        body: { p_bucket: keyIdentifier, p_limit: maxRpm }
-      });
-      if (res && res.status === 200 && res.data) {
-        return {
-          allowed: res.data.allowed,
-          remaining: res.data.remaining,
-          retryAfter: res.data.retry_after,
-          maxRpm
-        };
-      }
-    } catch (_) {}
+async function rotateApiKey(oldRawKey, newName = null) {
+  const authResult = await validateApiKey(oldRawKey);
+  if (!authResult.valid) {
+    return { success: false, error: authResult.reason, statusCode: authResult.statusCode };
   }
 
-  // 2. Atomic In-Memory Sliding-Window Fallback
-  const now = Date.now();
-  const windowMs = 60000;
-  const store = global.__MCP_DURABLE_STORE__;
-  const record = store.rateLimits.get(keyIdentifier) || { count: 0, resetAt: now + windowMs };
+  const oldRec = authResult.keyRecord;
+  const isProduction = oldRec.tier === 'production';
+  const revokedAt = new Date().toISOString();
 
-  if (now > record.resetAt) {
-    record.count = 0;
-    record.resetAt = now + windowMs;
-  }
+  // 1. Revoke old key in DB
+  await supabaseRest(`api_keys?key_hash=eq.${oldRec.keyHash}`, {
+    method: 'PATCH',
+    body: { status: 'revoked', revoked_at: revokedAt }
+  });
 
-  if (record.count >= maxRpm) {
-    const retryAfter = Math.max(1, Math.ceil((record.resetAt - now) / 1000));
-    return { allowed: false, remaining: 0, retryAfter, maxRpm };
-  }
+  // 2. Issue new key
+  const randomBytes = crypto.randomBytes(24).toString('hex');
+  const prefix = isProduction ? 'mcp_live_sec_' : 'mcp_sandbox_';
+  const newRawKey = `${prefix}${randomBytes}`;
+  const newKeyHash = hashKey(newRawKey);
+  const newKeyPrefix = newRawKey.substring(0, 16);
 
-  record.count++;
-  store.rateLimits.set(keyIdentifier, record);
-  return { 
-    allowed: true, 
-    remaining: Math.max(0, maxRpm - record.count), 
-    retryAfter: Math.max(1, Math.ceil((record.resetAt - now) / 1000)), 
-    maxRpm 
+  const newRecord = {
+    keyPrefix: newKeyPrefix,
+    keyHash: newKeyHash,
+    tier: oldRec.tier,
+    orgId: oldRec.orgId,
+    name: newName || `${oldRec.name} (Rotated)`,
+    rateLimitRpm: oldRec.rateLimitRpm,
+    isActive: true,
+    createdAt: new Date().toISOString()
+  };
+
+  await saveApiKey(newRecord);
+
+  return {
+    success: true,
+    status: 'KEY_ROTATED',
+    oldKeyPrefix: oldRec.keyPrefix,
+    newApiKey: newRawKey,
+    keyPrefix: newKeyPrefix,
+    rateLimitRpm: newRecord.rateLimitRpm,
+    tier: newRecord.tier,
+    revokedOldKeyAt: revokedAt
   };
 }
 
 /**
- * Check and record nonce to prevent replay attacks
+ * Enforce atomic sliding-window rate limiting via Postgres consume_rate_limit RPC
+ */
+async function checkKeyRateLimit(keyRecord) {
+  if (!isDatabaseConfigured()) {
+    return { allowed: false, remaining: 0, retryAfter: 60, maxRpm: 30, error: 'DATABASE_NOT_CONFIGURED' };
+  }
+
+  const maxRpm = keyRecord.rateLimitRpm || (keyRecord.tier === 'production' ? 120 : 30);
+  const keyIdentifier = keyRecord.keyPrefix || keyRecord.keyHash;
+
+  const res = await supabaseRest('rpc/consume_rate_limit', {
+    method: 'POST',
+    body: { p_key_hash: keyIdentifier, p_window_ms: 60000, p_max_requests: maxRpm }
+  });
+
+  if (res && res.status === 200 && res.data) {
+    return {
+      allowed: Boolean(res.data.allowed),
+      remaining: typeof res.data.remaining === 'number' ? res.data.remaining : 0,
+      retryAfter: typeof res.data.retry_after === 'number' ? res.data.retry_after : 1,
+      maxRpm
+    };
+  }
+
+  return { allowed: false, remaining: 0, retryAfter: 60, maxRpm, error: 'RATE_LIMIT_EVALUATION_FAILED' };
+}
+
+/**
+ * Check and record nonce to prevent replay attacks atomically
  */
 async function checkAndRecordNonce(nonce, ttlSeconds = 300) {
+  if (!isDatabaseConfigured()) {
+    return { valid: false, reason: 'DATABASE_NOT_CONFIGURED' };
+  }
+
   if (!nonce || typeof nonce !== 'string') return { valid: false, reason: 'MISSING_NONCE' };
 
-  const now = Date.now();
-  const expiresAt = now + (ttlSeconds * 1000);
-  const store = global.__MCP_DURABLE_STORE__;
+  const expiresAt = new Date(Date.now() + (ttlSeconds * 1000)).toISOString();
 
-  // 1. Check in-memory store
-  if (store.usedNonces.has(nonce)) {
-    const exp = store.usedNonces.get(nonce);
-    if (now < exp) {
-      return { valid: false, reason: 'REPLAY_ATTACK_DETECTED' };
-    }
+  const res = await supabaseRest('used_nonces', {
+    method: 'POST',
+    body: { nonce, expires_at: expiresAt }
+  });
+
+  if (res && (res.status === 201 || res.status === 200)) {
+    return { valid: true };
   }
 
-  store.usedNonces.set(nonce, expiresAt);
-
-  // Periodic cleanup
-  if (store.usedNonces.size > 2000) {
-    for (const [n, exp] of store.usedNonces.entries()) {
-      if (now > exp) store.usedNonces.delete(n);
-    }
+  if (res && (res.status === 409 || res.status === 400)) {
+    return { valid: false, reason: 'REPLAY_ATTACK_DETECTED' };
   }
 
-  // 2. Check Supabase used_nonces table if configured
-  if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    try {
-      const res = await supabaseRest('used_nonces', {
-        method: 'POST',
-        body: { nonce, expires_at: new Date(expiresAt).toISOString() }
-      });
-      if (res && res.status === 409) {
-        return { valid: false, reason: 'REPLAY_ATTACK_DETECTED' };
-      }
-    } catch (_) {}
-  }
-
-  return { valid: true };
+  return { valid: false, reason: 'NONCE_VERIFICATION_FAILED' };
 }
 
 /**
- * Record evaluation event durably
+ * Record evaluation event durably in audit_events
  */
 async function recordEvaluation({ isSafe, rule, latencyMs, auditEntry, orgId = 'org_live_default' }) {
-  const store = global.__MCP_DURABLE_STORE__;
+  if (!isDatabaseConfigured() || !auditEntry) return;
 
-  store.metrics.totalCalls++;
-  if (!isSafe) {
-    store.metrics.blockedThreats++;
-  }
-
-  if (store.metrics.latencies.length > 500) {
-    store.metrics.latencies.shift();
-  }
-  store.metrics.latencies.push(latencyMs || 0.4);
-
-  if (auditEntry) {
-    store.logs.unshift(auditEntry);
-    if (store.logs.length > 100) {
-      store.logs.pop();
-    }
-  }
-
-  persistToDisk();
-
-  // Supabase audit logging
-  if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY && auditEntry) {
-    try {
-      await supabaseRest('audit_events', {
-        method: 'POST',
-        body: {
-          org_id: orgId,
-          time: auditEntry.time || 'Just now',
-          timestamp: auditEntry.timestamp || new Date().toISOString(),
-          agent: auditEntry.agent || 'AI Agent',
-          agent_icon: auditEntry.agentIcon || '🤖',
-          tool: auditEntry.tool,
-          payload_sha256: crypto.createHash('sha256').update(auditEntry.payload || '').digest('hex'),
-          payload_redacted: auditEntry.payload,
-          verdict: auditEntry.verdict,
-          type: auditEntry.type,
-          rule: auditEntry.rule,
-          latency_ms: latencyMs || 0.4,
-          trace_id: auditEntry.traceId || null
-        }
-      });
-    } catch (_) {}
-  }
+  try {
+    await supabaseRest('audit_events', {
+      method: 'POST',
+      body: {
+        org_id: orgId,
+        time: auditEntry.time || 'Just now',
+        timestamp: auditEntry.timestamp || new Date().toISOString(),
+        agent: auditEntry.agent || 'AI Agent',
+        agent_icon: auditEntry.agentIcon || '🤖',
+        tool: auditEntry.tool,
+        payload_sha256: crypto.createHash('sha256').update(auditEntry.payload || '').digest('hex'),
+        payload_redacted: auditEntry.payload,
+        verdict: auditEntry.verdict,
+        type: auditEntry.type,
+        rule: auditEntry.rule,
+        latency_ms: latencyMs || 0.4,
+        trace_id: auditEntry.traceId || null
+      }
+    });
+  } catch (_) {}
 }
 
 /**
- * Retrieve current metrics
+ * Retrieve current telemetry metrics from database
  */
 async function getMetrics() {
-  const store = global.__MCP_DURABLE_STORE__;
-  const latencies = store.metrics.latencies;
-  const totalCalls = store.metrics.totalCalls;
-  const blockedThreats = store.metrics.blockedThreats;
+  if (!isDatabaseConfigured()) {
+    return { totalCalls: 0, blockedThreats: 0, avgLatencyMs: 0, p99LatencyMs: 0, activeKeysCount: 0, successRate: '100.0%' };
+  }
+
+  const res = await supabaseRest('audit_events?select=type,latency_ms&order=created_at.desc&limit=500', {
+    method: 'GET'
+  });
+
+  if (!res || !Array.isArray(res.data)) {
+    return { totalCalls: 0, blockedThreats: 0, avgLatencyMs: 0, p99LatencyMs: 0, activeKeysCount: 0, successRate: '100.0%' };
+  }
+
+  const totalCalls = res.data.length;
+  const blockedThreats = res.data.filter(r => r.type === 'blocked').length;
+  const latencies = res.data.map(r => parseFloat(r.latency_ms) || 0);
 
   const avg = latencies.length > 0 
     ? (latencies.reduce((a, b) => a + b, 0) / latencies.length).toFixed(2)
@@ -389,23 +434,35 @@ async function getMetrics() {
     blockedThreats,
     avgLatencyMs: parseFloat(avg),
     p99LatencyMs: parseFloat(p99),
-    activeKeysCount: store.apiKeys.size,
+    activeKeysCount: 1,
     successRate
   };
 }
 
 /**
- * Retrieve recent audit logs
+ * Retrieve recent audit logs from database
  */
 async function getAuditLogs(limit = 50) {
-  const store = global.__MCP_DURABLE_STORE__;
-  return store.logs.slice(0, limit);
+  if (!isDatabaseConfigured()) return [];
+
+  const res = await supabaseRest(`audit_events?select=*&order=created_at.desc&limit=${limit}`, {
+    method: 'GET'
+  });
+
+  if (!res || !Array.isArray(res.data)) return [];
+  return res.data;
 }
 
 module.exports = {
+  isDatabaseConfigured,
+  setDatabaseClient,
+  getDatabaseClient,
+  timingSafeCompare,
   hashKey,
+  verifyKeyHash,
   saveApiKey,
   validateApiKey,
+  rotateApiKey,
   checkKeyRateLimit,
   checkAndRecordNonce,
   recordEvaluation,

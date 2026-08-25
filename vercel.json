@@ -1,5 +1,11 @@
 {
   "version": 2,
+  "functions": {
+    "api/**/*.js": {
+      "memory": 1024,
+      "maxDuration": 15
+    }
+  },
   "headers": [
     {
       "source": "/(.*)",
@@ -15,6 +21,7 @@
   ],
   "rewrites": [
     { "source": "/v1/(.*)", "destination": "/api/index" },
+    { "source": "/.well-known/(.*)", "destination": "/api/index" },
     { "source": "/api/(.*)", "destination": "/api/index" },
     { "source": "/healthz", "destination": "/api/index" },
     { "source": "/readyz", "destination": "/api/index" }

@@ -1,0 +1,12 @@
+{
+  "keys": [
+    {
+      "kty": "OKP",
+      "crv": "Ed25519",
+      "use": "sig",
+      "alg": "EdDSA",
+      "kid": "mcp-shield-enclave-v2.5",
+      "x": "O3_cT9uJ2_99zQZ1b3F1J8yZJ0P0zX9gQ1J8yZJ0P0w"
+    }
+  ]
+}

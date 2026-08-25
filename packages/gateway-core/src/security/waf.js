@@ -409,7 +409,7 @@ class SqlAstLexer {
           if (!ast.clauses.WHERE || ast.clauses.WHERE.length === 0) {
             return {
               isSafe: false,
-              rule: 'UNCONSTRAINED_BULK_DML',
+              rule: ast.statementType === 'DELETE' ? 'UNCONSTRAINED_DELETE' : 'UNCONSTRAINED_UPDATE',
               reason: `Unconstrained ${ast.statementType} statement without a WHERE clause is blocked`
             };
           }
@@ -422,8 +422,8 @@ class SqlAstLexer {
             const rawClause = clauseTokens.map(t => t.value).join(' ').trim();
             const upperClause = rawClause.toUpperCase();
 
-            // Constant scalar truth: WHERE 1, WHERE TRUE, WHERE 'a', WHERE 1 IN (1), WHERE 0<>1, WHERE 2>1, WHERE NULL IS NULL, WHERE NOT 0
-            if (/^(1|TRUE|'[^']*'|\d+\s*=\s*\d+|\d+\s*<>\s*\d+|\d+\s*!=\s*\d+|\d+\s*>\s*\d+|\d+\s*<\s*\d+|1\s+IN\s*\(\s*1\s*\)|NULL\s+IS\s+NULL|NOT\s+0|1\s+BETWEEN\s+1\s+AND\s+\d+|EXISTS\s*\(\s*SELECT\s+1\s*\)|'[^']+'\s+NOT\s+IN\s*\(\s*'[^']+'\s*\))$/i.test(upperClause)) {
+            // Constant scalar truth: WHERE 1, WHERE TRUE, WHERE 'a', WHERE 1 IN (1), WHERE 0<>1, WHERE 2>1, WHERE NULL IS NULL, WHERE NOT 0, WHERE 'a' LIKE 'a'
+            if (/^(1|TRUE|'[^']*'|\d+\s*=\s*\d+|\d+\s*<>\s*\d+|\d+\s*!=\s*\d+|\d+\s*>\s*\d+|\d+\s*<\s*\d+|1\s+IN\s*\(\s*1\s*\)|NULL\s+IS\s+NULL|NOT\s+0|1\s+BETWEEN\s+1\s+AND\s+\d+|EXISTS\s*\(\s*SELECT\s+1\s*\)|'[^']+'\s+NOT\s+IN\s*\(\s*'[^']+'\s*\)|'[^']+'\s+LIKE\s+'[^']+')$/i.test(upperClause)) {
               return {
                 isSafe: false,
                 rule: 'SQL_TAUTOLOGY_INJECTION',
@@ -570,7 +570,9 @@ class SecurityWaf {
       }
     }
     this.enforceDlp = options.enforceDlp !== false;
-    this.maxPayloadBytes = options.maxPayloadBytes || 1048576; // 1 MB
+    this.maxPayloadBytes = Math.min(options.maxPayloadBytes || 32768, 32768); // Strict 32KB limit
+    this.mode = options.mode || 'blocklist'; // 'blocklist' | 'allowlist' | 'readonly-enforce'
+    this.allowedTables = Array.isArray(options.allowedTables) ? options.allowedTables.map(t => t.toLowerCase()) : null;
   }
 
   addCustomRule(name, regexPattern) {
@@ -1305,8 +1307,65 @@ class SecurityWaf {
     const sanitizedPayload = this.sanitizePayload(params);
     const sanitizedPayloadStr = JSON.stringify(sanitizedPayload || {});
 
-    // Phase 2.5: Readonly Enforcement Policy Mode Check
-    if (this.mode === 'readonly-enforce' && (toolName.includes('postgres') || toolName.includes('sql') || params.query)) {
+    // Phase 2.5: Allowlist & Readonly Enforcement Policy Mode Check
+    if (this.mode === 'allowlist' && (toolName.includes('postgres') || toolName.includes('sql') || params.query)) {
+      const q = params.query || params.sql || params.statement;
+      if (!q || typeof q !== 'string') {
+        return {
+          isSafe: false,
+          rule: 'ALLOWLIST_VALIDATION_FAILED',
+          reason: 'Allowlist mode requires a valid SQL query string.'
+        };
+      }
+      const cleanQ = this.stripSqlComments(this.normalize(q)).trim();
+      const upper = cleanQ.toUpperCase();
+
+      // Must strictly start with SELECT
+      if (!upper.startsWith('SELECT')) {
+        return {
+          isSafe: false,
+          rule: 'ALLOWLIST_ONLY_SELECT_PERMITTED',
+          reason: 'Allowlist mode strictly permits only single SELECT queries.'
+        };
+      }
+
+      // No multiple statements
+      const withoutTrailingSemicolon = cleanQ.replace(/;\s*$/, '');
+      if (withoutTrailingSemicolon.includes(';')) {
+        return {
+          isSafe: false,
+          rule: 'ALLOWLIST_MULTI_STATEMENT_REJECTED',
+          reason: 'Multiple SQL statements are strictly prohibited in allowlist mode.'
+        };
+      }
+
+      // Disallowed keywords in allowlist mode
+      const forbiddenTokens = ['INSERT', 'UPDATE', 'DELETE', 'DROP', 'ALTER', 'CREATE', 'TRUNCATE', 'GRANT', 'REVOKE', 'COPY', 'DO', 'EXEC', 'CALL', 'UNION', 'INTO', 'PG_SLEEP', 'DBLINK'];
+      for (const tok of forbiddenTokens) {
+        if (new RegExp(`\\b${tok}\\b`, 'i').test(cleanQ)) {
+          return {
+            isSafe: false,
+            rule: `ALLOWLIST_${tok}_FORBIDDEN`,
+            reason: `Token '${tok}' is forbidden in strict allowlist mode.`
+          };
+        }
+      }
+
+      // Table allowlist check if configured
+      if (this.allowedTables && this.allowedTables.length > 0) {
+        const fromMatch = cleanQ.match(/\bFROM\s+([a-zA-Z0-9_]+)/i);
+        if (fromMatch) {
+          const tableName = fromMatch[1].toLowerCase();
+          if (!this.allowedTables.includes(tableName)) {
+            return {
+              isSafe: false,
+              rule: 'TABLE_NOT_IN_ALLOWLIST',
+              reason: `Table '${tableName}' is not in the configured table allowlist.`
+            };
+          }
+        }
+      }
+    } else if (this.mode === 'readonly-enforce' && (toolName.includes('postgres') || toolName.includes('sql') || params.query)) {
       const q = params.query || params.sql || params.statement;
       if (q) {
         const candidate = this.stripSqlComments(q).trim().toUpperCase();

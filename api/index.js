@@ -37,7 +37,10 @@ module.exports = async (req, res) => {
   }
 
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, DELETE');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Mcp-Method, Mcp-Name, X-API-Key, X-Admin-Secret, X-MCP-Approval-Token');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Mcp-Method, Mcp-Name, X-API-Key, X-Admin-Secret, X-MCP-Approval-Token, X-Request-Id');
+  const crypto = require('crypto');
+  const requestId = req.headers['x-request-id'] || `req_${crypto.randomBytes(8).toString('hex')}`;
+  res.setHeader('X-Request-Id', requestId);
   res.setHeader('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload');
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
@@ -60,8 +63,8 @@ module.exports = async (req, res) => {
     return mcpHandler(req, res);
   }
 
-  // 3. API Key Generation
-  if (pathname.endsWith('/keys/generate')) {
+  // 3. API Key Generation & Rotation
+  if (pathname.endsWith('/keys/generate') || pathname.endsWith('/keys/rotate')) {
     return keysHandler(req, res);
   }
 
