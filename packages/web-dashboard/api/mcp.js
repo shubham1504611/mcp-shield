@@ -1,7 +1,7 @@
 const { performance } = require('perf_hooks');
 const querystring = require('querystring');
 const { SecurityWaf, PUBLIC_KEY } = require('./lib/waf');
-const { recordEvaluation } = require('./lib/store');
+const { recordEvaluation, validateApiKey, checkKeyRateLimit } = require('./lib/store');
 const { getAllTools } = require('./lib/tools');
 const { evaluateToolPolicy } = require('./lib/policy');
 
@@ -180,7 +180,37 @@ module.exports = async (req, res) => {
       });
     }
 
-    // 4. Resolve Tool Name and Arguments across JSON-RPC 2.0 (tools/call), REST, and Custom headers
+    // 4. Authenticate Caller for tool execution
+    const authHeader = req.headers['authorization'] || '';
+    const apiKeyHeader = req.headers['x-api-key'] || '';
+    const rawKey = apiKeyHeader || (authHeader.startsWith('Bearer ') ? authHeader.substring(7).trim() : authHeader) || body.params?.apiKey || body.apiKey;
+
+    const authResult = validateApiKey(rawKey);
+    if (!authResult.valid) {
+      return res.status(401).json({
+        jsonrpc: '2.0',
+        id: requestId,
+        error: {
+          code: -32001,
+          message: 'Unauthorized: Valid Gateway API key is required. Pass header X-API-Key or Authorization Bearer token.'
+        }
+      });
+    }
+
+    const keyRl = checkKeyRateLimit(authResult.keyRecord);
+    if (!keyRl.allowed) {
+      res.setHeader('Retry-After', String(keyRl.retryAfter));
+      return res.status(429).json({
+        jsonrpc: '2.0',
+        id: requestId,
+        error: {
+          code: -32002,
+          message: `Rate limit of ${keyRl.maxRpm} RPM exceeded for this API key. Try again in ${keyRl.retryAfter}s.`
+        }
+      });
+    }
+
+    // 5. Resolve Tool Name and Arguments across JSON-RPC 2.0 (tools/call), REST, and Custom headers
     let toolName = req.headers['mcp-name'];
     let params = null;
 

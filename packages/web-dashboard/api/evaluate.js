@@ -5,7 +5,7 @@
 const { performance } = require('perf_hooks');
 const querystring = require('querystring');
 const { SecurityWaf, PUBLIC_KEY } = require('./lib/waf');
-const { recordEvaluation } = require('./lib/store');
+const { recordEvaluation, validateApiKey, checkKeyRateLimit } = require('./lib/store');
 
 const ALLOWED_ORIGINS = [
   'https://mcp-shield-gateway-core.vercel.app',
@@ -14,29 +14,6 @@ const ALLOWED_ORIGINS = [
   'http://127.0.0.1:3000',
   'http://127.0.0.1:8080'
 ];
-
-global.__MCP_RATE_LIMITS__ = global.__MCP_RATE_LIMITS__ || new Map();
-
-function checkRateLimit(ip, isKeyHolder = false) {
-  const maxRpm = isKeyHolder ? 120 : 60;
-  const now = Date.now();
-  const windowMs = 60000;
-  const record = global.__MCP_RATE_LIMITS__.get(ip) || { count: 0, resetAt: now + windowMs };
-
-  if (now > record.resetAt) {
-    record.count = 0;
-    record.resetAt = now + windowMs;
-  }
-
-  record.count++;
-  global.__MCP_RATE_LIMITS__.set(ip, record);
-
-  return {
-    allowed: record.count <= maxRpm,
-    remaining: Math.max(0, maxRpm - record.count),
-    resetInSec: Math.ceil((record.resetAt - now) / 1000)
-  };
-}
 
 function getClientIp(req) {
   const socketIp = req.socket && req.socket.remoteAddress;
@@ -137,29 +114,41 @@ module.exports = async (req, res) => {
     });
   }
 
-  const clientIp = getClientIp(req);
-  const authHeader = req.headers['authorization'] || '';
-  const apiKeyHeader = req.headers['x-api-key'] || '';
-  const isKeyHolder = authHeader.startsWith('Bearer mcp_live_sec_') || apiKeyHeader.startsWith('mcp_live_sec_');
-
-  const rl = checkRateLimit(clientIp, isKeyHolder);
-  res.setHeader('X-RateLimit-Limit', isKeyHolder ? '120' : '60');
-  res.setHeader('X-RateLimit-Remaining', String(rl.remaining));
-  res.setHeader('X-RateLimit-Reset', String(rl.resetInSec));
-
-  if (!rl.allowed) {
-    return res.status(429).json({
-      error: 'TOO_MANY_REQUESTS',
-      message: `Rate limit exceeded. Try again in ${rl.resetInSec} seconds.`,
-      retryAfter: rl.resetInSec
-    });
-  }
-
   try {
-    const startTime = performance.now();
     const rawBody = await parseRequestBody(req);
+    const authHeader = req.headers['authorization'] || '';
+    const apiKeyHeader = req.headers['x-api-key'] || '';
+    const rawKey = apiKeyHeader || (authHeader.startsWith('Bearer ') ? authHeader.substring(7).trim() : authHeader) || rawBody.apiKey;
 
-    // Enforce non-empty evaluation payload
+    // 1. Enforce API Key Authentication
+    const authResult = validateApiKey(rawKey);
+    if (!authResult.valid) {
+      return res.status(401).json({
+        error: 'UNAUTHORIZED',
+        message: 'A valid API key is required. Provide header "X-API-Key: mcp_live_sec_..." or generate a sandbox key via POST /api/keys/generate.',
+        code: authResult.reason
+      });
+    }
+
+    // 2. Enforce Per-Key Rate Limiting
+    const keyRecord = authResult.keyRecord;
+    const keyRl = checkKeyRateLimit(keyRecord);
+    res.setHeader('X-RateLimit-Limit', String(keyRl.maxRpm));
+    res.setHeader('X-RateLimit-Remaining', String(keyRl.remaining));
+    res.setHeader('X-RateLimit-Reset', String(keyRl.retryAfter));
+
+    if (!keyRl.allowed) {
+      res.setHeader('Retry-After', String(keyRl.retryAfter));
+      return res.status(429).json({
+        error: 'TOO_MANY_REQUESTS',
+        message: `Rate limit of ${keyRl.maxRpm} RPM exceeded for this API key. Try again in ${keyRl.retryAfter}s.`,
+        retryAfter: keyRl.retryAfter
+      });
+    }
+
+    const startTime = performance.now();
+
+    // 3. Enforce non-empty evaluation payload
     if (!rawBody || typeof rawBody !== 'object' || Object.keys(rawBody).length === 0) {
       return res.status(400).json({
         error: 'INVALID_PAYLOAD',

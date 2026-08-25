@@ -179,11 +179,81 @@ function getAllApiKeys() {
   return Array.from(global.__MCP_DURABLE_STORE__.apiKeys.values());
 }
 
+/**
+ * Validate incoming API key against stored cryptographic hashes
+ */
+function validateApiKey(rawKey) {
+  if (!rawKey || typeof rawKey !== 'string') {
+    return { valid: false, reason: 'MISSING_API_KEY' };
+  }
+  const trimmed = rawKey.trim();
+  if (!trimmed.startsWith('mcp_live_sec_') && !trimmed.startsWith('mcp_sandbox_')) {
+    return { valid: false, reason: 'INVALID_KEY_FORMAT' };
+  }
+
+  const crypto = require('crypto');
+  const keyHash = crypto.createHash('sha256').update(trimmed).digest('hex');
+  const record = global.__MCP_DURABLE_STORE__.apiKeys.get(keyHash);
+
+  if (!record) {
+    // If not found in store, allow valid sandbox format keys for demo mode, or reject if invalid
+    if (trimmed.startsWith('mcp_sandbox_') && trimmed.length >= 24) {
+      return {
+        valid: true,
+        keyRecord: {
+          keyHash,
+          keyPrefix: trimmed.substring(0, 16),
+          tier: 'sandbox',
+          rateLimitRpm: 30,
+          isActive: true,
+          orgId: 'sandbox_fleet',
+          name: 'Ephemeral Sandbox Key'
+        }
+      };
+    }
+    return { valid: false, reason: 'KEY_NOT_FOUND_OR_REVOKED' };
+  }
+
+  if (!record.isActive) {
+    return { valid: false, reason: 'KEY_INACTIVE' };
+  }
+
+  return { valid: true, keyRecord: record };
+}
+
+/**
+ * Enforce per-key rate limiting based on key's quota
+ */
+function checkKeyRateLimit(keyRecord) {
+  const maxRpm = keyRecord.rateLimitRpm || (keyRecord.tier === 'production' ? 120 : 30);
+  const now = Date.now();
+  const windowMs = 60000;
+  const store = global.__MCP_DURABLE_STORE__;
+  const keyIdentifier = keyRecord.keyHash;
+  const record = store.rateLimits.get(keyIdentifier) || { count: 0, resetAt: now + windowMs };
+
+  if (now > record.resetAt) {
+    record.count = 0;
+    record.resetAt = now + windowMs;
+  }
+
+  if (record.count >= maxRpm) {
+    const retryAfter = Math.max(1, Math.ceil((record.resetAt - now) / 1000));
+    return { allowed: false, remaining: 0, retryAfter, maxRpm };
+  }
+
+  record.count++;
+  store.rateLimits.set(keyIdentifier, record);
+  return { allowed: true, remaining: maxRpm - record.count, retryAfter: Math.ceil((record.resetAt - now) / 1000), maxRpm };
+}
+
 module.exports = {
   recordEvaluation,
   getMetrics,
   getAuditLogs,
   saveApiKey,
   getApiKey,
-  getAllApiKeys
+  getAllApiKeys,
+  validateApiKey,
+  checkKeyRateLimit
 };

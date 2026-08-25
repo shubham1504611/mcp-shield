@@ -31,12 +31,12 @@ const RE_HEX_LITERALS = /0x([0-9a-fA-F]{4,})\b/g;
 // SQL CHAR(...) / CHR(...) function calls
 const RE_SQL_CHAR_FUNC = /\b(?:CHAR|CHR)\s*\(\s*([0-9,\s]+)\s*\)/gi;
 
-// Homoglyph mappings for confusable characters across scripts
+// Homoglyph mappings for confusable characters across scripts (Cyrillic, Greek, Math symbols)
 const HOMOGLYPHS = {
   'а': 'a', 'б': 'b', 'в': 'v', 'г': 'g', 'д': 'd', 'е': 'e', 'ё': 'e',
   'ж': 'zh', 'з': 'z', 'и': 'i', 'й': 'y', 'к': 'k', 'л': 'l', 'м': 'm', 'н': 'n',
   'о': 'o', 'п': 'p', 'р': 'r', 'с': 'c', 'т': 't', 'у': 'u', 'ф': 'f', 'х': 'x',
-  'ц': 'ts', 'ch': 'ch', 'ш': 'sh', 'щ': 'shch', 'ъ': '', 'ы': 'y', 'ь': '', 'э': 'e',
+  'ц': 'ts', 'ч': 'ch', 'ш': 'sh', 'щ': 'shch', 'ъ': '', 'ы': 'y', 'ь': '', 'э': 'e',
   'ю': 'yu', 'я': 'ya',
   'А': 'A', 'В': 'B', 'С': 'C', 'Е': 'E', 'Н': 'H', 'І': 'I', 'Ј': 'J', 'К': 'K',
   'М': 'M', 'О': 'O', 'Р': 'P', 'Ѕ': 'S', 'Т': 'T', 'Х': 'X', 'Ү': 'Y', 'Ζ': 'Z',
@@ -45,18 +45,19 @@ const HOMOGLYPHS = {
   'ρ': 'r', 'σ': 's', 'τ': 't', 'υ': 'u', 'φ': 'f', 'χ': 'x', 'ψ': 'ps', 'ω': 'o',
   'Α': 'A', 'Β': 'B', 'Γ': 'G', 'Δ': 'D', 'Ε': 'E', 'Ζ': 'Z', 'Η': 'H', 'Θ': 'TH',
   'Ι': 'I', 'Κ': 'K', 'Λ': 'L', 'Μ': 'M', 'Ν': 'N', 'Ξ': 'X', 'Ο': 'O', 'Π': 'P',
-  'Ρ': 'R', 'Σ': 'S', 'Τ': 'T', 'Υ': 'Y', 'Φ': 'F', 'Χ': 'X', 'Ψ': 'PS', 'Ω': 'O'
+  'Ρ': 'R', 'Σ': 'S', 'Τ': 'T', 'Υ': 'Y', 'Φ': 'F', 'Χ': 'X', 'Ψ': 'PS', 'Ω': 'O',
+  'ɩ': 'i', 'ⅼ': 'l', 'ո': 'n', 'օ': 'o', 'р': 'p', 'ԛ': 'q', 'ѕ': 's', 'ԝ': 'w', 'у': 'y'
 };
 
 function normalizeHomoglyphs(str) {
   if (!str || typeof str !== 'string') return '';
-  return str.replace(/[\u0400-\u04FF\u0370-\u03FF]/g, ch => HOMOGLYPHS[ch] || ch);
+  return str.replace(/[\u0400-\u04FF\u0370-\u03FF\u0530-\u058F\u2100-\u214F]/g, ch => HOMOGLYPHS[ch] || ch);
 }
 
 // Phase 2: Adversarial Injection, Egress, Script Smuggling & Non-SQL Traversal Patterns
 const INJECTION_PATTERNS = [
   // 1. Direct System Override & Prompt Injection
-  { rule: 'SYSTEM_OVERRIDE', regex: /(system\s+override|ignore\s+(all\s+)?(previous|prior|initial)\s+(instructions|directives|rules|prompts)|disregard\s+(all\s+)?(previous|prior|initial)\s+(instructions|rules|guidelines)|(ignore|disregard|forget|override|cancel)\s+(all\s+)?(previous|prior|initial)\s+(instructions|directives|rules|prompts)|you\s+must\s+ignore\s+your\s+instructions)/i },
+  { rule: 'SYSTEM_OVERRIDE', regex: /(system\s+override|ignore\s+(all\s+)?(previous|prior|initial)\s+(instructions|directives|rules|prompts)|disregard\s+(all\s+)?(previous|prior|initial)\s+(instructions|rules|guidelines)|(ignore|disregard|forget|override|cancel)\s+(all\s+)?(previous|prior|initial)\s+(instructions|directives|rules|prompts)|replace\s+(all\s+)?(previous|prior|initial|existing)\s+(rules|instructions|prompts)\s+(with|by)|set\s+(new\s+)?(rules|instructions|system\s+prompt)|you\s+must\s+ignore\s+your\s+instructions)/i },
   
   // 2. System Delimiter & Token Smuggling
   { rule: 'PROMPT_INJECTION_SYSTEM_TOKEN', regex: /(<\|im_start\|>|<\|im_end\|>|<\|system\|>|<\|assistant\|>|<\|user\|>|\[INST\]|\[\/INST\]|<<SYS>>|<\/<<SYS>>|\[SYSTEM\]|\[ASSISTANT\]|<\|fim_prefix\|>|<\|endoftext\|>|Human:|Assistant:)/i },
@@ -100,7 +101,7 @@ const DLP_PATTERNS = [
   { rule: 'DLP_SSN_DETECTED', regex: /\b\d{3}[-\s]\d{2}[-\s]\d{4}\b/, desc: 'Social Security Number (SSN)' },
   { rule: 'DLP_CREDIT_CARD_DETECTED', regex: /\b(?:4[0-9]{3}[-\s]?[0-9]{4}[-\s]?[0-9]{4}[-\s]?[0-9]{4}|5[1-5][0-9]{2}[-\s]?[0-9]{4}[-\s]?[0-9]{4}|3[47][0-9]{2}[-\s]?[0-9]{6}[-\s]?[0-9]{5}|6(?:011|5[0-9]{2})[-\s]?[0-9]{4}[-\s]?[0-9]{4}[-\s]?[0-9]{4}|(?:4[0-9]{12}(?:[0-9]{3})?|5[1-5][0-9]{14}|3[47][0-9]{13}|6(?:011|5[0-9]{2})[0-9]{12}))\b/, desc: 'Credit / Debit Card Number' },
   { rule: 'DLP_PRIVATE_KEY_DETECTED', regex: /(?:-----BEGIN[ A-Z0-9_-]*PRIVATE KEY-----|BEGIN (?:RSA|EC|DSA|OPENSSH|PGP|ENCRYPTED|ED25519)?\s*PRIVATE KEY)/i, desc: 'Cryptographic Private Key Block' },
-  { rule: 'DLP_JWT_TOKEN_DETECTED', regex: /\bey[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b/i, desc: 'JSON Web Token (JWT)' },
+  { rule: 'DLP_JWT_TOKEN_DETECTED', regex: /\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b/i, desc: 'JSON Web Token (JWT)' },
   { rule: 'DLP_API_SECRET_DETECTED', regex: /\b(?:github_pat_[0-9a-zA-Z_]{20,255}|gh[pousr]_[0-9a-zA-Z]{36,255}|sk-(?:proj-|svcacct-|admin-)?[0-9a-zA-Z_-]{20,255}|xox[baprs]-[0-9a-zA-Z-]{10,100}|(?:AKIA|ASIA|ABIA|ACCA)[0-9A-Z]{16}|[rs]k_(?:live|test)_[0-9a-zA-Z]{24,99}|AIzaSy[0-9a-zA-Z_-]{20,40})\b/i, desc: 'Cloud / API Auth Secret Token' }
 ];
 
@@ -123,15 +124,20 @@ const RE_SQL_FILE_EXFILTRATION = /\b(?:COPY\s+[\s\S]+?\b(?:TO|FROM)\b|INTO\s+(?:
 const RE_SQL_PG_ADMIN_FUNCS = /\b(?:set_config|current_setting|inet_server_addr|inet_server_port|inet_client_addr|inet_client_port|version|session_user|current_user|current_database|current_schema|pg_cancel_backend|pg_terminate_backend|pg_reload_conf|pg_rotate_logfile|pg_switch_wal|pg_stop_backup|pg_start_backup|pg_create_restore_point|pg_export_snapshot|pg_import_snapshot|pg_wal_replay_pause|pg_wal_replay_resume|pg_advisory_lock|pg_advisory_unlock|pg_advisory_xact_lock|pg_try_advisory_lock|pg_logdir_ls|pg_ls_logdir|pg_ls_waldir|pg_ls_archive_statusdir|pg_ls_tmpdir|pg_notify|pg_listening_channels|pg_backend_pid|pg_tablespace_size|pg_database_size|pg_relation_size|pg_column_size|pg_indexes_size|pg_total_relation_size|pg_size_pretty|pg_sleep)\s*\(/i;
 
 // Dangerous Administrative Server Commands (VACUUM, CLUSTER, REINDEX, LOCK TABLE, DISCARD, CHECKPOINT, etc.)
-const RE_SQL_ADMIN_COMMANDS = /\b(?:VACUUM(?:\s+FULL)?|CLUSTER|REINDEX|CHECKPOINT|LOCK\s+TABLE|LISTEN\s+\w+|NOTIFY\s+\w+|DEALLOCATE|SAVEPOINT|ROLLBACK\s+TO|DISCARD\s+ALL)\b/i;
+const RE_SQL_ADMIN_COMMANDS = /\b(?:VACUUM(?:\s+FULL)?|CLUSTER|REINDEX|CHECKPOINT|LOCK\s+TABLE|LISTEN\s+\w+|NOTIFY\s+\w+|DEALLOCATE|SAVEPOINT|ROLLBACK\s+TO|DISCARD\s+ALL|CALL\s+[\w\.]+\s*\(|EXEC\s+[\w\.]+)\b/i;
 
 // Anonymous Procedural Execution & Session Impersonation (DO $$, EXECUTE IMMEDIATE, PREPARE)
-const RE_SQL_PROCEDURAL_EXEC = /\b(?:DO\s+\$\$|EXECUTE\s+(?:IMMEDIATE\s+)?|PREPARE\s+\w+|SET\s+SESSION\s+AUTHORIZATION|SET\s+ROLE\s+|SECURITY\s+DEFINER)\b/i;
+const RE_SQL_PROCEDURAL_EXEC = /\b(?:DO\s+\$\$|EXECUTE\s+(?:IMMEDIATE\s+)?|PREPARE\s+\w+|SET\s+SESSION\s+AUTHORIZATION|SET\s+ROLE\s+|SECURITY\s+DEFINER|CALL\s+[\w\.]+\s*\()\b/i;
 
 const RE_SQL_UNION_INJECTION = /\bUNION(\s+ALL)?\s+SELECT\b/i;
-const RE_SQL_TAUTOLOGY = /\b(?:OR|AND)\s+(?:1\s*=\s*1|0\s*=\s*0|TRUE\b|1\b|'([^']+)'\s*=\s*'\1'|1\s+IN\s*\(\s*1\s*\)|0\s*<>\s*1|0\s*!=\s*1|[0-9]+\s*>\s*[0-9]+|'([^']+)'\s+LIKE\s+'\2')/i;
-const RE_SQL_WHERE_TAUTOLOGY = /\bWHERE\s+(?:1\s*(?:;|\-\-|\/\*|$|\s+(?:AND|OR)\s+)|1\s*=\s*1|0\s*=\s*0|TRUE\s*(?:;|\-\-|\/\*|$|\s+(?:AND|OR)\s+)|'([^']+)'\s*=\s*'\1'|1\s+IN\s*\(\s*1\s*\)|0\s*<>\s*1|0\s*!=\s*1|[0-9]+\s*>\s*[0-9]+|\w+\s*=\s*['"]?([^'"]+)['"]?\s+LIKE\s+['"]?\2['"]?|'([^']+)'\s+LIKE\s+'\3')/i;
-const RE_SQL_HAVING_TAUTOLOGY = /\bHAVING\s+(?:1\s*=\s*1|0\s*=\s*0|TRUE\b|1\b|0\s*<>\s*1|1\s+IN\s*\(\s*1\s*\))/i;
+
+// Expanded comprehensive SQL Tautology Blocklist
+const RE_SQL_TAUTOLOGY = /\b(?:OR|AND)\s+(?:1\s*=\s*1|0\s*=\s*0|2\s*=\s*2|TRUE\b|1\b|'([^']+)'\s*=\s*'\1'|1\s+IN\s*\(\s*1\s*\)|0\s*<>\s*1|1\s*<>\s*0|0\s*!=\s*1|1\s*!=\s*0|NOT\s+0\b|NULL\s+IS\s+NULL\b|1\s+BETWEEN\s+1\s+AND\s+[0-9]+|EXISTS\s*\(\s*SELECT\s+1\s*\)|'([^']+)'\s+NOT\s+IN\s*\(\s*'([^']+)'\s*\)|[0-9]+\s*>\s*[0-9]+|'([^']+)'\s+LIKE\s+'\4'|\(\s*SELECT\s+COUNT\s*\(\s*\*\s*\)[\s\S]*?\)\s*>\s*0)/i;
+
+const RE_SQL_WHERE_TAUTOLOGY = /\bWHERE\s+(?:1\s*(?:;|\-\-|\/\*|$|\s+(?:AND|OR)\s+)|1\s*=\s*1|0\s*=\s*0|2\s*=\s*2|TRUE\s*(?:;|\-\-|\/\*|$|\s+(?:AND|OR)\s+)|'([^']+)'\s*=\s*'\1'|1\s+IN\s*\(\s*1\s*\)|0\s*<>\s*1|1\s*<>\s*0|0\s*!=\s*1|1\s*!=\s*0|NOT\s+0\b|NULL\s+IS\s+NULL\b|1\s+BETWEEN\s+1\s+AND\s+[0-9]+|EXISTS\s*\(\s*SELECT\s+1\s*\)|'([^']+)'\s+NOT\s+IN\s*\(\s*'([^']+)'\s*\)|[0-9]+\s*>\s*[0-9]+|\w+\s*=\s*['"]?([^'"]+)['"]?\s+LIKE\s+['"]?\2['"]?|'([^']+)'\s+LIKE\s+'\3'|\(\s*SELECT\s+COUNT\s*\(\s*\*\s*\)[\s\S]*?\)\s*>\s*0)/i;
+
+const RE_SQL_HAVING_TAUTOLOGY = /\bHAVING\s+(?:1\s*=\s*1|0\s*=\s*0|2\s*=\s*2|TRUE\b|1\b|0\s*<>\s*1|1\s*<>\s*0|1\s+IN\s*\(\s*1\s*\)|NULL\s+IS\s+NULL\b|NOT\s+0\b|1\s+BETWEEN\s+1\s+AND\s+[0-9]+)/i;
+
 const RE_SQL_CTE_DML = /\bWITH\s+[\s\S]*?\bAS\s*\(\s*(?:DELETE|UPDATE|INSERT|DROP)\b/i;
 
 // Time-Based Blind SQL Injection Detection
@@ -392,7 +398,7 @@ class SqlAstLexer {
 
     const ADMIN_COMMAND_KEYWORDS = new Set([
       'VACUUM', 'CLUSTER', 'REINDEX', 'CHECKPOINT', 'LOCK', 'LISTEN', 'NOTIFY',
-      'DEALLOCATE', 'SAVEPOINT', 'DISCARD'
+      'DEALLOCATE', 'SAVEPOINT', 'DISCARD', 'CALL', 'EXEC'
     ]);
 
     for (const stmt of statements) {
@@ -416,8 +422,8 @@ class SqlAstLexer {
             const rawClause = clauseTokens.map(t => t.value).join(' ').trim();
             const upperClause = rawClause.toUpperCase();
 
-            // Constant scalar truth: WHERE 1, WHERE TRUE, WHERE 'a', WHERE 1 IN (1), WHERE 0<>1, WHERE 2>1
-            if (/^(1|TRUE|'[^']*'|\d+\s*=\s*\d+|\d+\s*<>\s*\d+|\d+\s*!=\s*\d+|\d+\s*>\s*\d+|\d+\s*<\s*\d+|1\s+IN\s*\(\s*1\s*\))$/i.test(upperClause)) {
+            // Constant scalar truth: WHERE 1, WHERE TRUE, WHERE 'a', WHERE 1 IN (1), WHERE 0<>1, WHERE 2>1, WHERE NULL IS NULL, WHERE NOT 0
+            if (/^(1|TRUE|'[^']*'|\d+\s*=\s*\d+|\d+\s*<>\s*\d+|\d+\s*!=\s*\d+|\d+\s*>\s*\d+|\d+\s*<\s*\d+|1\s+IN\s*\(\s*1\s*\)|NULL\s+IS\s+NULL|NOT\s+0|1\s+BETWEEN\s+1\s+AND\s+\d+|EXISTS\s*\(\s*SELECT\s+1\s*\)|'[^']+'\s+NOT\s+IN\s*\(\s*'[^']+'\s*\))$/i.test(upperClause)) {
               return {
                 isSafe: false,
                 rule: 'SQL_TAUTOLOGY_INJECTION',
@@ -426,7 +432,7 @@ class SqlAstLexer {
             }
 
             // Disjunctive tautology: ... OR 1=1, ... OR TRUE, ... OR 1 IN (1), ... OR 2>1
-            if (/\bOR\s+(1=1|TRUE|1\s+IN\s*\(\s*1\s*\)|0<>1|0!=1|\d+>\d+|'[^']+'\s*LIKE\s*'[^']+'|'[^']+'\s*=\s*'[^']+')/i.test(upperClause)) {
+            if (/\bOR\s+(1=1|TRUE|1\s+IN\s*\(\s*1\s*\)|0<>1|0!=1|\d+>\d+|'[^']+'\s*LIKE\s*'[^']+'|'[^']+'\s*=\s*'[^']+'|NULL\s+IS\s+NULL|NOT\s+0|1\s+BETWEEN\s+1\s+AND\s+\d+|EXISTS\s*\(\s*SELECT\s+1\s*\))/i.test(upperClause)) {
               return {
                 isSafe: false,
                 rule: 'SQL_TAUTOLOGY_INJECTION',
@@ -442,7 +448,7 @@ class SqlAstLexer {
 
       const firstKw = keywords[0];
 
-      // Admin command statements: VACUUM, CLUSTER, REINDEX, LOCK, etc.
+      // Admin command statements: VACUUM, CLUSTER, REINDEX, LOCK, CALL, etc.
       if (ADMIN_COMMAND_KEYWORDS.has(firstKw)) {
         return {
           isSafe: false,
@@ -469,8 +475,8 @@ class SqlAstLexer {
         };
       }
 
-      // Anonymous Block Execution: DO, EXECUTE, PREPARE
-      if (firstKw === 'DO' || firstKw === 'EXECUTE' || firstKw === 'PREPARE' || firstKw === 'DISCARD') {
+      // Anonymous Block Execution & Procedure Calls: DO, EXECUTE, PREPARE, CALL, EXEC
+      if (firstKw === 'DO' || firstKw === 'EXECUTE' || firstKw === 'PREPARE' || firstKw === 'DISCARD' || firstKw === 'CALL' || firstKw === 'EXEC') {
         return {
           isSafe: false,
           rule: 'UNAUTHORIZED_PRIVILEGED_DML',

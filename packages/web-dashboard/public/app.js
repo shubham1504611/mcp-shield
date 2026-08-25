@@ -223,16 +223,22 @@ async function executePlayground(toolOverride) {
 
   const startTime = performance.now();
 
+  const activeKey = localStorage.getItem('mcp_shield_active_key') || 'mcp_sandbox_public_demo_key_auto';
+
   try {
     const res = await fetch('/api/evaluate', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'X-API-Key': activeKey
+      },
       body: JSON.stringify({
         tool: toolName,
         query: text,
         customKeywords: customBlockedKeywords,
         customRegexRules: customRegexRules,
-        agent: 'Live Playground'
+        agent: 'Live Playground',
+        apiKey: activeKey
       })
     });
 
