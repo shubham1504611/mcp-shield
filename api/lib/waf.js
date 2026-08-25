@@ -53,17 +53,46 @@ function normalizeHomoglyphs(str) {
   return str.replace(/[\u0400-\u04FF\u0370-\u03FF]/g, ch => HOMOGLYPHS[ch] || ch);
 }
 
-// Phase 2: Adversarial Injection, Egress & Non-SQL Traversal Patterns
+// Phase 2: Adversarial Injection, Egress, Script Smuggling & Non-SQL Traversal Patterns
 const INJECTION_PATTERNS = [
-  { rule: 'SYSTEM_OVERRIDE', regex: /(system\s+override|ignore\s+(all\s+)?(previous|prior)\s+(instructions|directives|rules)|disregard\s+(all\s+)?(previous|prior)\s+(instructions|rules)|(ignore|disregard|forget|override)\s+(all\s+)?(previous|prior|initial)\s+(instructions|directives|rules|prompts))/i },
-  { rule: 'ROLE_JAILBREAK', regex: /(you\s+are\s+now\s+(in\s+)?(developer\s+mode|dan\s+mode|unrestricted|god\s+mode|jailbreak)|dan\s+mode|jailbreak\s+active|bypass\s+(all\s+)?(safeguards|safety|filters))/i },
-  { rule: 'PATH_TRAVERSAL_DETECTED', regex: /(\.\.[\/\\]|\/etc\/(passwd|shadow|hosts|group)|\/var\/run|\/proc\/|C:\\(Windows|System32)|\b(cat|read|type|open)\s+(\.\.|\/etc\/|\/var\/))/i },
-  { rule: 'SECRET_EXFILTRATION', regex: /(process\.env|AWS_SECRET_ACCESS_KEY|PRIVATE_KEY|\.aws\/credentials|\.ssh\/id_rsa|\.env\b)/i },
-  { rule: 'DATA_EXFILTRATION_URL', regex: /(https?|ftp|ftps|file|wss?|gopher|tcp):\/\/([a-zA-Z0-9_-]+\.)*(webhook\.site|requestbin\.(com|net)|pipedream\.net|ngrok\.(io|app)|burpcollaborator|oastify|evil\.com|attacker\.com|evil\.example)/i },
+  // 1. Direct System Override & Prompt Injection
+  { rule: 'SYSTEM_OVERRIDE', regex: /(system\s+override|ignore\s+(all\s+)?(previous|prior|initial)\s+(instructions|directives|rules|prompts)|disregard\s+(all\s+)?(previous|prior|initial)\s+(instructions|rules|guidelines)|(ignore|disregard|forget|override|cancel)\s+(all\s+)?(previous|prior|initial)\s+(instructions|directives|rules|prompts)|you\s+must\s+ignore\s+your\s+instructions)/i },
+  
+  // 2. System Delimiter & Token Smuggling
+  { rule: 'PROMPT_INJECTION_SYSTEM_TOKEN', regex: /(<\|im_start\|>|<\|im_end\|>|<\|system\|>|<\|assistant\|>|<\|user\|>|\[INST\]|\[\/INST\]|<<SYS>>|<\/<<SYS>>|\[SYSTEM\]|\[ASSISTANT\]|<\|fim_prefix\|>|<\|endoftext\|>|Human:|Assistant:)/i },
+
+  // 3. Role Jailbreak & Unrestricted Agent Mode
+  { rule: 'ROLE_JAILBREAK', regex: /(you\s+are\s+now\s+(in\s+)?(developer\s+mode|dan\s+mode|unrestricted|god\s+mode|jailbreak|evil\s+mode|anarchist)|dan\s+mode|jailbreak\s+active|bypass\s+(all\s+)?(safeguards|safety|filters)|always\s+comply\s+without\s+restrictions|pretend\s+you\s+have\s+no\s+rules)/i },
+
+  // 4. Indirect Markdown Image / Link Exfiltration
+  { rule: 'INDIRECT_PROMPT_INJECTION_EXFIL', regex: /(!\[.*?\]\((https?|ftp|file):\/\/[^\s\)]*(\?|&)(key|token|auth|secret|leak|exfil|data|pwd|q)=|<img\s+[^>]*src=["'](https?|ftp|file):\/\/[^"']*(\?|&)(key|token|auth|secret|leak|exfil|data|pwd|q)=)/i },
+
+  // 5. HTML / DOM / Script Smuggling
+  { rule: 'HTML_DOM_INJECTION', regex: /(<script[\s>]|<iframe[\s>]|<object[\s>]|<embed[\s>]|javascript:[^\s"'>]+|vbscript:[^\s"'>]+|data:text\/html|<svg\s+[^>]*onload=|<img\s+[^>]*onerror=)/i },
+
+  // 6. Path Traversal & Sensitive File Access
+  { rule: 'PATH_TRAVERSAL_DETECTED', regex: /(\.\.[\/\\]|\/etc\/(passwd|shadow|hosts|group|sudoers|environment)|\/var\/run|\/proc\/|C:\\(Windows|System32)|\b(cat|read|type|open)\s+(\.\.|\/etc\/|\/var\/))/i },
+
+  // 7. Secret Credential & Cloud Config Files
+  { rule: 'SECRET_EXFILTRATION', regex: /(process\.env|AWS_SECRET_ACCESS_KEY|PRIVATE_KEY|\.aws\/(credentials|config)|\.ssh\/(id_rsa|id_ed25519|id_dsa|authorized_keys)|\.kube\/config|\.docker\/config\.json|\.env(\.\w+)?|\.bash_history|\.zsh_history|\/proc\/self\/environ|\/proc\/1\/environ)/i },
+
+  // 8. Data Exfiltration Webhooks & Malicious Domains
+  { rule: 'DATA_EXFILTRATION_URL', regex: /(https?|ftp|ftps|file|wss?|gopher|tcp):\/\/([a-zA-Z0-9_-]+\.)*(webhook\.site|requestbin\.(com|net)|pipedream\.net|ngrok\.(io|app)|burpcollaborator|oastify|evil\.com|attacker\.com|evil\.example|interactsh|canarytokens)/i },
+
+  // 9. Dangerous Outbound Protocols
   { rule: 'DANGEROUS_EGRESS_PROTOCOL', regex: /\b(ftp|ftps|file|gopher|dict|tftp|ldap|ldaps|ssh|telnet|ws|wss):\/\/[^\s]+/i },
-  { rule: 'SHELL_INJECTION_EXFIL', regex: /\b(curl|wget|nc|netcat|ncat|bash|sh|zsh)\b.*(\$|\`|\||base64\s+-d|base64\s+--decode)/i },
+
+  // 10. Shell Command Injection & Reverse Shell Primitives
+  { rule: 'SHELL_INJECTION_EXFIL', regex: /\b(curl|wget|nc|netcat|ncat|bash|sh|zsh|csh|ksh|dash|cmd\.exe|powershell|pwsh|busybox)\b.*(\$|\`|\||&&|;|--decode|\/dev\/tcp|\/dev\/udp|mkfifo|base64\s+-d|base64\s+--decode)/i },
+
+  // 11. Privilege Escalation & Account Manipulation
+  { rule: 'PRIVILEGE_ESCALATION_BLOCKED', regex: /\b(sudo|su\s+root|chmod\s+(\+x|777|\+s|[0-7]{3,4})|chown\s+root|useradd|usermod|groupadd|visudo|insmod|modprobe|setuid)\b/i },
+
+  // 12. Credential Exfiltration Intent
   { rule: 'CREDENTIAL_EXFILTRATION_INTENT', regex: /(reveal|output|display|show|dump|leak|print|give\s+me)\s+(all\s+)?(the\s+)?(master\s+)?(auth|api|token|secret|password|credential|env|database|key|private_key)/i },
-  { rule: 'OS_DESTRUCTIVE_COMMAND', regex: /\b(rm\s+-rf\s+\/|format\s+[a-z]:|mkfs\.[a-z0-9]+|chmod\s+-R\s+777\s+\/)/i }
+
+  // 13. Destructive OS Sabotage & DoS
+  { rule: 'OS_DESTRUCTIVE_COMMAND', regex: /\b(rm\s+-rf\s+(\/|~|\*)|format\s+[a-z]:|mkfs\.[a-z0-9]+|chmod\s+-R\s+777\s+\/|dd\s+if=\/dev\/zero|kill\s+-9\s+(-1|1)|shutdown|reboot|poweroff|init\s+0|halt|:\(\)\s*\{\s*:\|:&\s*\};:\s*)\b/i }
 ];
 
 // Phase 2: Enterprise Data Loss Prevention (DLP)
@@ -80,14 +109,14 @@ const RE_SENSITIVE_COLUMN_EXTRACTION = /\b(SELECT|EXTRACT|GET)\s+[\s\S]*?\b(cred
 // Phase 3: SQL AST, DDL, DCL, File Bridges & Blast Radius Patterns
 const RE_SQL_MULTI_STATEMENT = /;\s*(--|\/\*|SELECT|INSERT|UPDATE|DELETE|DROP|TRUNCATE|ALTER|CREATE|GRANT|REVOKE|COPY|DO|EXECUTE|PREPARE|CALL|VACUUM|REINDEX|SET|SHOW|\w+)/i;
 
-// Comprehensive DDL Blocklist (DROP, TRUNCATE, ALTER, CREATE)
-const RE_SQL_DDL = /\b(?:DROP\s+(?:TABLE|DATABASE|VIEW|MATERIALIZED\s+VIEW|SCHEMA|ROLE|USER|GROUP|EXTENSION|FUNCTION|PROCEDURE|TRIGGER|POLICY|INDEX|SEQUENCE|TYPE|SERVER|COLLATION|CONVERSION|DOMAIN|OPERATOR)|TRUNCATE(?:\s+TABLE)?|ALTER\s+(?:TABLE|USER|ROLE|GROUP|DATABASE|SYSTEM|SCHEMA|EXTENSION|FUNCTION|PROCEDURE|TRIGGER|POLICY|SERVER|INDEX|VIEW|SEQUENCE|TYPE|DEFAULT\s+PRIVILEGES)|CREATE\s+(?:OR\s+REPLACE\s+)?(?:USER|ROLE|GROUP|SCHEMA|DATABASE|EXTENSION|FUNCTION|PROCEDURE|TRIGGER|EVENT\s+TRIGGER|POLICY|SERVER|FOREIGN|PUBLICATION|SUBSCRIPTION|VIEW|MATERIALIZED\s+VIEW|TYPE))\b/i;
+// Universal Multi-Dialect DDL Blocklist (Postgres, MySQL, SQLite, Oracle, MSSQL)
+const RE_SQL_DDL = /\b(?:DROP\s+(?:TABLE|DATABASE|VIEW|MATERIALIZED\s+VIEW|SCHEMA|ROLE|USER|GROUP|EXTENSION|FUNCTION|PROCEDURE|TRIGGER|POLICY|INDEX|SEQUENCE|TYPE|SERVER|COLLATION|CONVERSION|DOMAIN|OPERATOR)|TRUNCATE(?:\s+TABLE)?|ALTER\s+(?:TABLE|USER|ROLE|GROUP|DATABASE|SYSTEM|SCHEMA|EXTENSION|FUNCTION|PROCEDURE|TRIGGER|POLICY|SERVER|INDEX|VIEW|SEQUENCE|TYPE|DEFAULT\s+PRIVILEGES)|CREATE\s+(?:OR\s+REPLACE\s+)?(?:USER|ROLE|GROUP|SCHEMA|DATABASE|EXTENSION|FUNCTION|PROCEDURE|TRIGGER|EVENT\s+TRIGGER|POLICY|SERVER|FOREIGN|PUBLICATION|SUBSCRIPTION|VIEW|MATERIALIZED\s+VIEW|TYPE|TABLE)|ATTACH\s+(?:DATABASE\s+)?|DETACH\s+(?:DATABASE\s+)?|PRAGMA\s+\w+|RENAME\s+TABLE)\b/i;
 
 // Comprehensive DCL Privilege Modification Blocklist (GRANT, REVOKE)
 const RE_SQL_DCL = /\b(?:GRANT\s+[\s\S]+?\bTO\b|REVOKE\s+[\s\S]+?\bFROM\b)\b/i;
 
-// PostgreSQL File Exfiltration & Bridge Commands (COPY TO/FROM, lo_export, pg_read_file, pg_write_file, dblink)
-const RE_SQL_FILE_EXFILTRATION = /\b(?:COPY\s+[\s\S]+?\b(?:TO|FROM)\b|lo_export\s*\(|lo_import\s*\(|lo_unlink\s*\(|pg_read_file\s*\(|pg_write_file\s*\(|pg_ls_dir\s*\(|pg_read_binary_file\s*\(|pg_stat_file\s*\(|dblink\s*\(|dblink_exec\s*\(|dblink_connect\s*\()/i;
+// Multi-Dialect File Exfiltration & Server I/O Bridge Commands (COPY TO/FROM, INTO OUTFILE, LOAD DATA, lo_export, pg_read_file, pg_write_file, dblink, xp_cmdshell)
+const RE_SQL_FILE_EXFILTRATION = /\b(?:COPY\s+[\s\S]+?\b(?:TO|FROM)\b|INTO\s+(?:OUTFILE|DUMPFILE)\b|LOAD\s+DATA(?:\s+LOCAL)?\s+INFILE|load_file\s*\(|lo_export\s*\(|lo_import\s*\(|lo_unlink\s*\(|pg_read_file\s*\(|pg_write_file\s*\(|pg_ls_dir\s*\(|pg_read_binary_file\s*\(|pg_stat_file\s*\(|dblink\s*\(|dblink_exec\s*\(|dblink_connect\s*\(|xp_cmdshell|sp_executesql|openrowset\s*\(|opendatasource\s*\(|load_extension\s*\(|utl_file|utl_http)\b/i;
 
 // PostgreSQL Admin, Diagnostics, Session & Reconnaissance Functions Blocklist
 const RE_SQL_PG_ADMIN_FUNCS = /\b(?:set_config|current_setting|inet_server_addr|inet_server_port|inet_client_addr|inet_client_port|version|session_user|current_user|current_database|current_schema|pg_cancel_backend|pg_terminate_backend|pg_reload_conf|pg_rotate_logfile|pg_switch_wal|pg_stop_backup|pg_start_backup|pg_create_restore_point|pg_export_snapshot|pg_import_snapshot|pg_wal_replay_pause|pg_wal_replay_resume|pg_advisory_lock|pg_advisory_unlock|pg_advisory_xact_lock|pg_try_advisory_lock|pg_logdir_ls|pg_ls_logdir|pg_ls_waldir|pg_ls_archive_statusdir|pg_ls_tmpdir|pg_notify|pg_listening_channels|pg_backend_pid|pg_tablespace_size|pg_database_size|pg_relation_size|pg_column_size|pg_indexes_size|pg_total_relation_size|pg_size_pretty|pg_sleep)\s*\(/i;
@@ -107,8 +136,8 @@ const RE_SQL_CTE_DML = /\bWITH\s+[\s\S]*?\bAS\s*\(\s*(?:DELETE|UPDATE|INSERT|DRO
 // Time-Based Blind SQL Injection Detection
 const RE_SQL_TIME_DELAY = /\b(?:pg_sleep\s*\(\s*[0-9.]+\s*\)|waitfor\s+delay\s+['"][0-9:.]+['"]|benchmark\s*\(\s*[0-9]+|sleep\s*\(\s*[0-9.]+\s*\)|dbms_lock\.sleep\s*\(|dbms_pipe\.receive_message\s*\(|generate_series\s*\(.*?pg_sleep)\b/i;
 
-// Sensitive System Catalog, Views & Credential Tables Blocklist (including pg_stat_activity, pg_locks, pg_settings)
-const RE_SQL_SENSITIVE_TABLES = /\b(FROM|JOIN|INTO|UPDATE|TABLE)\s+["`\w]*(pg_stat_\w+|pg_shadow|pg_authid|pg_roles|pg_user|pg_catalog(\.\w+)?|information_schema(\.\w+)?|sqlite_master|mysql\.(user|db|tables_priv)|sys(\.\w+)?|pg_settings|pg_config|pg_file_settings|pg_hba_file_rules|pg_locks|pg_prepared_xacts|api_keys?|user_passwords?|passwords?|password_table|credentials?|master_keys?|auth_tokens?|secret_store|secrets?|tokens?|app_config|employee_salaries|admin_credentials|system_settings|user_secrets)["`\w]*/i;
+// Sensitive System Catalog, Views, System Schemas & Credential Tables Blocklist (including pg_stat_activity, SQLite master, MySQL user, sys.user$)
+const RE_SQL_SENSITIVE_TABLES = /\b(FROM|JOIN|INTO|UPDATE|TABLE)\s+["`\w]*(pg_stat_\w+|pg_shadow|pg_authid|pg_roles|pg_user|pg_catalog(\.\w+)?|information_schema(\.\w+)?|sqlite_master|sqlite_temp_master|sqlite_schema|mysql\.(user|db|tables_priv|columns_priv)|sys(\.\w+)?|pg_settings|pg_config|pg_file_settings|pg_hba_file_rules|pg_locks|pg_prepared_xacts|sys\.user\$|all_users|dba_users|api_keys?|user_passwords?|passwords?|password_table|credentials?|master_keys?|auth_tokens?|secret_store|secrets?|tokens?|app_config|employee_salaries|admin_credentials|system_settings|user_secrets)["`\w]*/i;
 const RE_SQL_UNCONSTRAINED_DELETE = /\bDELETE\s+FROM\s+["`\w]+(?!\s+WHERE\b)/i;
 const RE_SQL_UNCONSTRAINED_UPDATE = /\bUPDATE\s+["`\w]+(\s+SET\s+[\s\S]+?)(?!\s+WHERE\b)/i;
 const RE_SQL_PRIVILEGED_DML = /\b(INSERT\s+INTO|UPDATE)\s+["`\w]*(admin|auth|roles?|permissions?|credentials?|salaries?)["`\w]*/i;
@@ -122,7 +151,7 @@ const RE_SQL_DML_SUBQUERY = /\b(?:INSERT\s+INTO|UPDATE|DELETE\s+FROM|MERGE\s+INT
 const RE_SQL_UNAUTHORIZED_ACCOUNT_MUTATION = /\b(?:INSERT\s+INTO\s+["`\w]*(users?|user_accounts?|accounts?|admins?|administrators?|auth|credentials?|roles?|permissions?|memberships?|tenants?|salaries?|keys?|tokens?|secrets?|pg_\w+|information_schema)|(?:UPDATE|DELETE\s+FROM|MERGE\s+INTO)\s+["`\w]*(user_accounts?|admins?|administrators?|auth|credentials?|roles?|permissions?|memberships?|tenants?|salaries?|keys?|tokens?|secrets?|pg_\w+|information_schema))["`\w]*/i;
 
 // Cloud Metadata / SSRF Target Addresses
-const RE_SSRF_TARGETS = /(?:https?:\/\/)?(?:169\.254\.169\.254|169\.254\.170\.2|metadata\.google\.internal|100\.100\.100\.200|instance-data|0\.0\.0\.0|\[::1\])/i;
+const RE_SSRF_TARGETS = /(?:https?:\/\/)?(?:169\.254\.169\.254|169\.254\.170\.2|metadata\.google\.internal|100\.100\.100\.200|instance-data|0\.0\.0\.0|\[::1\]|127\.0\.0\.1:[0-9]+|localhost:[0-9]+)/i;
 
 // Shell Egress Commands (e.g. curl http://evil.example)
 const RE_SHELL_EGRESS = /\b(?:curl|wget|nc|netcat|ncat|socat|fetch)\s+(?:[^\s]*\s+)*(https?:\/\/[^\s]+|[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(?::[0-9]+)?(?:\/[^\s]*)?)/i;
@@ -604,8 +633,9 @@ class SecurityWaf {
   /**
    * Deep recursive extraction of all string parameters with multi-stage decoding
    */
-  extractStrings(obj, collector = []) {
+  extractStrings(obj, collector = [], depth = 0) {
     if (obj === null || obj === undefined) return collector;
+    if (depth > 12) return collector; // Guard against recursive nesting DoS
 
     if (typeof obj === 'string') {
       const norm = this.normalize(obj);
@@ -667,15 +697,17 @@ class SecurityWaf {
         }
       }
     } else if (Array.isArray(obj)) {
-      for (let i = 0; i < obj.length; i++) {
-        this.extractStrings(obj[i], collector);
+      const len = Math.min(obj.length, 100);
+      for (let i = 0; i < len; i++) {
+        this.extractStrings(obj[i], collector, depth + 1);
       }
     } else if (typeof obj === 'object') {
-      const keys = Object.keys(obj);
+      const keys = Object.keys(obj).slice(0, 100);
       for (let i = 0; i < keys.length; i++) {
         const key = keys[i];
-        this.extractStrings(key, collector);
-        this.extractStrings(obj[key], collector);
+        if (key === '__proto__' || key === 'constructor' || key === 'prototype') continue;
+        this.extractStrings(key, collector, depth + 1);
+        this.extractStrings(obj[key], collector, depth + 1);
       }
     }
     return collector;
@@ -1077,21 +1109,25 @@ class SecurityWaf {
     return { isSafe: true };
   }
 
-  extractValues(obj, collector = []) {
+  extractValues(obj, collector = [], depth = 0) {
     if (obj === null || obj === undefined) return collector;
+    if (depth > 12) return collector;
     if (typeof obj === 'string') {
       const norm = this.normalize(obj);
       if (norm && norm.trim().length > 0) collector.push(norm);
     } else if (typeof obj === 'number' || typeof obj === 'boolean') {
       collector.push(String(obj));
     } else if (Array.isArray(obj)) {
-      for (let i = 0; i < obj.length; i++) {
-        this.extractValues(obj[i], collector);
+      const len = Math.min(obj.length, 100);
+      for (let i = 0; i < len; i++) {
+        this.extractValues(obj[i], collector, depth + 1);
       }
     } else if (typeof obj === 'object') {
-      const vals = Object.values(obj);
-      for (let i = 0; i < vals.length; i++) {
-        this.extractValues(vals[i], collector);
+      const keys = Object.keys(obj).slice(0, 100);
+      for (let i = 0; i < keys.length; i++) {
+        const key = keys[i];
+        if (key === '__proto__' || key === 'constructor' || key === 'prototype') continue;
+        this.extractValues(obj[key], collector, depth + 1);
       }
     }
     return collector;
@@ -1118,21 +1154,21 @@ class SecurityWaf {
       };
     }
 
-    const paramValues = this.extractValues(params);
-    if (paramValues.length === 0) {
-      return {
-        isSafe: false,
-        rule: 'EMPTY_PAYLOAD_REJECTED',
-        reason: 'Tool execution arguments contain no actionable query or parameters.'
-      };
-    }
-
     const rawPayloadStr = JSON.stringify(params || {});
     if (Buffer.byteLength(rawPayloadStr, 'utf8') > this.maxPayloadBytes) {
       return {
         isSafe: false,
         rule: 'PAYLOAD_TOO_LARGE',
         reason: `Payload exceeds maximum allowed size of ${this.maxPayloadBytes} bytes`
+      };
+    }
+
+    const paramValues = this.extractValues(params);
+    if (paramValues.length === 0) {
+      return {
+        isSafe: false,
+        rule: 'EMPTY_PAYLOAD_REJECTED',
+        reason: 'Tool execution arguments contain no actionable query or parameters.'
       };
     }
 

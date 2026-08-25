@@ -11,14 +11,19 @@ lerna-debug.log*
 node_modules/
 dist/
 build/
+coverage/
+.nyc_output/
 
-# Environment variables
+# Environment variables & Secret credentials
 .env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-*.env
+.env.*
+!.env.example
+!.env.production.example
+*.pem
+*.key
+*.cert
+*.pfx
+*.p12
 
 # Operating System Files
 .DS_Store
@@ -32,3 +37,9 @@ Thumbs.db
 *.njsproj
 *.sln
 *.sw?
+
+# Scratch & Temporary Testing Files
+scratch/
+.scratch/
+*.tmp
+*.bak
