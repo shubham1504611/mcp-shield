@@ -1305,6 +1305,21 @@ class SecurityWaf {
     const sanitizedPayload = this.sanitizePayload(params);
     const sanitizedPayloadStr = JSON.stringify(sanitizedPayload || {});
 
+    // Phase 2.5: Readonly Enforcement Policy Mode Check
+    if (this.mode === 'readonly-enforce' && (toolName.includes('postgres') || toolName.includes('sql') || params.query)) {
+      const q = params.query || params.sql || params.statement;
+      if (q) {
+        const candidate = this.stripSqlComments(q).trim().toUpperCase();
+        if (!candidate.startsWith('SELECT') && !candidate.startsWith('WITH') && !candidate.startsWith('EXPLAIN')) {
+          return {
+            isSafe: false,
+            rule: 'READONLY_ENFORCEMENT_VIOLATION',
+            reason: 'Production key is in readonly-enforce mode. Non-read SQL statements are strictly forbidden.'
+          };
+        }
+      }
+    }
+
     // Phase 4: Deterministic Ed25519 Cryptographic Attestation with Nonce & Timestamp Context Binding
     // Canonical Spec: `${toolName}:${sanitizedPayloadStr}:${nonce}:${timestamp}:v2.5.0`
     const nonce = crypto.randomBytes(16).toString('hex');
@@ -1351,4 +1366,5 @@ module.exports = {
   verifyAttestation,
   SqlAstLexer
 };
+
 

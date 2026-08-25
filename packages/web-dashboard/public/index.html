@@ -1028,7 +1028,7 @@ curl -X POST https://mcp-shield-gateway-core.vercel.app/v1/mcp \
         <p class="legal-p">API keys issued to your organization are salted and hashed using SHA-256 before storage in our database. The gateway never possesses access to your plaintext credentials once generated. Ed25519 digital signatures are generated in isolated memory enclaves.</p>
 
         <h4 class="legal-h4">4. GDPR, CCPA & Data Subject Rights</h4>
-        <p class="legal-p">You maintain complete ownership of your organization's telemetry records. Organization administrators can request instant deletion or export of all historical metadata at any time via the official <a href="https://github.com/shubham1504611/mcp-shield/issues" target="_blank" style="color:var(--brand-teal);">GitHub Security & Privacy Portal</a>.</p>
+        <p class="legal-p">You maintain complete ownership of your organization's telemetry records. Organization administrators can request instant deletion or export of all historical metadata at any time via <code>/api/account/export</code> and <code>/api/account/delete</code>. You can also independently verify Ed25519 attestation keys via our public JWKS endpoint at <a href="/.well-known/jwks.json" target="_blank" style="color:var(--brand-teal);">/.well-known/jwks.json</a>.</p>
       </div>
       <div class="modal-footer">
         <button class="btn-submit" onclick="closePrivacyModal()">Close</button>

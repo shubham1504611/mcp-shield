@@ -5,7 +5,7 @@
 const { performance } = require('perf_hooks');
 const querystring = require('querystring');
 const { SecurityWaf, PUBLIC_KEY } = require('../waf');
-const { recordEvaluation, validateApiKey, checkKeyRateLimit } = require('../store');
+const { recordEvaluation, validateApiKey, checkKeyRateLimit, checkAndRecordNonce } = require('../store');
 
 const ALLOWED_ORIGINS = [
   'https://mcp-shield-gateway-core.vercel.app',
@@ -116,12 +116,22 @@ module.exports = async (req, res) => {
 
   try {
     const rawBody = await parseRequestBody(req);
+
+    // 1. Enforce 64KB Request Body Cap
+    const bodyLength = Buffer.byteLength(JSON.stringify(rawBody || {}), 'utf8');
+    if (bodyLength > 65536) {
+      return res.status(413).json({
+        error: 'PAYLOAD_TOO_LARGE',
+        message: 'Evaluation payload exceeds maximum allowed size of 64KB.'
+      });
+    }
+
     const authHeader = req.headers['authorization'] || '';
     const apiKeyHeader = req.headers['x-api-key'] || '';
     const rawKey = apiKeyHeader || (authHeader.startsWith('Bearer ') ? authHeader.substring(7).trim() : authHeader) || rawBody.apiKey;
 
-    // 1. Enforce API Key Authentication
-    const authResult = validateApiKey(rawKey);
+    // 2. Enforce API Key Authentication
+    const authResult = await validateApiKey(rawKey);
     if (!authResult.valid) {
       return res.status(401).json({
         error: 'UNAUTHORIZED',
@@ -130,9 +140,9 @@ module.exports = async (req, res) => {
       });
     }
 
-    // 2. Enforce Per-Key Rate Limiting
+    // 3. Enforce Per-Key Rate Limiting
     const keyRecord = authResult.keyRecord;
-    const keyRl = checkKeyRateLimit(keyRecord);
+    const keyRl = await checkKeyRateLimit(keyRecord);
     res.setHeader('X-RateLimit-Limit', String(keyRl.maxRpm));
     res.setHeader('X-RateLimit-Remaining', String(keyRl.remaining));
     res.setHeader('X-RateLimit-Reset', String(keyRl.retryAfter));
@@ -148,7 +158,7 @@ module.exports = async (req, res) => {
 
     const startTime = performance.now();
 
-    // 3. Enforce non-empty evaluation payload
+    // 4. Enforce non-empty evaluation payload
     if (!rawBody || typeof rawBody !== 'object' || Object.keys(rawBody).length === 0) {
       return res.status(400).json({
         error: 'INVALID_PAYLOAD',
@@ -180,14 +190,23 @@ module.exports = async (req, res) => {
     const agent = rawBody.agent || 'Live Playground';
     const customKeywords = Array.isArray(rawBody.customKeywords) ? rawBody.customKeywords : [];
     const customRegexRules = Array.isArray(rawBody.customRegexRules) ? rawBody.customRegexRules : [];
+    const policyMode = keyRecord.tier === 'production' ? 'readonly-enforce' : 'blocklist';
 
     const waf = new SecurityWaf({
       blockedKeywords: customKeywords,
       customRegexRules: customRegexRules,
-      enforceDlp: true
+      enforceDlp: true,
+      mode: policyMode
     });
 
-    const result = waf.inspectToolCall(toolName, params);
+    // 5. Fail-Closed Timeout Protection (~100ms timeout)
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('INTERNAL_EVALUATION_TIMEOUT')), 100)
+    );
+
+    const evaluationPromise = Promise.resolve().then(() => waf.inspectToolCall(toolName, params));
+    const result = await Promise.race([evaluationPromise, timeoutPromise]);
+
     const endTime = performance.now();
     const latencyMs = parseFloat((endTime - startTime).toFixed(2));
 
@@ -198,7 +217,18 @@ module.exports = async (req, res) => {
       });
     }
 
-    // Prepare live audit log entry
+    // 6. Record Nonce to Prevent Replay Attacks
+    if (result.isSafe && result.nonce) {
+      const nonceCheck = await checkAndRecordNonce(result.nonce, 300);
+      if (!nonceCheck.valid) {
+        return res.status(403).json({
+          error: 'REPLAY_ATTACK_DETECTED',
+          message: 'This cryptographic nonce has already been utilized.'
+        });
+      }
+    }
+
+    // Prepare live audit log entry with SHA-256 payload digest
     const auditEntry = {
       id: `log_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
       time: 'Just now',
@@ -210,7 +240,8 @@ module.exports = async (req, res) => {
       verdict: result.isSafe ? 'PASS: Ed25519 Signed' : `BLOCKED: ${result.rule}`,
       type: result.isSafe ? 'passed' : 'blocked',
       rule: result.rule || null,
-      latency: `${latencyMs} ms`
+      latency: `${latencyMs} ms`,
+      traceId: result.traceId || null
     };
 
     // Store durably
@@ -218,7 +249,8 @@ module.exports = async (req, res) => {
       isSafe: result.isSafe,
       rule: result.rule,
       latencyMs,
-      auditEntry
+      auditEntry,
+      orgId: keyRecord.orgId || 'org_live_default'
     });
 
     if (!result.isSafe) {

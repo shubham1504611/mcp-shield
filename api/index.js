@@ -5,6 +5,9 @@ const metricsHandler = require('./_lib/handlers/metrics');
 const logsHandler = require('./_lib/handlers/logs');
 const attestationHandler = require('./_lib/handlers/attestation');
 const registryHandler = require('./_lib/handlers/registry');
+const healthHandler = require('./_lib/handlers/health');
+const jwksHandler = require('./_lib/handlers/jwks');
+const dsrHandler = require('./_lib/handlers/dsr');
 
 const ALLOWED_ORIGINS = [
   'https://mcp-shield-gateway-core.vercel.app',
@@ -33,7 +36,7 @@ module.exports = async (req, res) => {
     res.setHeader('Access-Control-Allow-Origin', 'https://mcp-shield-gateway-core.vercel.app');
   }
 
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, DELETE');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Mcp-Method, Mcp-Name, X-API-Key, X-Admin-Secret, X-MCP-Approval-Token');
   res.setHeader('Strict-Transport-Security', 'max-age=63072000; includeSubDomains; preload');
   res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -52,7 +55,7 @@ module.exports = async (req, res) => {
     return evaluateHandler(req, res);
   }
 
-  // 2. MCP JSON-RPC Gateway & Health
+  // 2. MCP JSON-RPC Gateway
   if (pathname.endsWith('/mcp') || pathname === '/v1/mcp') {
     return mcpHandler(req, res);
   }
@@ -72,7 +75,10 @@ module.exports = async (req, res) => {
     return logsHandler(req, res);
   }
 
-  // 6. Cryptographic Attestation Public Key
+  // 6. Cryptographic Attestation Public Key & JWKS
+  if (pathname.endsWith('/jwks.json') || pathname.endsWith('/attestation/jwks') || pathname.includes('.well-known/jwks.json')) {
+    return jwksHandler(req, res);
+  }
   if (pathname.endsWith('/attestation/public-key') || pathname.endsWith('/attestation/key')) {
     return attestationHandler(req, res);
   }
@@ -82,14 +88,14 @@ module.exports = async (req, res) => {
     return registryHandler(req, res);
   }
 
-  // 8. Health Check / Status
-  if (pathname.includes('healthz') || pathname.includes('readyz')) {
-    return res.status(200).json({
-      status: 'HEALTHY',
-      service: 'MCP Shield Gateway Core',
-      engine: '4-Phase Zero-Trust WAF & AST Enclave',
-      timestamp: new Date().toISOString()
-    });
+  // 8. GDPR & CCPA Data Privacy Rights
+  if (pathname.includes('/account/export') || pathname.includes('/account/delete')) {
+    return dsrHandler(req, res);
+  }
+
+  // 9. Health Check / Status
+  if (pathname.endsWith('/health') || pathname.endsWith('/healthz') || pathname.includes('readyz')) {
+    return healthHandler(req, res);
   }
 
   // Root / Status endpoint
@@ -105,7 +111,8 @@ module.exports = async (req, res) => {
       '/api/telemetry/metrics',
       '/api/audit/logs',
       '/api/attestation/public-key',
-      '/api/registry',
+      '/api/health',
+      '/.well-known/jwks.json',
       '/v1/mcp'
     ]
   });

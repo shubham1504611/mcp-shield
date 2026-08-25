@@ -1,6 +1,6 @@
 const crypto = require('crypto');
 const querystring = require('querystring');
-const { saveApiKey } = require('../store');
+const { saveApiKey, hashKey } = require('../store');
 
 const ALLOWED_ORIGINS = [
   'https://mcp-shield-gateway-core.vercel.app',
@@ -12,11 +12,29 @@ const ALLOWED_ORIGINS = [
 
 global.__MCP_KEYGEN_RATE_LIMITS__ = global.__MCP_KEYGEN_RATE_LIMITS__ || new Map();
 
-function generateApiKey(orgId = 'org_live_default', name = 'Local Gateway Key', requestedRpm = 120, isProduction = false) {
+function verifyAdminSecret(authHeader) {
+  const adminSecret = process.env.MCP_ADMIN_SECRET;
+  if (!adminSecret || adminSecret.length < 16) return false;
+
+  const headerStr = String(authHeader || '').trim();
+  const token = headerStr.startsWith('Bearer ') ? headerStr.substring(7).trim() : headerStr;
+
+  const bufToken = Buffer.from(token);
+  const bufSecret = Buffer.from(adminSecret);
+
+  if (bufToken.length !== bufSecret.length) return false;
+  try {
+    return crypto.timingSafeEqual(bufToken, bufSecret);
+  } catch (_) {
+    return false;
+  }
+}
+
+async function generateApiKey(orgId = 'org_live_default', name = 'Local Gateway Key', requestedRpm = 120, isProduction = false) {
   const randomBytes = crypto.randomBytes(24).toString('hex');
   const prefix = isProduction ? 'mcp_live_sec_' : 'mcp_sandbox_';
   const rawKey = `${prefix}${randomBytes}`;
-  const keyHash = crypto.createHash('sha256').update(rawKey).digest('hex');
+  const keyHash = hashKey(rawKey);
   const keyPrefix = rawKey.substring(0, 16);
 
   // Self-serve sandbox keys are capped at 30 RPM, authenticated production keys up to 120 RPM
@@ -25,7 +43,6 @@ function generateApiKey(orgId = 'org_live_default', name = 'Local Gateway Key', 
   const rateLimitRpm = Number.isFinite(parsedRpm) ? Math.min(Math.max(10, parsedRpm), maxAllowedRpm) : (isProduction ? 120 : 30);
 
   const keyRecord = {
-    rawKey,
     keyPrefix,
     keyHash,
     tier: isProduction ? 'production' : 'sandbox',
@@ -36,8 +53,8 @@ function generateApiKey(orgId = 'org_live_default', name = 'Local Gateway Key', 
     createdAt: new Date().toISOString()
   };
 
-  saveApiKey(keyRecord);
-  return keyRecord;
+  await saveApiKey(keyRecord);
+  return { ...keyRecord, rawKey };
 }
 
 function getClientIp(req) {
@@ -53,8 +70,7 @@ function getClientIp(req) {
 }
 
 function checkKeygenRateLimit(ip, authHeader = '') {
-  const adminSecret = process.env.MCP_ADMIN_SECRET;
-  const isAdmin = Boolean(adminSecret && adminSecret.length >= 16 && (authHeader === `Bearer ${adminSecret}` || authHeader === adminSecret));
+  const isAdmin = verifyAdminSecret(authHeader);
   if (isAdmin) {
     return { allowed: true, isAdmin: true };
   }
@@ -181,9 +197,8 @@ module.exports = async (req, res) => {
     const name = body.name || 'Local Key';
     const rateLimitRpm = body.rateLimitRpm || 120;
 
-    const adminSecret = process.env.MCP_ADMIN_SECRET;
-    const isProduction = Boolean(adminSecret && adminSecret.length >= 16 && (authHeader === `Bearer ${adminSecret}` || authHeader === adminSecret));
-    const keyData = generateApiKey(orgId, name, rateLimitRpm, isProduction);
+    const isProduction = verifyAdminSecret(authHeader);
+    const keyData = await generateApiKey(orgId, name, rateLimitRpm, isProduction);
 
     return res.status(200).json({
       status: 'KEY_PROVISIONED',

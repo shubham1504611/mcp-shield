@@ -6,6 +6,14 @@
 
 const { discoverMcpConfigs } = require('../src/scanner');
 const { LocalShieldRunner } = require('../src/runner');
+const { verifyAttestationSignature } = require('../src/verify');
+
+const args = process.argv.slice(2);
+if (args[0] === 'verify') {
+  console.log('🔒 MCP Shield Attestation Verifier');
+  console.log('Usage: mcp-shield verify --tool <name> --payload <json> --nonce <nonce> --timestamp <ts> --sig <sig> --key <pubkey_pem>');
+  process.exit(0);
+}
 
 console.log(`
 \x1b[36m   __  __  ____ ____     ____  _     _ _____ _     ____  \x1b[0m

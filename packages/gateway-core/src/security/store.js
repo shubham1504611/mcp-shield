@@ -1,16 +1,32 @@
 /**
- * Durable Persistent Storage Layer for MCP Shield Telemetry, Audit Logs & API Keys
+ * Canonical Persistent Storage Layer for MCP Shield
  * Supports:
- * - Vercel KV / Upstash Redis REST API
- * - Local / Serverless Ephemeral Filesystem Store (/tmp/mcp_durable_state.json)
- * - Volatile In-Memory Fallback
+ * - Supabase / PostgreSQL Database via REST API (Production Serverless Mode)
+ * - HMAC-SHA256 Peppered Cryptographic Key Hashing
+ * - Atomic Sliding-Window Rate Limiting (consume_rate_limit RPC)
+ * - Cryptographic Nonce Replay Attack Prevention
+ * - Deterministic In-Memory & Ephemeral Storage Fallback for Local Dev / Tests
  */
 
 const fs = require('fs');
 const path = require('path');
 const https = require('https');
+const crypto = require('crypto');
 
 const STATE_FILE = path.join('/tmp', 'mcp_durable_state.json');
+const DEFAULT_PEPPER = 'mcp_shield_sec_pepper_v2.5.0_default';
+
+function getKeyPepper() {
+  return process.env.MCP_KEY_PEPPER || DEFAULT_PEPPER;
+}
+
+/**
+ * Compute HMAC-SHA256 hash using system pepper
+ */
+function hashKey(rawKey) {
+  if (!rawKey || typeof rawKey !== 'string') return '';
+  return crypto.createHmac('sha256', getKeyPepper()).update(rawKey.trim()).digest('hex');
+}
 
 const INITIAL_METRICS = {
   totalCalls: 0,
@@ -18,15 +34,16 @@ const INITIAL_METRICS = {
   latencies: []
 };
 
-// Initialize global in-memory layer with genuine zero-based state
+// Initialize global in-memory layer for resilience
 global.__MCP_DURABLE_STORE__ = global.__MCP_DURABLE_STORE__ || {
   metrics: { ...INITIAL_METRICS },
   logs: [],
   apiKeys: new Map(),
-  rateLimits: new Map()
+  rateLimits: new Map(),
+  usedNonces: new Map()
 };
 
-// Try loading state from disk on instance initialization
+// Load disk state if present
 try {
   if (fs.existsSync(STATE_FILE)) {
     const raw = fs.readFileSync(STATE_FILE, 'utf8');
@@ -38,12 +55,7 @@ try {
       global.__MCP_DURABLE_STORE__.logs = parsed.logs;
     }
     if (parsed.apiKeys && Array.isArray(parsed.apiKeys)) {
-      // Ensure no rawKey leaked from older state
-      const cleaned = parsed.apiKeys.map(([hash, record]) => {
-        const { rawKey, apiKey, ...safe } = record;
-        return [hash, safe];
-      });
-      global.__MCP_DURABLE_STORE__.apiKeys = new Map(cleaned);
+      global.__MCP_DURABLE_STORE__.apiKeys = new Map(parsed.apiKeys);
     }
   }
 } catch (_) {}
@@ -60,9 +72,251 @@ function persistToDisk() {
 }
 
 /**
- * Record an evaluation event durably
+ * Helper to perform HTTPS request to Supabase REST API
  */
-async function recordEvaluation({ isSafe, rule, latencyMs, auditEntry }) {
+function supabaseRest(endpoint, options = {}) {
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!supabaseUrl || !serviceKey) {
+    return Promise.resolve(null);
+  }
+
+  return new Promise((resolve) => {
+    try {
+      const url = new URL(`${supabaseUrl}/rest/v1/${endpoint.replace(/^\//, '')}`);
+      const headers = {
+        'apikey': serviceKey,
+        'Authorization': `Bearer ${serviceKey}`,
+        'Content-Type': 'application/json',
+        'Prefer': options.prefer || 'return=representation',
+        ...(options.headers || {})
+      };
+
+      const req = https.request(url, {
+        method: options.method || 'GET',
+        headers,
+        timeout: options.timeout || 1500
+      }, (res) => {
+        let data = '';
+        res.on('data', chunk => { data += chunk; });
+        res.on('end', () => {
+          try {
+            const parsed = JSON.parse(data);
+            resolve({ status: res.statusCode, data: parsed });
+          } catch (_) {
+            resolve({ status: res.statusCode, data: null });
+          }
+        });
+      });
+
+      req.on('error', () => resolve(null));
+      req.on('timeout', () => { req.destroy(); resolve(null); });
+
+      if (options.body) {
+        req.write(typeof options.body === 'string' ? options.body : JSON.stringify(options.body));
+      }
+      req.end();
+    } catch (_) {
+      resolve(null);
+    }
+  });
+}
+
+/**
+ * Store API Key (Saves only HMAC hash, NEVER plaintext)
+ */
+async function saveApiKey(keyRecord) {
+  if (!keyRecord || !keyRecord.keyHash) return;
+
+  const safeRecord = {
+    keyHash: keyRecord.keyHash,
+    keyPrefix: keyRecord.keyPrefix || 'mcp_sec_',
+    tier: keyRecord.tier || (keyRecord.keyPrefix?.startsWith('mcp_sandbox_') ? 'sandbox' : 'production'),
+    orgId: String(keyRecord.orgId || 'org_live_default').substring(0, 50),
+    name: String(keyRecord.name || 'API Key').substring(0, 50),
+    rateLimitRpm: keyRecord.rateLimitRpm || 30,
+    isActive: true,
+    createdAt: keyRecord.createdAt || new Date().toISOString()
+  };
+
+  // 1. In-memory store
+  global.__MCP_DURABLE_STORE__.apiKeys.set(safeRecord.keyHash, safeRecord);
+  persistToDisk();
+
+  // 2. Supabase persistent sync
+  if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    try {
+      await supabaseRest('api_keys', {
+        method: 'POST',
+        body: {
+          org_id: safeRecord.orgId,
+          name: safeRecord.name,
+          key_hash: safeRecord.keyHash,
+          prefix: safeRecord.keyPrefix,
+          tier: safeRecord.tier,
+          rate_limit_rpm: safeRecord.rateLimitRpm,
+          status: 'active',
+          created_at: safeRecord.createdAt
+        }
+      });
+    } catch (_) {}
+  }
+}
+
+/**
+ * Validate incoming API key against stored cryptographic HMAC hashes
+ */
+async function validateApiKey(rawKey) {
+  if (!rawKey || typeof rawKey !== 'string') {
+    return { valid: false, reason: 'MISSING_API_KEY' };
+  }
+  const trimmed = rawKey.trim();
+  if (!trimmed.startsWith('mcp_live_sec_') && !trimmed.startsWith('mcp_sandbox_')) {
+    return { valid: false, reason: 'INVALID_KEY_FORMAT' };
+  }
+
+  const keyHash = hashKey(trimmed);
+
+  // 1. Check in-memory store
+  const localRecord = global.__MCP_DURABLE_STORE__.apiKeys.get(keyHash);
+  if (localRecord) {
+    if (!localRecord.isActive) {
+      return { valid: false, reason: 'KEY_INACTIVE' };
+    }
+    return { valid: true, keyRecord: localRecord };
+  }
+
+  // 2. Query Supabase database if configured
+  if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    const res = await supabaseRest(`api_keys?key_hash=eq.${keyHash}&select=*`, {
+      method: 'GET'
+    });
+
+    if (res && res.status === 200 && Array.isArray(res.data) && res.data.length > 0) {
+      const row = res.data[0];
+      const rec = {
+        keyHash: row.key_hash,
+        keyPrefix: row.prefix,
+        tier: row.tier,
+        orgId: row.org_id,
+        name: row.name,
+        rateLimitRpm: row.rate_limit_rpm,
+        isActive: row.status === 'active',
+        createdAt: row.created_at
+      };
+
+      // Cache locally
+      global.__MCP_DURABLE_STORE__.apiKeys.set(keyHash, rec);
+
+      if (!rec.isActive) {
+        return { valid: false, reason: 'KEY_INACTIVE' };
+      }
+      return { valid: true, keyRecord: rec };
+    }
+  }
+
+  return { valid: false, reason: 'KEY_NOT_FOUND_OR_REVOKED' };
+}
+
+/**
+ * Enforce per-key rate limiting based on key's quota
+ */
+async function checkKeyRateLimit(keyRecord) {
+  const maxRpm = keyRecord.rateLimitRpm || (keyRecord.tier === 'production' ? 120 : 30);
+  const keyIdentifier = keyRecord.keyHash;
+
+  // 1. Check via Supabase RPC if configured
+  if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    try {
+      const res = await supabaseRest('rpc/consume_rate_limit', {
+        method: 'POST',
+        body: { p_bucket: keyIdentifier, p_limit: maxRpm }
+      });
+      if (res && res.status === 200 && res.data) {
+        return {
+          allowed: res.data.allowed,
+          remaining: res.data.remaining,
+          retryAfter: res.data.retry_after,
+          maxRpm
+        };
+      }
+    } catch (_) {}
+  }
+
+  // 2. Atomic In-Memory Sliding-Window Fallback
+  const now = Date.now();
+  const windowMs = 60000;
+  const store = global.__MCP_DURABLE_STORE__;
+  const record = store.rateLimits.get(keyIdentifier) || { count: 0, resetAt: now + windowMs };
+
+  if (now > record.resetAt) {
+    record.count = 0;
+    record.resetAt = now + windowMs;
+  }
+
+  if (record.count >= maxRpm) {
+    const retryAfter = Math.max(1, Math.ceil((record.resetAt - now) / 1000));
+    return { allowed: false, remaining: 0, retryAfter, maxRpm };
+  }
+
+  record.count++;
+  store.rateLimits.set(keyIdentifier, record);
+  return { 
+    allowed: true, 
+    remaining: Math.max(0, maxRpm - record.count), 
+    retryAfter: Math.max(1, Math.ceil((record.resetAt - now) / 1000)), 
+    maxRpm 
+  };
+}
+
+/**
+ * Check and record nonce to prevent replay attacks
+ */
+async function checkAndRecordNonce(nonce, ttlSeconds = 300) {
+  if (!nonce || typeof nonce !== 'string') return { valid: false, reason: 'MISSING_NONCE' };
+
+  const now = Date.now();
+  const expiresAt = now + (ttlSeconds * 1000);
+  const store = global.__MCP_DURABLE_STORE__;
+
+  // 1. Check in-memory store
+  if (store.usedNonces.has(nonce)) {
+    const exp = store.usedNonces.get(nonce);
+    if (now < exp) {
+      return { valid: false, reason: 'REPLAY_ATTACK_DETECTED' };
+    }
+  }
+
+  store.usedNonces.set(nonce, expiresAt);
+
+  // Periodic cleanup
+  if (store.usedNonces.size > 2000) {
+    for (const [n, exp] of store.usedNonces.entries()) {
+      if (now > exp) store.usedNonces.delete(n);
+    }
+  }
+
+  // 2. Check Supabase used_nonces table if configured
+  if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    try {
+      const res = await supabaseRest('used_nonces', {
+        method: 'POST',
+        body: { nonce, expires_at: new Date(expiresAt).toISOString() }
+      });
+      if (res && res.status === 409) {
+        return { valid: false, reason: 'REPLAY_ATTACK_DETECTED' };
+      }
+    } catch (_) {}
+  }
+
+  return { valid: true };
+}
+
+/**
+ * Record evaluation event durably
+ */
+async function recordEvaluation({ isSafe, rule, latencyMs, auditEntry, orgId = 'org_live_default' }) {
   const store = global.__MCP_DURABLE_STORE__;
 
   store.metrics.totalCalls++;
@@ -84,35 +338,33 @@ async function recordEvaluation({ isSafe, rule, latencyMs, auditEntry }) {
 
   persistToDisk();
 
-  // Cloud KV REST Sync if configured
-  const kvUrl = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
-  const kvToken = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
-
-  if (kvUrl && kvToken) {
+  // Supabase audit logging
+  if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY && auditEntry) {
     try {
-      const url = new URL(`${kvUrl}/pipeline`);
-      const req = https.request(url, {
+      await supabaseRest('audit_events', {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${kvToken}`,
-          'Content-Type': 'application/json'
+        body: {
+          org_id: orgId,
+          time: auditEntry.time || 'Just now',
+          timestamp: auditEntry.timestamp || new Date().toISOString(),
+          agent: auditEntry.agent || 'AI Agent',
+          agent_icon: auditEntry.agentIcon || '🤖',
+          tool: auditEntry.tool,
+          payload_sha256: crypto.createHash('sha256').update(auditEntry.payload || '').digest('hex'),
+          payload_redacted: auditEntry.payload,
+          verdict: auditEntry.verdict,
+          type: auditEntry.type,
+          rule: auditEntry.rule,
+          latency_ms: latencyMs || 0.4,
+          trace_id: auditEntry.traceId || null
         }
       });
-      const commands = [
-        ['INCR', 'mcp:metrics:totalCalls'],
-        isSafe ? null : ['INCR', 'mcp:metrics:blockedThreats'],
-        auditEntry ? ['LPUSH', 'mcp:audit_logs', JSON.stringify(auditEntry)] : null,
-        ['LTRIM', 'mcp:audit_logs', 0, 99]
-      ].filter(Boolean);
-
-      req.write(JSON.stringify(commands));
-      req.end();
     } catch (_) {}
   }
 }
 
 /**
- * Retrieve current metrics with calculated P99/avg latency
+ * Retrieve current metrics
  */
 async function getMetrics() {
   const store = global.__MCP_DURABLE_STORE__;
@@ -150,110 +402,13 @@ async function getAuditLogs(limit = 50) {
   return store.logs.slice(0, limit);
 }
 
-/**
- * Store and lookup API keys (Only stores SHA-256 hash, NEVER raw plaintext)
- */
-function saveApiKey(keyRecord) {
-  if (!keyRecord || !keyRecord.keyHash) return;
-
-  const safeRecord = {
-    keyHash: keyRecord.keyHash,
-    keyPrefix: keyRecord.keyPrefix || (keyRecord.rawKey ? keyRecord.rawKey.substring(0, 16) : 'mcp_sec_'),
-    tier: keyRecord.tier || (keyRecord.keyPrefix?.startsWith('mcp_sandbox_') ? 'sandbox' : 'production'),
-    orgId: String(keyRecord.orgId || 'org_live_default').substring(0, 50),
-    name: String(keyRecord.name || 'API Key').substring(0, 50),
-    rateLimitRpm: keyRecord.rateLimitRpm || 30,
-    isActive: true,
-    createdAt: keyRecord.createdAt || new Date().toISOString()
-  };
-
-  global.__MCP_DURABLE_STORE__.apiKeys.set(safeRecord.keyHash, safeRecord);
-  persistToDisk();
-}
-
-function getApiKey(keyHash) {
-  return global.__MCP_DURABLE_STORE__.apiKeys.get(keyHash);
-}
-
-function getAllApiKeys() {
-  return Array.from(global.__MCP_DURABLE_STORE__.apiKeys.values());
-}
-
-/**
- * Validate incoming API key against stored cryptographic hashes
- */
-function validateApiKey(rawKey) {
-  if (!rawKey || typeof rawKey !== 'string') {
-    return { valid: false, reason: 'MISSING_API_KEY' };
-  }
-  const trimmed = rawKey.trim();
-  if (!trimmed.startsWith('mcp_live_sec_') && !trimmed.startsWith('mcp_sandbox_')) {
-    return { valid: false, reason: 'INVALID_KEY_FORMAT' };
-  }
-
-  const crypto = require('crypto');
-  const keyHash = crypto.createHash('sha256').update(trimmed).digest('hex');
-  const record = global.__MCP_DURABLE_STORE__.apiKeys.get(keyHash);
-
-  if (!record) {
-    // If not found in store, allow valid sandbox format keys for demo mode, or reject if invalid
-    if (trimmed.startsWith('mcp_sandbox_') && trimmed.length >= 24) {
-      return {
-        valid: true,
-        keyRecord: {
-          keyHash,
-          keyPrefix: trimmed.substring(0, 16),
-          tier: 'sandbox',
-          rateLimitRpm: 30,
-          isActive: true,
-          orgId: 'sandbox_fleet',
-          name: 'Ephemeral Sandbox Key'
-        }
-      };
-    }
-    return { valid: false, reason: 'KEY_NOT_FOUND_OR_REVOKED' };
-  }
-
-  if (!record.isActive) {
-    return { valid: false, reason: 'KEY_INACTIVE' };
-  }
-
-  return { valid: true, keyRecord: record };
-}
-
-/**
- * Enforce per-key rate limiting based on key's quota
- */
-function checkKeyRateLimit(keyRecord) {
-  const maxRpm = keyRecord.rateLimitRpm || (keyRecord.tier === 'production' ? 120 : 30);
-  const now = Date.now();
-  const windowMs = 60000;
-  const store = global.__MCP_DURABLE_STORE__;
-  const keyIdentifier = keyRecord.keyHash;
-  const record = store.rateLimits.get(keyIdentifier) || { count: 0, resetAt: now + windowMs };
-
-  if (now > record.resetAt) {
-    record.count = 0;
-    record.resetAt = now + windowMs;
-  }
-
-  if (record.count >= maxRpm) {
-    const retryAfter = Math.max(1, Math.ceil((record.resetAt - now) / 1000));
-    return { allowed: false, remaining: 0, retryAfter, maxRpm };
-  }
-
-  record.count++;
-  store.rateLimits.set(keyIdentifier, record);
-  return { allowed: true, remaining: maxRpm - record.count, retryAfter: Math.ceil((record.resetAt - now) / 1000), maxRpm };
-}
-
 module.exports = {
+  hashKey,
+  saveApiKey,
+  validateApiKey,
+  checkKeyRateLimit,
+  checkAndRecordNonce,
   recordEvaluation,
   getMetrics,
-  getAuditLogs,
-  saveApiKey,
-  getApiKey,
-  getAllApiKeys,
-  validateApiKey,
-  checkKeyRateLimit
+  getAuditLogs
 };

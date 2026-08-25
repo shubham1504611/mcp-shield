@@ -4,6 +4,16 @@
 
 const COMMUNITY_TOOLS = [
   {
+    id: 'postgres_query',
+    name: 'PostgreSQL Database Query',
+    category: 'Databases',
+    author: 'Anthropic / MCP Core',
+    desc: 'Direct SQL execution and table inspection with AST-level mutation protection.',
+    package: '@modelcontextprotocol/server-postgres',
+    shieldCommand: 'node packages/cli-shield/bin/mcp-shield.js wrap --target "npx -y @modelcontextprotocol/server-postgres postgresql://localhost/db"',
+    rules: ['DROP TABLE Blocked', 'Mass UPDATE Blocked', 'Ed25519 Signed']
+  },
+  {
     id: 'postgres',
     name: 'PostgreSQL Database',
     category: 'Databases',
