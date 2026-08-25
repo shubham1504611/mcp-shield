@@ -17,20 +17,40 @@ const waf = new SecurityWaf();
 
 async function parseRequestBody(req) {
   if (req.body && typeof req.body === 'object' && !Buffer.isBuffer(req.body) && Object.keys(req.body).length > 0) {
-    return req.body;
+    return { data: req.body, valid: true };
   }
+
+  const isJsonHeader = (req.headers && req.headers['content-type']) ? req.headers['content-type'].includes('json') : true;
 
   if (typeof req.body === 'string' && req.body.trim().length > 0) {
     const trimmed = req.body.replace(/^\uFEFF/, '').trim();
-    try { return JSON.parse(trimmed); } catch (_) {
-      try { return querystring.parse(trimmed); } catch (_) { return { query: trimmed }; }
+    if (trimmed.startsWith('{') || trimmed.startsWith('[') || isJsonHeader) {
+      try { 
+        return { data: JSON.parse(trimmed), valid: true }; 
+      } catch (_) {
+        return { data: null, valid: false, error: 'INVALID_JSON' };
+      }
+    }
+    try { 
+      return { data: querystring.parse(trimmed), valid: true }; 
+    } catch (_) { 
+      return { data: null, valid: false, error: 'INVALID_JSON' }; 
     }
   }
 
   if (Buffer.isBuffer(req.body) && req.body.length > 0) {
     const raw = req.body.toString('utf8').replace(/^\uFEFF/, '').trim();
-    try { return JSON.parse(raw); } catch (_) {
-      try { return querystring.parse(raw); } catch (_) { return { query: raw }; }
+    if (raw.startsWith('{') || raw.startsWith('[') || isJsonHeader) {
+      try { 
+        return { data: JSON.parse(raw), valid: true }; 
+      } catch (_) {
+        return { data: null, valid: false, error: 'INVALID_JSON' };
+      }
+    }
+    try { 
+      return { data: querystring.parse(raw), valid: true }; 
+    } catch (_) { 
+      return { data: null, valid: false, error: 'INVALID_JSON' }; 
     }
   }
 
@@ -42,14 +62,23 @@ async function parseRequestBody(req) {
     if (chunks.length > 0) {
       const raw = Buffer.concat(chunks).toString('utf8').replace(/^\uFEFF/, '').trim();
       if (raw) {
-        try { return JSON.parse(raw); } catch (_) {
-          try { return querystring.parse(raw); } catch (_) { return { query: raw }; }
+        if (raw.startsWith('{') || raw.startsWith('[') || isJsonHeader) {
+          try { 
+            return { data: JSON.parse(raw), valid: true }; 
+          } catch (_) {
+            return { data: null, valid: false, error: 'INVALID_JSON' };
+          }
+        }
+        try { 
+          return { data: querystring.parse(raw), valid: true }; 
+        } catch (_) { 
+          return { data: null, valid: false, error: 'INVALID_JSON' }; 
         }
       }
     }
   } catch (_) {}
 
-  return (req.body && typeof req.body === 'object') ? req.body : {};
+  return { data: (req.body && typeof req.body === 'object') ? req.body : {}, valid: true };
 }
 
 module.exports = async (req, res) => {
@@ -110,7 +139,20 @@ module.exports = async (req, res) => {
 
   try {
     const startTime = performance.now();
-    const body = await parseRequestBody(req);
+    const parsed = await parseRequestBody(req);
+
+    if (!parsed.valid || parsed.error === 'INVALID_JSON') {
+      return res.status(400).json({
+        jsonrpc: '2.0',
+        id: null,
+        error: {
+          code: -32700,
+          message: 'Parse error: Invalid JSON was received by the server.'
+        }
+      });
+    }
+
+    const body = parsed.data;
 
     if (!body || typeof body !== 'object' || Object.keys(body).length === 0) {
       return res.status(400).json({
@@ -192,7 +234,8 @@ module.exports = async (req, res) => {
         id: requestId,
         error: {
           code: -32001,
-          message: 'Unauthorized: Valid Gateway API key is required. Pass header X-API-Key or Authorization Bearer token.'
+          message: 'Unauthorized: Valid Gateway API key is required. Pass header X-API-Key or Authorization Bearer token.',
+          data: { code: authResult.reason }
         }
       });
     }
@@ -251,6 +294,7 @@ module.exports = async (req, res) => {
         jsonrpc: '2.0',
         id: requestId,
         result: {
+          isError: true,
           status: 'REQUIRES_APPROVAL',
           action: 'HIGH_RISK_ACTION_GATED',
           approvalToken: policyResult.approvalToken,
@@ -260,7 +304,7 @@ module.exports = async (req, res) => {
           content: [
             {
               type: 'text',
-              text: `[MCP-SHIELD HUMAN-IN-THE-LOOP]: ${policyResult.reason} Approval Token: ${policyResult.approvalToken}`
+              text: `[MCP-SHIELD HUMAN-IN-THE-LOOP REQUIRED]: ${policyResult.reason} Pass header 'X-MCP-Approval-Token: ${policyResult.approvalToken}' or include approvalToken in parameters to authorize.`
             }
           ]
         }
@@ -271,6 +315,17 @@ module.exports = async (req, res) => {
       return res.status(200).json({
         jsonrpc: '2.0',
         id: requestId,
+        result: {
+          isError: true,
+          status: 'BLOCKED',
+          rule: policyResult.rule,
+          content: [
+            {
+              type: 'text',
+              text: `[MCP-SHIELD POLICY VIOLATION]: ${policyResult.reason} (Rule: ${policyResult.rule})`
+            }
+          ]
+        },
         error: {
           code: -32002,
           message: `Containment Policy Violation: ${policyResult.reason} (Rule: ${policyResult.rule})`,
@@ -314,6 +369,18 @@ module.exports = async (req, res) => {
       return res.status(200).json({
         jsonrpc: '2.0',
         id: requestId,
+        result: {
+          isError: true,
+          status: 'BLOCKED',
+          rule: check.rule,
+          traceId: check.traceId || null,
+          content: [
+            {
+              type: 'text',
+              text: `[MCP-SHIELD WAF INTERCEPTION]: Security Policy Violation: ${check.reason} (Rule: ${check.rule})`
+            }
+          ]
+        },
         error: {
           code: -32001,
           message: `Security Policy Violation: ${check.reason} (Rule: ${check.rule})`,
@@ -336,6 +403,7 @@ module.exports = async (req, res) => {
       jsonrpc: '2.0',
       id: requestId,
       result: {
+        isError: false,
         status: 'AUTHENTICATED_AND_SIGNED',
         trace_id: check.traceId,
         attestation: check.signature,

@@ -196,21 +196,6 @@ function validateApiKey(rawKey) {
   const record = global.__MCP_DURABLE_STORE__.apiKeys.get(keyHash);
 
   if (!record) {
-    // If not found in store, allow valid sandbox format keys for demo mode, or reject if invalid
-    if (trimmed.startsWith('mcp_sandbox_') && trimmed.length >= 24) {
-      return {
-        valid: true,
-        keyRecord: {
-          keyHash,
-          keyPrefix: trimmed.substring(0, 16),
-          tier: 'sandbox',
-          rateLimitRpm: 30,
-          isActive: true,
-          orgId: 'sandbox_fleet',
-          name: 'Ephemeral Sandbox Key'
-        }
-      };
-    }
     return { valid: false, reason: 'KEY_NOT_FOUND_OR_REVOKED' };
   }
 

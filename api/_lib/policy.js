@@ -8,7 +8,7 @@ const crypto = require('crypto');
 const TOOL_POLICIES = {
   postgres_query: {
     name: 'PostgreSQL Database',
-    allowedArgs: ['query', 'params', 'timeout', 'database'],
+    allowedArgs: ['query', 'sql', 'statement', 'command', 'text', 'params', 'args', 'arguments', 'timeout', 'database', 'db', 'limit', 'offset', 'name', 'tool', 'apiKey'],
     defaultReadOnly: true,
     maxQueryLength: 10000,
     requiresApprovalKeywords: ['DROP', 'TRUNCATE', 'ALTER', 'GRANT', 'REVOKE', 'SUPERUSER'],
@@ -20,7 +20,7 @@ const TOOL_POLICIES = {
   },
   postgres: {
     name: 'PostgreSQL Database',
-    allowedArgs: ['query', 'params', 'timeout', 'database'],
+    allowedArgs: ['query', 'sql', 'statement', 'command', 'text', 'params', 'args', 'arguments', 'timeout', 'database', 'db', 'limit', 'offset', 'name', 'tool', 'apiKey'],
     defaultReadOnly: true,
     maxQueryLength: 10000,
     requiresApprovalKeywords: ['DROP', 'TRUNCATE', 'ALTER', 'GRANT', 'REVOKE', 'SUPERUSER'],
@@ -32,7 +32,16 @@ const TOOL_POLICIES = {
   },
   http_fetch: {
     name: 'HTTP Fetch & Web Egress',
-    allowedArgs: ['url', 'method', 'headers', 'body', 'timeout'],
+    allowedArgs: ['url', 'method', 'headers', 'body', 'data', 'params', 'timeout', 'name', 'tool', 'apiKey'],
+    allowedMethods: ['GET', 'POST', 'HEAD', 'PUT', 'DELETE'],
+    disallowedHosts: [
+      'localhost', '127.0.0.1', '0.0.0.0', '169.254.169.254', 'metadata.google.internal',
+      'instance-data', '10.0.0.0', '192.168.0.0'
+    ]
+  },
+  http_post: {
+    name: 'HTTP Post & Web Egress',
+    allowedArgs: ['url', 'method', 'headers', 'body', 'data', 'params', 'timeout', 'name', 'tool', 'apiKey'],
     allowedMethods: ['GET', 'POST', 'HEAD', 'PUT', 'DELETE'],
     disallowedHosts: [
       'localhost', '127.0.0.1', '0.0.0.0', '169.254.169.254', 'metadata.google.internal',
@@ -41,7 +50,7 @@ const TOOL_POLICIES = {
   },
   fetch: {
     name: 'HTTP Fetch & Web Egress',
-    allowedArgs: ['url', 'method', 'headers', 'body', 'timeout'],
+    allowedArgs: ['url', 'method', 'headers', 'body', 'data', 'params', 'timeout', 'name', 'tool', 'apiKey'],
     allowedMethods: ['GET', 'POST', 'HEAD', 'PUT', 'DELETE'],
     disallowedHosts: [
       'localhost', '127.0.0.1', '0.0.0.0', '169.254.169.254', 'metadata.google.internal',
@@ -50,19 +59,23 @@ const TOOL_POLICIES = {
   },
   filesystem_read: {
     name: 'Local Filesystem Reader',
-    allowedArgs: ['path', 'encoding', 'maxBytes'],
+    allowedArgs: ['path', 'filepath', 'filename', 'file', 'encoding', 'maxBytes', 'name', 'tool', 'apiKey'],
     disallowedPaths: ['/etc/shadow', '/etc/passwd', '/proc', '/sys', '/dev', 'C:\\Windows\\System32', 'C:\\Boot']
   },
   filesystem_write: {
     name: 'Local Filesystem Writer',
-    allowedArgs: ['path', 'content', 'encoding'],
+    allowedArgs: ['path', 'filepath', 'filename', 'file', 'content', 'data', 'encoding', 'name', 'tool', 'apiKey'],
     requiresApproval: true,
     disallowedPaths: ['/etc', '/boot', '/usr', '/bin', '/sbin', 'C:\\Windows']
   },
   filesystem: {
     name: 'Local Filesystem',
-    allowedArgs: ['path', 'content', 'encoding', 'operation'],
+    allowedArgs: ['path', 'filepath', 'filename', 'file', 'content', 'data', 'encoding', 'operation', 'name', 'tool', 'apiKey'],
     disallowedPaths: ['/etc', '/boot', '/usr', '/bin', '/sbin', 'C:\\Windows']
+  },
+  agent_prompt_filter: {
+    name: 'Agent Prompt Filter',
+    allowedArgs: ['prompt', 'text', 'input', 'query', 'message', 'name', 'tool', 'apiKey']
   }
 };
 
@@ -108,8 +121,9 @@ function evaluateToolPolicy(toolName, params = {}, options = {}) {
   }
 
   // 2. High-Risk Human-In-The-Loop Detection
-  if (policy.requiresApprovalKeywords && params.query) {
-    const queryUpper = String(params.query).toUpperCase();
+  const queryCandidate = params.query || params.sql || params.statement || params.text || params.command;
+  if (policy.requiresApprovalKeywords && queryCandidate) {
+    const queryUpper = String(queryCandidate).toUpperCase();
     for (const kw of policy.requiresApprovalKeywords) {
       if (queryUpper.includes(kw)) {
         // If caller provided a valid approval token, permit through
