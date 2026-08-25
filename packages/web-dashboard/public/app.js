@@ -39,11 +39,24 @@ const PRESETS = {
   }
 };
 
-// 2. Custom DLP & Policy Rules State
+// 2. Custom DLP & Policy Rules State (Persisted in localStorage)
 let customBlockedKeywords = ['salaries', 'auth_tokens'];
 let customRegexRules = [
   { name: 'Internal Employee ID', pattern: '\\bEMP-\\d{5}\\b' }
 ];
+
+try {
+  const savedKw = localStorage.getItem('mcp_custom_keywords');
+  if (savedKw) {
+    const parsed = JSON.parse(savedKw);
+    if (Array.isArray(parsed) && parsed.length > 0) customBlockedKeywords = parsed;
+  }
+  const savedRx = localStorage.getItem('mcp_custom_regex');
+  if (savedRx) {
+    const parsed = JSON.parse(savedRx);
+    if (Array.isArray(parsed) && parsed.length > 0) customRegexRules = parsed;
+  }
+} catch (_) {}
 
 let currentFeedFilter = 'all';
 let localAuditFeedCache = [];
@@ -552,21 +565,45 @@ function renderCustomPoliciesUI() {
   const rxList = document.getElementById('custom-regex-list');
 
   if (kwList) {
-    kwList.innerHTML = customBlockedKeywords.map(kw => `
-      <span class="policy-tag">
-        <span>${escapeHtml(kw)}</span>
-        <span class="policy-tag-remove" onclick="removeCustomKeyword('${escapeHtml(kw)}')">✕</span>
-      </span>
-    `).join('') || '<span style="font-size: 0.75rem; color: #94a3b8;">No custom blocked keywords configured.</span>';
+    kwList.innerHTML = '';
+    if (customBlockedKeywords.length === 0) {
+      kwList.innerHTML = '<span style="font-size: 0.75rem; color: #94a3b8;">No custom blocked keywords configured.</span>';
+    } else {
+      customBlockedKeywords.forEach(kw => {
+        const tag = document.createElement('span');
+        tag.className = 'policy-tag';
+        const txt = document.createElement('span');
+        txt.textContent = kw;
+        const removeBtn = document.createElement('span');
+        removeBtn.className = 'policy-tag-remove';
+        removeBtn.textContent = '✕';
+        removeBtn.addEventListener('click', () => removeCustomKeyword(kw));
+        tag.appendChild(txt);
+        tag.appendChild(removeBtn);
+        kwList.appendChild(tag);
+      });
+    }
   }
 
   if (rxList) {
-    rxList.innerHTML = customRegexRules.map(r => `
-      <span class="policy-tag">
-        <span><b>${escapeHtml(r.name)}:</b> <code>${escapeHtml(r.pattern)}</code></span>
-        <span class="policy-tag-remove" onclick="removeCustomRegexRule('${escapeHtml(r.name)}')">✕</span>
-      </span>
-    `).join('') || '<span style="font-size: 0.75rem; color: #94a3b8;">No custom regex rules configured.</span>';
+    rxList.innerHTML = '';
+    if (customRegexRules.length === 0) {
+      rxList.innerHTML = '<span style="font-size: 0.75rem; color: #94a3b8;">No custom regex rules configured.</span>';
+    } else {
+      customRegexRules.forEach(r => {
+        const tag = document.createElement('span');
+        tag.className = 'policy-tag';
+        const txt = document.createElement('span');
+        txt.innerHTML = `<b>${escapeHtml(r.name)}:</b> <code>${escapeHtml(r.pattern)}</code>`;
+        const removeBtn = document.createElement('span');
+        removeBtn.className = 'policy-tag-remove';
+        removeBtn.textContent = '✕';
+        removeBtn.addEventListener('click', () => removeCustomRegexRule(r.name));
+        tag.appendChild(txt);
+        tag.appendChild(removeBtn);
+        rxList.appendChild(tag);
+      });
+    }
   }
 
   const label = document.getElementById('custom-rules-label');
@@ -594,6 +631,7 @@ function addCustomKeyword() {
   if (!customBlockedKeywords.includes(val)) {
     customBlockedKeywords.push(val);
     input.value = '';
+    try { localStorage.setItem('mcp_custom_keywords', JSON.stringify(customBlockedKeywords)); } catch (_) {}
     renderCustomPoliciesUI();
     showToast(`Added blocked keyword: '${val}'`);
   }
@@ -601,6 +639,7 @@ function addCustomKeyword() {
 
 function removeCustomKeyword(kw) {
   customBlockedKeywords = customBlockedKeywords.filter(k => k !== kw);
+  try { localStorage.setItem('mcp_custom_keywords', JSON.stringify(customBlockedKeywords)); } catch (_) {}
   renderCustomPoliciesUI();
   showToast(`Removed keyword: '${kw}'`);
 }
@@ -626,12 +665,14 @@ function addCustomRegexRule() {
   customRegexRules.push({ name, pattern });
   nameInput.value = '';
   patInput.value = '';
+  try { localStorage.setItem('mcp_custom_regex', JSON.stringify(customRegexRules)); } catch (_) {}
   renderCustomPoliciesUI();
   showToast(`Added custom regex rule: '${name}'`);
 }
 
 function removeCustomRegexRule(name) {
   customRegexRules = customRegexRules.filter(r => r.name !== name);
+  try { localStorage.setItem('mcp_custom_regex', JSON.stringify(customRegexRules)); } catch (_) {}
   renderCustomPoliciesUI();
   showToast(`Removed regex rule: '${name}'`);
 }

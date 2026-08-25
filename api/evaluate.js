@@ -214,7 +214,6 @@ module.exports = async (req, res) => {
         reason: result.reason,
         matchedSnippet: result.matchedSnippet,
         latencyMs,
-        clientIp: clientIp.replace(/:\d+$/, ''),
         logEntry: auditEntry,
         response: {
           status: 'BLOCKED',

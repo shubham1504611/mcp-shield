@@ -407,7 +407,7 @@ Result: Query executed successfully</code>
         <div class="guarantee-num">02</div>
         <h3 class="guarantee-heading">Zero Destructive Mutations</h3>
         <p class="guarantee-body">
-          Autonomous agents make mistakes. Our AST-level SQL armor blocks dangerous DDL statements (<code>DROP TABLE</code>, <code>TRUNCATE</code>, <code>ALTER</code>) and prevents unconstrained bulk row deletions.
+          Autonomous agents make mistakes. Our AST-level SQL armor blocks dangerous DDL statements (<code>DROP TABLE</code>, <code>TRUNCATE</code>, <code>ALTER</code>, <code>CREATE</code>), DCL privilege escalation (<code>GRANT</code>, <code>REVOKE</code>), file exfiltration (<code>COPY</code>, <code>lo_export</code>), and unconstrained bulk row mutations.
         </p>
       </div>
 

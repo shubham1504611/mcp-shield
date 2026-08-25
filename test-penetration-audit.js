@@ -408,6 +408,60 @@ test('Comprehensive Penetration Testing & Cryptographic Audit Verification Suite
       category: 'Cyrillic Homoglyph SQL Keyword Injection (DRОP ТАBLE)',
       payload: 'DRОP ТАBLE users;',
       expectedRule: 'DESTRUCTIVE_SQL_DDL'
+    },
+    {
+      id: 67,
+      category: 'PostgreSQL COPY Data Exfiltration (COPY users TO ...)',
+      payload: "COPY users TO '/tmp/pwned.csv' WITH CSV HEADER",
+      expectedRule: 'DANGEROUS_SQL_FILE_EXFILTRATION'
+    },
+    {
+      id: 68,
+      category: 'DCL Privilege Escalation (GRANT ALL PRIVILEGES)',
+      payload: 'GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO attacker',
+      expectedRule: 'DCL_PRIVILEGE_MODIFICATION_BLOCKED'
+    },
+    {
+      id: 69,
+      category: 'Backdoor Superuser Creation (CREATE USER WITH SUPERUSER)',
+      payload: "CREATE USER hacker WITH SUPERUSER PASSWORD 'pwned'",
+      expectedRule: 'UNAUTHORIZED_ACCOUNT_MUTATION'
+    },
+    {
+      id: 70,
+      category: 'Administrative Lockout Mutation (ALTER USER postgres PASSWORD)',
+      payload: "ALTER USER postgres WITH PASSWORD 'hacked'",
+      expectedRule: 'UNAUTHORIZED_ACCOUNT_MUTATION'
+    },
+    {
+      id: 71,
+      category: 'DCL Denial of Service (REVOKE ALL ON SCHEMA)',
+      payload: 'REVOKE ALL ON SCHEMA public FROM PUBLIC',
+      expectedRule: 'DCL_PRIVILEGE_MODIFICATION_BLOCKED'
+    },
+    {
+      id: 72,
+      category: 'Large Object File System Export (SELECT lo_export)',
+      payload: "SELECT lo_export(12345, '/tmp/pwned.txt')",
+      expectedRule: 'DANGEROUS_PG_FUNCTION_BLOCKED'
+    },
+    {
+      id: 73,
+      category: 'PostgreSQL Command Execution via COPY FROM PROGRAM',
+      payload: "COPY users FROM PROGRAM 'id > /tmp/pwned'",
+      expectedRule: 'DANGEROUS_SQL_FILE_EXFILTRATION'
+    },
+    {
+      id: 74,
+      category: 'Server File System Arbitrary Read (SELECT pg_read_file)',
+      payload: "SELECT pg_read_file('/etc/passwd')",
+      expectedRule: 'PATH_TRAVERSAL_DETECTED'
+    },
+    {
+      id: 75,
+      category: 'Anonymous Procedural Execution Block (DO $$ ... $$)',
+      payload: "DO $$ BEGIN EXECUTE 'DROP TABLE users'; END $$",
+      expectedRule: 'SQL_MULTI_STATEMENT_INJECTION'
     }
   ];
 
@@ -421,7 +475,7 @@ test('Comprehensive Penetration Testing & Cryptographic Audit Verification Suite
     });
   }
 
-  await t.test('Vector #67 [In-Place Unicode & Zero-Width Sanitization]: Injected U+200B and U+202E characters MUST be stripped from returned payload', () => {
+  await t.test('Vector #76 [In-Place Unicode & Zero-Width Sanitization]: Injected U+200B and U+202E characters MUST be stripped from returned payload', () => {
     const dirtyPayload = { query: 'SELECT id,\u200B name\u202E FROM users WHERE active = true' };
     const res = waf.inspectToolCall('postgres_query', dirtyPayload);
 
@@ -431,7 +485,7 @@ test('Comprehensive Penetration Testing & Cryptographic Audit Verification Suite
     assert.ok(!res.sanitizedPayload.query.includes('\u202E'), 'Failed to strip U+202E RTL override character!');
   });
 
-  await t.test('Vector #68 [Legitimate Safe Query]: Should permit, attach nonce/timestamp, and cryptographically sign valid read queries', () => {
+  await t.test('Vector #77 [Legitimate Safe Query]: Should permit, attach nonce/timestamp, and cryptographically sign valid read queries', () => {
     const safePayload = { query: 'SELECT id, name, created_at FROM organizations WHERE plan = "enterprise" LIMIT 20;' };
     const res = waf.inspectToolCall('postgres_query', safePayload);
 
@@ -445,7 +499,7 @@ test('Comprehensive Penetration Testing & Cryptographic Audit Verification Suite
     assert.ok(res.publicKey);
   });
 
-  await t.test('Vector #69 [Ed25519 Attestation Nonce/Context Binding & Mathematical Verification]: Anyone can independently verify signature against canonical spec', () => {
+  await t.test('Vector #78 [Ed25519 Attestation Nonce/Context Binding & Mathematical Verification]: Anyone can independently verify signature against canonical spec', () => {
     const { verifyAttestation } = require('./packages/gateway-core/src/security/waf');
     const payload = { query: 'SELECT * FROM users WHERE active = true' };
     const res = waf.inspectToolCall('postgres_query', payload);
@@ -457,7 +511,7 @@ test('Comprehensive Penetration Testing & Cryptographic Audit Verification Suite
     assert.strictEqual(isVerified, true, 'Cryptographic Ed25519 verification failed against canonical specification!');
   });
 
-  await t.test('Vector #70 [Deterministic Ed25519 Key Persistence Across Cold Starts]: Public keys remain stable and cross-verifiable', () => {
+  await t.test('Vector #79 [Deterministic Ed25519 Key Persistence Across Cold Starts]: Public keys remain stable and cross-verifiable', () => {
     const { getPublicKey } = require('./packages/gateway-core/src/security/waf');
     const key1 = getPublicKey();
     const key2 = require('./api/lib/waf').PUBLIC_KEY;
@@ -466,7 +520,7 @@ test('Comprehensive Penetration Testing & Cryptographic Audit Verification Suite
     assert.ok(key1.includes('BEGIN PUBLIC KEY'), 'Invalid PEM public key format');
   });
 
-  await t.test('Vector #71 [Empty Parameter Payload Rejection]: Tool invocations with empty body or empty parameters must be rejected', () => {
+  await t.test('Vector #80 [Empty Parameter Payload Rejection]: Tool invocations with empty body or empty parameters must be rejected', () => {
     const res1 = waf.inspectToolCall('postgres_query', {});
     assert.strictEqual(res1.isSafe, false);
     assert.strictEqual(res1.rule, 'EMPTY_PAYLOAD_REJECTED');

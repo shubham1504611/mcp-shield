@@ -77,9 +77,21 @@ const DLP_PATTERNS = [
 // Sensitive Column Extraction Regex (DLP Column Protection)
 const RE_SENSITIVE_COLUMN_EXTRACTION = /\b(SELECT|EXTRACT|GET)\s+[\s\S]*?\b(credit_card(_number)?|credit_card_num|card_number|card_num|cc_number|cc_num|cvv[0-9]?|cvc[0-9]?|ssn|social_security(_number)?|bank_account(_number)?|routing_number|api_keys?|secret_tokens?|auth_tokens?|access_tokens?|private_keys?|master_keys?|passwords?|password_hash|passwd)\b/i;
 
-// Phase 3: SQL AST & Blast Radius Patterns
-const RE_SQL_MULTI_STATEMENT = /;\s*(--|\/\*|SELECT|INSERT|UPDATE|DELETE|DROP|TRUNCATE|ALTER|CREATE|EXEC|\w+)/i;
-const RE_SQL_DDL = /\b(DROP\s+TABLE|DROP\s+DATABASE|DROP\s+VIEW|DROP\s+SCHEMA|DROP\s+ROLE|DROP\s+USER|TRUNCATE(\s+TABLE)?|ALTER\s+TABLE)\b/i;
+// Phase 3: SQL AST, DDL, DCL, File Bridges & Blast Radius Patterns
+const RE_SQL_MULTI_STATEMENT = /;\s*(--|\/\*|SELECT|INSERT|UPDATE|DELETE|DROP|TRUNCATE|ALTER|CREATE|GRANT|REVOKE|COPY|DO|EXECUTE|PREPARE|CALL|VACUUM|REINDEX|SET|SHOW|\w+)/i;
+
+// Comprehensive DDL Blocklist (DROP, TRUNCATE, ALTER, CREATE)
+const RE_SQL_DDL = /\b(?:DROP\s+(?:TABLE|DATABASE|VIEW|MATERIALIZED\s+VIEW|SCHEMA|ROLE|USER|GROUP|EXTENSION|FUNCTION|PROCEDURE|TRIGGER|POLICY|INDEX|SEQUENCE|TYPE|SERVER|COLLATION|CONVERSION|DOMAIN|OPERATOR)|TRUNCATE(?:\s+TABLE)?|ALTER\s+(?:TABLE|USER|ROLE|GROUP|DATABASE|SYSTEM|SCHEMA|EXTENSION|FUNCTION|PROCEDURE|TRIGGER|POLICY|SERVER|INDEX|VIEW|SEQUENCE|TYPE|DEFAULT\s+PRIVILEGES)|CREATE\s+(?:OR\s+REPLACE\s+)?(?:USER|ROLE|GROUP|SCHEMA|DATABASE|EXTENSION|FUNCTION|PROCEDURE|TRIGGER|EVENT\s+TRIGGER|POLICY|SERVER|FOREIGN|PUBLICATION|SUBSCRIPTION|VIEW|MATERIALIZED\s+VIEW|TYPE))\b/i;
+
+// Comprehensive DCL Privilege Modification Blocklist (GRANT, REVOKE)
+const RE_SQL_DCL = /\b(?:GRANT\s+[\s\S]+?\bTO\b|REVOKE\s+[\s\S]+?\bFROM\b)\b/i;
+
+// PostgreSQL File Exfiltration & Bridge Commands (COPY TO/FROM, lo_export, pg_read_file, pg_write_file, dblink)
+const RE_SQL_FILE_EXFILTRATION = /\b(?:COPY\s+[\s\S]+?\b(?:TO|FROM)\b|lo_export\s*\(|lo_import\s*\(|lo_unlink\s*\(|pg_read_file\s*\(|pg_write_file\s*\(|pg_ls_dir\s*\(|pg_read_binary_file\s*\(|pg_stat_file\s*\(|dblink\s*\(|dblink_exec\s*\(|dblink_connect\s*\()/i;
+
+// Anonymous Procedural Execution & Session Impersonation (DO $$, EXECUTE IMMEDIATE, PREPARE)
+const RE_SQL_PROCEDURAL_EXEC = /\b(?:DO\s+\$\$|EXECUTE\s+(?:IMMEDIATE\s+)?|PREPARE\s+\w+|SET\s+SESSION\s+AUTHORIZATION|SET\s+ROLE\s+|SECURITY\s+DEFINER)\b/i;
+
 const RE_SQL_UNION_INJECTION = /\bUNION(\s+ALL)?\s+SELECT\b/i;
 const RE_SQL_TAUTOLOGY = /\b(?:OR|AND)\s+(?:1\s*=\s*1|0\s*=\s*0|TRUE\b|'([^']+)'\s*=\s*'\1')/i;
 const RE_SQL_WHERE_TAUTOLOGY = /\bWHERE\s+(?:1\s*=\s*1|0\s*=\s*0|TRUE\s*(?:;|\-\-|\/\*|$)|'([^']+)'\s*=\s*'\1')/i;
@@ -94,7 +106,7 @@ const RE_SQL_SENSITIVE_TABLES = /\b(FROM|JOIN|INTO|UPDATE|TABLE)\s+["`\w]*(pg_sh
 const RE_SQL_UNCONSTRAINED_DELETE = /\bDELETE\s+FROM\s+["`\w]+(?!\s+WHERE\b)/i;
 const RE_SQL_UNCONSTRAINED_UPDATE = /\bUPDATE\s+["`\w]+(\s+SET\s+[\s\S]+?)(?!\s+WHERE\b)/i;
 const RE_SQL_PRIVILEGED_DML = /\b(INSERT\s+INTO|UPDATE)\s+["`\w]*(admin|auth|roles?|permissions?|credentials?|salaries?)["`\w]*/i;
-const RE_SQL_PRIVILEGE_ESCALATION = /\b(SET|UPDATE|VALUES|SELECT)\s+.*?\b(role\s*=\s*['"]?admin['"]?|is_admin\s*=\s*(1|true|'1'|'true'|'admin')|is_superuser\s*=\s*(1|true)|privileges?\s*=\s*|access_level\s*=\s*|'admin')/i;
+const RE_SQL_PRIVILEGE_ESCALATION = /\b(SET|UPDATE|VALUES|SELECT)\s+.*?\b(role\s*=\s*['"]?admin['"]?|is_admin\s*=\s*(1|true|'1'|'true'|'admin')|is_superuser\s*=\s*(1|true)|privileges?\s*=\s*|access_level\s*=\s*|'admin'|SUPERUSER\b)/i;
 const RE_SQL_WHERE = /\bWHERE\b/i;
 
 // DML with Nested Subquery
@@ -140,7 +152,7 @@ try {
 }
 
 /**
- * Lightweight In-Memory SQL Lexer & Tokenizer
+ * High-Performance In-Memory SQL AST Lexer & Statement Tree Analyzer
  */
 class SqlAstLexer {
   static tokenize(sql) {
@@ -235,6 +247,145 @@ class SqlAstLexer {
     }
 
     return tokens;
+  }
+
+  static parseStatements(sql) {
+    if (!sql || typeof sql !== 'string') return [];
+    const tokens = this.tokenize(sql);
+    const statements = [];
+    let current = [];
+
+    for (const tok of tokens) {
+      if (tok.type === 'SEMICOLON') {
+        if (current.length > 0) {
+          statements.push(current);
+          current = [];
+        }
+      } else {
+        current.push(tok);
+      }
+    }
+    if (current.length > 0) {
+      statements.push(current);
+    }
+    return statements;
+  }
+
+  static analyzeAst(sql) {
+    if (!sql || typeof sql !== 'string') return { isSafe: true };
+    const statements = this.parseStatements(sql);
+
+    // Multi-statement inspection via AST statement boundaries
+    if (statements.length > 1) {
+      return {
+        isSafe: false,
+        rule: 'SQL_MULTI_STATEMENT_INJECTION',
+        reason: 'Multiple chained SQL statements detected in single payload'
+      };
+    }
+
+    const DANGEROUS_PG_FUNCS = new Set([
+      'LO_EXPORT', 'LO_IMPORT', 'LO_UNLINK', 'PG_READ_FILE', 'PG_WRITE_FILE',
+      'PG_LS_DIR', 'PG_READ_BINARY_FILE', 'PG_STAT_FILE', 'DBLINK', 'DBLINK_EXEC',
+      'DBLINK_CONNECT', 'PG_SLEEP', 'SLEEP', 'BENCHMARK', 'DBMS_LOCK.SLEEP'
+    ]);
+
+    const SENSITIVE_TABLE_NAMES = new Set([
+      'PG_SHADOW', 'PG_AUTHID', 'PG_ROLES', 'PG_USER', 'PG_DATABASE', 'PG_SETTINGS',
+      'INFORMATION_SCHEMA', 'SQLITE_MASTER', 'SYS_CONFIG', 'USER_PASSWORDS',
+      'ADMIN_CREDENTIALS', 'SECRET_STORE', 'API_KEYS'
+    ]);
+
+    for (const stmt of statements) {
+      const keywords = stmt.filter(t => t.type === 'KEYWORD_OR_IDENT').map(t => t.upper);
+      if (keywords.length === 0) continue;
+
+      const firstKw = keywords[0];
+
+      // DCL Statements: GRANT, REVOKE
+      if (firstKw === 'GRANT' || firstKw === 'REVOKE') {
+        return {
+          isSafe: false,
+          rule: 'DCL_PRIVILEGE_MODIFICATION_BLOCKED',
+          reason: `Database Control Language (DCL) statement '${firstKw}' is strictly forbidden`
+        };
+      }
+
+      // File I/O Exfiltration: COPY
+      if (firstKw === 'COPY') {
+        return {
+          isSafe: false,
+          rule: 'DANGEROUS_SQL_FILE_EXFILTRATION',
+          reason: 'PostgreSQL COPY statement (file/filesystem data export or import) is strictly blocked'
+        };
+      }
+
+      // Anonymous Block Execution: DO, EXECUTE, PREPARE
+      if (firstKw === 'DO' || firstKw === 'EXECUTE' || firstKw === 'PREPARE' || firstKw === 'DISCARD') {
+        return {
+          isSafe: false,
+          rule: 'UNAUTHORIZED_PRIVILEGED_DML',
+          reason: `Dangerous procedural execution statement '${firstKw}' is prohibited`
+        };
+      }
+
+      // DDL Statements: DROP, TRUNCATE, ALTER, CREATE
+      if (firstKw === 'DROP' || firstKw === 'TRUNCATE') {
+        return {
+          isSafe: false,
+          rule: 'DESTRUCTIVE_SQL_DDL',
+          reason: `Administrative DDL statement '${firstKw}' is strictly forbidden`
+        };
+      }
+
+      if (firstKw === 'ALTER') {
+        const secondKw = keywords[1] || '';
+        return {
+          isSafe: false,
+          rule: 'DESTRUCTIVE_SQL_DDL',
+          reason: `Administrative ALTER statement ('ALTER ${secondKw}') is strictly forbidden`
+        };
+      }
+
+      if (firstKw === 'CREATE') {
+        const secondKw = keywords[1] || '';
+        if (['USER', 'ROLE', 'GROUP', 'SCHEMA', 'DATABASE', 'EXTENSION', 'FUNCTION', 'PROCEDURE', 'TRIGGER', 'POLICY', 'SERVER', 'TABLE'].includes(secondKw) || keywords.includes('SUPERUSER')) {
+          return {
+            isSafe: false,
+            rule: (secondKw === 'USER' || secondKw === 'ROLE' || keywords.includes('SUPERUSER')) ? 'UNAUTHORIZED_ACCOUNT_MUTATION' : 'DESTRUCTIVE_SQL_DDL',
+            reason: `Administrative CREATE statement ('CREATE ${secondKw}') is strictly forbidden`
+          };
+        }
+      }
+
+      // Check all identifiers for dangerous functions and tables
+      for (const kw of keywords) {
+        if (DANGEROUS_PG_FUNCS.has(kw)) {
+          if (kw === 'PG_SLEEP' || kw === 'SLEEP' || kw === 'BENCHMARK') {
+            return {
+              isSafe: false,
+              rule: 'BLIND_SQL_TIME_DELAY_INJECTION',
+              reason: `Blind SQL time-delay injection function '${kw}' is blocked`
+            };
+          }
+          return {
+            isSafe: false,
+            rule: 'DANGEROUS_PG_FUNCTION_BLOCKED',
+            reason: `Dangerous PostgreSQL server function '${kw}' (filesystem/remote execution) is strictly blocked`
+          };
+        }
+
+        if (SENSITIVE_TABLE_NAMES.has(kw)) {
+          return {
+            isSafe: false,
+            rule: 'SENSITIVE_CREDENTIAL_TABLE_BLOCKED',
+            reason: `Access to sensitive catalog / credential table '${kw}' is blocked`
+          };
+        }
+      }
+    }
+
+    return { isSafe: true };
   }
 }
 
@@ -634,6 +785,27 @@ class SecurityWaf {
 
       const candidate = this.stripSqlComments(str);
 
+      // Phase 3.1: Structural SQL AST Tree Analysis
+      const astRawResult = SqlAstLexer.analyzeAst(str);
+      if (!astRawResult.isSafe) {
+        return {
+          isSafe: false,
+          rule: astRawResult.rule,
+          matchedSnippet: str.substring(0, 100),
+          reason: astRawResult.reason
+        };
+      }
+
+      const astCandidateResult = SqlAstLexer.analyzeAst(candidate);
+      if (!astCandidateResult.isSafe) {
+        return {
+          isSafe: false,
+          rule: astCandidateResult.rule,
+          matchedSnippet: candidate.substring(0, 100),
+          reason: astCandidateResult.reason
+        };
+      }
+
       // Compact alphanumeric signature for detecting fragmented / split keywords (e.g. DR/*x*/OP, D/**/R/**/O/**/P)
       const compactAlpha = str.toUpperCase().replace(/[^A-Z0-9]/g, '');
 
@@ -647,7 +819,45 @@ class SecurityWaf {
         };
       }
 
-      // 2. Unconstrained DELETE (without WHERE or with WHERE 1=1 tautology)
+      // 2. PostgreSQL COPY & Server File I/O Bridge Exfiltration (COPY TO/FROM, lo_export, pg_read_file, pg_write_file)
+      if (RE_SQL_FILE_EXFILTRATION.test(str) || RE_SQL_FILE_EXFILTRATION.test(candidate) ||
+          (compactAlpha.includes('COPY') && (compactAlpha.includes('TO') || compactAlpha.includes('FROM') || compactAlpha.includes('PROGRAM') || compactAlpha.includes('STDIN') || compactAlpha.includes('STDOUT'))) ||
+          compactAlpha.includes('LOEXPORT') || compactAlpha.includes('LOIMPORT') || compactAlpha.includes('LOUNLINK') ||
+          compactAlpha.includes('PGREADFILE') || compactAlpha.includes('PGWRITEFILE') || compactAlpha.includes('PGLSDIR') ||
+          compactAlpha.includes('DBLINK')) {
+        return {
+          isSafe: false,
+          rule: 'DANGEROUS_SQL_FILE_EXFILTRATION',
+          matchedSnippet: str.substring(0, 100),
+          reason: 'PostgreSQL COPY file exfiltration or dangerous server I/O bridge function is strictly blocked'
+        };
+      }
+
+      // 3. Database Control Language (DCL) Privilege Grant / Revoke (GRANT, REVOKE)
+      if (RE_SQL_DCL.test(str) || RE_SQL_DCL.test(candidate) ||
+          compactAlpha.startsWith('GRANT') || compactAlpha.startsWith('REVOKE') ||
+          (compactAlpha.includes('GRANT') && compactAlpha.includes('TO')) ||
+          (compactAlpha.includes('REVOKE') && compactAlpha.includes('FROM'))) {
+        return {
+          isSafe: false,
+          rule: 'DCL_PRIVILEGE_MODIFICATION_BLOCKED',
+          matchedSnippet: str.substring(0, 100),
+          reason: 'Database Control Language (DCL) GRANT/REVOKE privilege statement is strictly forbidden'
+        };
+      }
+
+      // 4. Anonymous Procedural Execution & Session Impersonation (DO $$, EXECUTE, PREPARE)
+      if (RE_SQL_PROCEDURAL_EXEC.test(str) || RE_SQL_PROCEDURAL_EXEC.test(candidate) ||
+          compactAlpha.includes('DO$$') || compactAlpha.includes('EXECUTEIMMEDIATE') || compactAlpha.includes('SECURITYDEFINER')) {
+        return {
+          isSafe: false,
+          rule: 'UNAUTHORIZED_PRIVILEGED_DML',
+          matchedSnippet: str.substring(0, 100),
+          reason: 'Anonymous procedural execution block or session authorization override is prohibited'
+        };
+      }
+
+      // 5. Unconstrained DELETE (without WHERE or with WHERE 1=1 tautology)
       if ((/\bDELETE\s+FROM\b/i.test(candidate) && !RE_SQL_WHERE.test(candidate)) || (/\bDELETE\s+FROM\b/i.test(candidate) && RE_SQL_WHERE_TAUTOLOGY.test(candidate))) {
         return {
           isSafe: false,
@@ -657,7 +867,7 @@ class SecurityWaf {
         };
       }
 
-      // 3. Unconstrained UPDATE (without WHERE or with WHERE 1=1 tautology)
+      // 6. Unconstrained UPDATE (without WHERE or with WHERE 1=1 tautology)
       if ((/\bUPDATE\s+["`\w]+\s+SET\b/i.test(candidate) && !RE_SQL_WHERE.test(candidate)) || (/\bUPDATE\s+["`\w]+\s+SET\b/i.test(candidate) && RE_SQL_WHERE_TAUTOLOGY.test(candidate))) {
         return {
           isSafe: false,
@@ -667,21 +877,25 @@ class SecurityWaf {
         };
       }
 
-      // 4. Destructive DDL (DROP, TRUNCATE, ALTER) - Check raw, stripped, and compact sequence
+      // 7. Destructive DDL (DROP, TRUNCATE, ALTER, CREATE) - Check raw, stripped, and compact sequence
       if (RE_SQL_DDL.test(str) || RE_SQL_DDL.test(candidate) || 
           compactAlpha.includes('DROPTABLE') || compactAlpha.includes('DROPDATABASE') || 
           compactAlpha.includes('DROPVIEW') || compactAlpha.includes('DROPSCHEMA') || 
           compactAlpha.includes('DROPROLE') || compactAlpha.includes('DROPUSER') || 
-          compactAlpha.includes('TRUNCATETABLE') || compactAlpha.includes('ALTERTABLE')) {
+          compactAlpha.includes('TRUNCATETABLE') || compactAlpha.includes('ALTERTABLE') ||
+          compactAlpha.includes('ALTERUSER') || compactAlpha.includes('ALTERROLE') ||
+          compactAlpha.includes('ALTERDATABASE') || compactAlpha.includes('ALTERSYSTEM') ||
+          compactAlpha.includes('CREATEUSER') || compactAlpha.includes('CREATEROLE') ||
+          compactAlpha.includes('CREATEEXTENSION') || compactAlpha.includes('SUPERUSER')) {
         return {
           isSafe: false,
-          rule: 'DESTRUCTIVE_SQL_DDL',
+          rule: (compactAlpha.includes('CREATEUSER') || compactAlpha.includes('CREATEROLE') || compactAlpha.includes('ALTERUSER') || compactAlpha.includes('ALTERROLE')) ? 'UNAUTHORIZED_ACCOUNT_MUTATION' : 'DESTRUCTIVE_SQL_DDL',
           matchedSnippet: str.substring(0, 100),
-          reason: 'Administrative DDL statement (DROP/TRUNCATE/ALTER) is strictly forbidden'
+          reason: 'Administrative DDL statement (DROP/TRUNCATE/ALTER/CREATE) is strictly forbidden'
         };
       }
 
-      // 5. Time-Based Blind SQL Injection (pg_sleep, WAITFOR DELAY, BENCHMARK)
+      // 8. Time-Based Blind SQL Injection (pg_sleep, WAITFOR DELAY, BENCHMARK)
       if (RE_SQL_TIME_DELAY.test(str) || RE_SQL_TIME_DELAY.test(candidate) || 
           compactAlpha.includes('PGSLEEP') || compactAlpha.includes('WAITFORDELAY') || compactAlpha.includes('BENCHMARK')) {
         return {
@@ -692,7 +906,7 @@ class SecurityWaf {
         };
       }
 
-      // 6. CTE with DML mutations (WITH ... AS (DELETE/UPDATE/INSERT...))
+      // 9. CTE with DML mutations (WITH ... AS (DELETE/UPDATE/INSERT...))
       if (RE_SQL_CTE_DML.test(str) || RE_SQL_CTE_DML.test(candidate)) {
         return {
           isSafe: false,
@@ -702,7 +916,7 @@ class SecurityWaf {
         };
       }
 
-      // 7. UNION-based SQL injection exfiltration
+      // 10. UNION-based SQL injection exfiltration
       if (RE_SQL_UNION_INJECTION.test(str) || RE_SQL_UNION_INJECTION.test(candidate) || compactAlpha.includes('UNIONSELECT') || compactAlpha.includes('UNIONALLSELECT')) {
         return {
           isSafe: false,
@@ -712,7 +926,7 @@ class SecurityWaf {
         };
       }
 
-      // 8. SQL Tautology / Predicate Bypass (OR 1=1, WHERE 1=1, HAVING 1=1, boolean TRUE)
+      // 11. SQL Tautology / Predicate Bypass (OR 1=1, WHERE 1=1, HAVING 1=1, boolean TRUE)
       if (RE_SQL_TAUTOLOGY.test(candidate) || RE_SQL_WHERE_TAUTOLOGY.test(candidate) || RE_SQL_HAVING_TAUTOLOGY.test(candidate)) {
         return {
           isSafe: false,
@@ -722,7 +936,7 @@ class SecurityWaf {
         };
       }
 
-      // 9. Sensitive Credential / Secret Tables Access & System Catalog
+      // 12. Sensitive Credential / Secret Tables Access & System Catalog
       if (RE_SQL_SENSITIVE_TABLES.test(str) || RE_SQL_SENSITIVE_TABLES.test(candidate) ||
           compactAlpha.includes('PGSHADOW') || compactAlpha.includes('PGAUTHID') || compactAlpha.includes('PGROLES') ||
           compactAlpha.includes('INFORMATIONSCHEMATABLES') || compactAlpha.includes('INFORMATIONSCHEMACOLUMNS')) {
@@ -734,7 +948,7 @@ class SecurityWaf {
         };
       }
 
-      // 10. DML with Nested Subqueries (e.g. INSERT INTO ... VALUES (1, (SELECT ...)))
+      // 13. DML with Nested Subqueries (e.g. INSERT INTO ... VALUES (1, (SELECT ...)))
       if (RE_SQL_DML_SUBQUERY.test(str) || RE_SQL_DML_SUBQUERY.test(candidate)) {
         return {
           isSafe: false,
@@ -744,7 +958,7 @@ class SecurityWaf {
         };
       }
 
-      // 11. Unauthorized Account & Identity Table Mutations
+      // 14. Unauthorized Account & Identity Table Mutations
       if (RE_SQL_UNAUTHORIZED_ACCOUNT_MUTATION.test(str) || RE_SQL_UNAUTHORIZED_ACCOUNT_MUTATION.test(candidate)) {
         return {
           isSafe: false,
@@ -754,7 +968,7 @@ class SecurityWaf {
         };
       }
 
-      // 12. Privileged DML / Unauthorized Table Injection
+      // 15. Privileged DML / Unauthorized Table Injection
       if (RE_SQL_PRIVILEGED_DML.test(candidate)) {
         return {
           isSafe: false,
@@ -764,7 +978,7 @@ class SecurityWaf {
         };
       }
 
-      // 13. Privilege Escalation Attempt (is_admin=1, role='admin')
+      // 16. Privilege Escalation Attempt (is_admin=1, role='admin')
       if (RE_SQL_PRIVILEGE_ESCALATION.test(candidate) || RE_SQL_PRIVILEGE_ESCALATION.test(str)) {
         return {
           isSafe: false,
