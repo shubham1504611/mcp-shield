@@ -62,56 +62,6 @@ let currentFeedFilter = 'all';
 let localAuditFeedCache = [];
 
 document.addEventListener('DOMContentLoaded', () => {
-  // Preset buttons click listeners
-  document.querySelectorAll('.play-preset-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      e.preventDefault();
-      const presetKey = btn.dataset.preset || btn.getAttribute('onclick')?.match(/'([^']+)'/)?.[1];
-      if (presetKey) {
-        loadPlaygroundPreset(presetKey);
-      }
-    });
-  });
-
-  // Evaluate button click listener
-  const evalBtn = document.getElementById('btn-play-run') || document.querySelector('.btn-play-run');
-  if (evalBtn) {
-    evalBtn.addEventListener('click', (e) => {
-      e.preventDefault();
-      executePlayground();
-    });
-  }
-
-  // Quickstart tab buttons
-  document.querySelectorAll('.quick-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      e.preventDefault();
-      const key = btn.dataset.quick || btn.getAttribute('onclick')?.match(/'([^']+)'/)?.[1];
-      if (key) {
-        switchQuickstart(key);
-      }
-    });
-  });
-
-  // Feed filter buttons
-  document.querySelectorAll('.feed-filter-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      e.preventDefault();
-      const filter = btn.id?.replace('filter-', '') || btn.getAttribute('onclick')?.match(/'([^']+)'/)?.[1];
-      if (filter) {
-        filterAuditFeed(filter);
-      }
-    });
-  });
-
-  // FAQ accordion toggles
-  document.querySelectorAll('.faq-head').forEach(head => {
-    head.addEventListener('click', (e) => {
-      e.preventDefault();
-      toggleFaqRow(head);
-    });
-  });
-
   renderCustomPoliciesUI();
 
   // Restore existing key from storage if present, or leave ready for user entry
@@ -806,22 +756,8 @@ function loadPlaygroundPreset(key) {
   const toolBadge = document.querySelector('.play-method');
   if (toolBadge && p.tool) toolBadge.innerText = p.tool;
 
-  // Set the verdict & audit panel to awaiting state until user clicks Evaluate
-  const outputEl = document.getElementById('playground-output');
-  if (outputEl) {
-    outputEl.innerText = `// Preset loaded [${p.tool}]:\n// Click "⚡ Evaluate Payload" below to run in-memory AST & DLP security inspection...`;
-  }
-  const badge = document.getElementById('playground-badge');
-  if (badge) {
-    badge.className = 'code-badge badge-neutral';
-    badge.innerText = 'AWAITING EVALUATION';
-  }
-  const latEl = document.getElementById('play-lat');
-  if (latEl) latEl.innerText = '-- ms';
-  const riskEl = document.getElementById('play-risk');
-  if (riskEl) riskEl.innerText = '--';
-  const sigEl = document.getElementById('play-sig');
-  if (sigEl) sigEl.innerText = 'Awaiting evaluation...';
+  // Immediately evaluate payload for instant live feedback
+  executePlayground(p.tool);
 }
 
 // 9.5 Interactive System Topology Simulator
